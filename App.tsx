@@ -229,10 +229,6 @@ function App() {
                   }));
                   try {
                       await updateRecordsBatchById(updates);
-                      setToast({ 
-                          type: 'success', 
-                          message: `Hệ thống tự động đồng bộ ${updates.length} hồ sơ tiếp nhận hôm nay về các phòng chuyên môn (Sau 18h00).` 
-                      });
                       loadData();
                   } catch (err) {
                       console.error("Lỗi tự động chuyển hồ sơ sau 18h:", err);

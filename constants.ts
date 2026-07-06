@@ -108,13 +108,13 @@ export const getShortRecordType = (type: string | null | undefined): string => {
   
   // Kiểm tra cụm từ dài/đặc biệt trước
   if (t.includes('cung cấp dữ liệu đất đai')) return '1.1 CC DL ĐĐ';
-  if (t.includes('1.2 công văn') || t.includes('công văn')) return '1.2 CV';
-  if (t.includes('trích lục quy hoạch')) return '2.2 TLQH';
-  if (t.includes('trích lục')) return '2.1 TL';
-  if (t.includes('trích đo cắm mốc')) return '2.4 CMốc';
-  if (t.includes('trích đo tách - hợp thửa')) return '2.5 TT-TH';
-  if (t.includes('trích đo')) return '2.3 TĐ';
-  if (t.includes('cung cấp số thửa')) return '2.6 CC Số Thửa';
+  if (t.includes('1.2 Công văn') || t.includes('công văn')) return '1.2 Công văn';
+  if (t.includes('trích lục quy hoạch')) return '2.2 Trích lục QH';
+  if (t.includes('trích lục')) return '2.1 Trích lục';
+  if (t.includes('trích đo cắm mốc')) return '2.4 Cắm mốc';
+  if (t.includes('trích đo tách - hợp thửa')) return '2.5 Tách-Hợp thửa';
+  if (t.includes('trích đo')) return '2.3 Trích đo';
+  if (t.includes('cung cấp số thửa')) return '2.6 CC số thửa';
   if (t.includes('chuyển mục đích không xin phép')) return '3.5 CMĐ-KXP';
   if (t.includes('thừa kế')) return '3.1 TK';
   if (t.includes('tặng cho')) return '3.2 TC';
@@ -122,7 +122,7 @@ export const getShortRecordType = (type: string | null | undefined): string => {
   if (t.includes('thỏa thuận')) return '3.4 VBTT';
   if (t.includes('cấp đổi')) return '3.6 Cấp Đổi';
   if (t.includes('cấp lại')) return '3.7 Cấp Lại';
-  if (t.includes('tách - hợp') || t.includes('tách thửa') || t.includes('hợp thửa')) return '3.8 T-HT';
+  if (t.includes('tách - hợp') || t.includes('tách thửa') || t.includes('hợp thửa')) return '3.8 Tách-Hợp thửa';
   if (t.includes('gia hạn')) return '3.9 GH';
  
   return type; 

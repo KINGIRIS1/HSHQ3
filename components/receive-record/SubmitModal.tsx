@@ -180,17 +180,6 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ isOpen, onClose, records, onC
                             Vui lòng chọn {isCheckMode ? 'Tổ trưởng/Tổ phó tương ứng' : 'Giám đốc/Phó giám đốc'} để hoàn tất hồ sơ:
                         </p>
 
-                        {/* Hiển thị thông báo về tổ thụ lý được lọc tự động */}
-                        {isCheckMode && recordTeams.length > 0 && (
-                            <div className="mb-4 bg-orange-50 p-3.5 rounded-xl border border-orange-100/70">
-                                <span className="block text-xs font-bold text-orange-800 uppercase tracking-wider mb-1">
-                                    Đang tự động giới hạn nghiêm ngặt
-                                </span>
-                                <p className="text-[11px] text-orange-700 font-medium leading-relaxed">
-                                    Để tránh nhầm lẫn, hệ thống chỉ hiển thị các tài khoản <span className="font-bold text-orange-950">Tổ trưởng, Tổ phó</span> thực tế của Tổ thụ lý (<span className="font-bold text-orange-950">{recordTeams.join(', ')}</span>).
-                                </p>
-                            </div>
-                        )}
                         
                         <div className="space-y-4 max-h-[280px] overflow-y-auto pr-1">
                             {Object.keys(groupedCheckers).map((teamName) => (

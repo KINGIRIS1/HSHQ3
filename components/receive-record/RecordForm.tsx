@@ -1352,69 +1352,73 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                     </div>
 
                     {/* Shaded Area Grid */}
-                    <div className="bg-emerald-50/40 border border-emerald-100 rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-3">
-                            <div className="flex items-center gap-4">
-                                <div className="text-xs font-bold text-emerald-800 uppercase ml-0.5">
-                                    Diện tích thửa đất (m²)
-                                </div>
-                                <div className="flex items-center bg-emerald-50 border border-emerald-300 rounded px-2 py-0.5 text-xs font-bold text-emerald-800 w-[320px] h-[26px]" title="Tổng diện tích">
-                                    <span className="shrink-0 text-emerald-800 font-bold">Tổng diện tích :</span>
-                                    <input 
-                                        type="number" 
-                                        step="any" 
-                                        readOnly 
-                                        className="w-full border-none bg-transparent outline-none text-right font-mono font-bold text-emerald-900 cursor-not-allowed px-1.5" 
-                                        value={formData.area || 0} 
-                                    />
-                                    <span className="shrink-0 text-emerald-600 text-[10px] font-bold">m²</span>
-                                </div>
+                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                        {/* Header Block */}
+                        <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-700 tracking-wide uppercase">
+                                    DIỆN TÍCH THỬA ĐẤT:
+                                </span>
+                                <span className="text-sm font-black text-slate-900 bg-slate-200/60 px-2.5 py-1 rounded-md font-mono">
+                                    {(formData.area || 0).toLocaleString('vi-VN')} m²
+                                </span>
                             </div>
                             <button 
                                 type="button" 
                                 onClick={addLandAreaRow}
-                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold flex items-center gap-0.5 active:scale-95 shadow-sm transition-all h-[24px]"
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 shadow-sm transition-all cursor-pointer"
                             >
                                 <span>+ Thêm loại đất</span>
                             </button>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                            {landAreaRows.map((row, index) => (
-                                <div key={index} className="flex items-center gap-1.5 bg-white border border-emerald-200 rounded-md p-1 shadow-sm animate-fade-in w-[280px] shrink-0 h-[34px]">
-                                    <div className="w-[75px] shrink-0">
-                                        <select 
-                                            className="w-full px-1 py-0.5 border border-slate-200 rounded text-xs bg-white outline-none focus:border-emerald-500 font-bold text-slate-700 cursor-pointer h-[24px]"
-                                            value={row.type}
-                                            onChange={(e) => handleLandRowTypeChange(index, e.target.value)}
-                                        >
-                                            <option value="ONT/ODT">ONT/ODT</option>
-                                            <option value="CLN">CLN</option>
-                                            <option value="BHK">BHK</option>
-                                            <option value="LUC">LUC</option>
-                                            <option value="Khác">Khác</option>
-                                        </select>
+
+                        {/* Rows Block */}
+                        <div className="p-4 bg-white">
+                            <div className="flex flex-wrap items-center gap-3">
+                                {landAreaRows.length === 0 ? (
+                                    <div className="text-xs text-slate-400 font-medium italic w-full text-center py-2">
+                                        Chưa có loại đất nào được thêm. Hãy nhấn nút "+ Thêm loại đất".
                                     </div>
-                                    <div className="flex-1 flex items-center gap-1">
-                                        <input 
-                                            type="number" 
-                                            step="any" 
-                                            placeholder="Diện tích" 
-                                            className="w-full border border-slate-200 rounded px-1.5 py-0.5 text-xs font-semibold text-slate-800 bg-white focus:border-emerald-500 outline-none text-right h-[24px]" 
-                                            value={row.area === '' ? '' : row.area} 
-                                            onChange={(e) => handleLandRowAreaChange(index, e.target.value)} 
-                                        />
-                                        <span className="text-[10px] font-bold text-slate-400 shrink-0">m²</span>
-                                    </div>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => removeLandAreaRow(index)}
-                                        className="text-red-500 hover:text-red-700 p-0.5 transition-colors shrink-0"
-                                        title="Xóa loại đất này"
-                                    >
-                                        <XCircle size={15} />
-                                    </button>
-                                </div>
-                            ))}
+                                ) : (
+                                    landAreaRows.map((row, index) => (
+                                        <div key={index} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-1.5 shadow-sm animate-fade-in shrink-0 h-[44px]">
+                                            <div className="relative shrink-0">
+                                                <select 
+                                                    className="pl-2 pr-6 py-1 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:border-emerald-500 font-bold text-slate-700 cursor-pointer h-[30px] appearance-none"
+                                                    style={{ backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>")`, backgroundPosition: 'right 6px center', backgroundSize: '12px', backgroundRepeat: 'no-repeat' }}
+                                                    value={row.type}
+                                                    onChange={(e) => handleLandRowTypeChange(index, e.target.value)}
+                                                >
+                                                    <option value="ONT/ODT">ONT/ODT</option>
+                                                    <option value="CLN">CLN</option>
+                                                    <option value="BHK">BHK</option>
+                                                    <option value="LUC">LUC</option>
+                                                    <option value="Khác">Khác</option>
+                                                </select>
+                                            </div>
+                                            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 h-[30px] w-28 focus-within:border-emerald-500">
+                                                <input 
+                                                    type="number" 
+                                                    step="any" 
+                                                    placeholder="0,0" 
+                                                    className="w-full border-none bg-transparent outline-none text-right font-mono font-bold text-xs text-slate-800" 
+                                                    value={row.area === '' ? '' : row.area} 
+                                                    onChange={(e) => handleLandRowAreaChange(index, e.target.value)} 
+                                                />
+                                                <span className="text-[10px] font-bold text-slate-400 shrink-0">m²</span>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => removeLandAreaRow(index)}
+                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded-lg transition-colors shrink-0 cursor-pointer"
+                                                title="Xóa loại đất này"
+                                            >
+                                                <XCircle size={15} />
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

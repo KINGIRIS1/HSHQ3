@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx-js-style';
 import { RecordFile, RecordStatus, Employee } from '../../types';
 import { getNormalizedWard, getShortRecordType, REGISTRATION_PROCEDURES } from '../../constants';
 import { isArchiveType, isMeasurementType, isRegType } from '../../utils/appHelpers';
-import { Search, Eye, FileSpreadsheet, Pencil, Printer, Trash2, Send, XCircle, UserPlus } from 'lucide-react';
+import { Search, Eye, FileSpreadsheet, Pencil, Printer, Trash2, Send, XCircle, UserPlus, FileSignature } from 'lucide-react';
 import AssignModal from '../AssignModal';
 
 interface DailyListProps {
@@ -18,6 +18,7 @@ interface DailyListProps {
   onDeleteRaw?: (id: string) => Promise<boolean>;
   onSave?: (record: RecordFile) => Promise<RecordFile | null>;
   onPrint: (record: RecordFile) => void;
+  onCreateContract?: (record: RecordFile) => void;
 }
 
 // Hàm lấy mã viết tắt (Prefix) từ tên Xã/Phường
@@ -54,7 +55,8 @@ const DailyList: React.FC<DailyListProps> = ({
   onDelete, 
   onDeleteRaw,
   onSave,
-  onPrint 
+  onPrint,
+  onCreateContract
 }) => {
   const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -657,7 +659,7 @@ const DailyList: React.FC<DailyListProps> = ({
                             <th className="p-4 w-[120px]">Loại Hồ Sơ</th> 
                             <th className="p-4 text-center w-[110px]">Hẹn Trả</th> 
                             <th className="p-4 w-[140px]">Ghi Chú</th>
-                            <th className="p-4 w-[110px] text-center">Thao tác</th>
+                            <th className="p-4 w-[130px] text-center">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-sm">
@@ -702,6 +704,26 @@ const DailyList: React.FC<DailyListProps> = ({
                                     </td>
                                     <td className="p-4 align-middle text-center font-semibold">
                                         <div className="flex items-center justify-center gap-1.5">
+                                            {(() => {
+                                                const rTypeStr = (r.recordType || '').toLowerCase();
+                                                const isTrichDoCamMoc = rTypeStr.includes('cắm mốc') || rTypeStr.includes('2.4');
+                                                const isTrichDo = (rTypeStr.includes('trích đo') || rTypeStr.includes('2.3')) && 
+                                                                  !rTypeStr.includes('tách') && 
+                                                                  !rTypeStr.includes('hợp') && 
+                                                                  !rTypeStr.includes('lục');
+                                                if (onCreateContract && (isTrichDoCamMoc || isTrichDo)) {
+                                                    return (
+                                                        <button 
+                                                            onClick={() => onCreateContract(r)} 
+                                                            className="hover:text-amber-700 hover:bg-amber-50 text-amber-600 p-1.5 rounded-md border border-amber-100 hover:border-amber-300 transition-all cursor-pointer" 
+                                                            title="Lập hợp đồng"
+                                                        >
+                                                            <FileSignature size={14} />
+                                                        </button>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
                                             <button 
                                                 onClick={() => onEdit(r)} 
                                                 className="hover:text-indigo-700 hover:bg-indigo-50 text-indigo-600 p-1.5 rounded-md border border-indigo-100 hover:border-indigo-300 transition-all cursor-pointer" 

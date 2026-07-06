@@ -566,6 +566,12 @@ const ReceiveRecord: React.FC<ReceiveRecordProps> = ({ onSave, onDelete, wards, 
                 onDeleteRaw={onDelete}
                 onSave={handleSaveRecordWithForce}
                 onPrint={handlePreviewDocx}
+                onCreateContract={(rec) => {
+                    if (setRecordToContract && setCurrentView) {
+                        setRecordToContract(rec);
+                        setCurrentView('receive_contract');
+                    }
+                }}
             />
         )}
 
