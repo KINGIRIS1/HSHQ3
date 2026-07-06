@@ -105,9 +105,9 @@ export const useAppData = (currentUser: User | null) => {
     const loadData = useCallback(async () => {
         try {
             // Tạo timeout promise để tránh việc fetch bị treo mãi mãi
-            // Đặt timeout ngắn (4s) để tải trang nhanh nhất có thể nếu DB chậm hoặc bị treo
+            // Nâng lên 25 giây để tải toàn bộ hơn 5600 hồ sơ từ Supabase Cloud thành công trên mọi đường truyền
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("Timeout")), 4000)
+                setTimeout(() => reject(new Error("Timeout")), 25000)
             );
 
             const dataPromise = Promise.all([

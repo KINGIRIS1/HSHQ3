@@ -999,6 +999,7 @@ const CongVanView: React.FC<CongVanViewProps> = ({
   const isManager =
     ((currentUser.role as string) === "ADMIN" ||
     (currentUser.role as string) === "SUBADMIN" ||
+    (currentUser.role as string) === "TEAM_LEADER" ||
     (currentUser.role as string) === "admin" ||
     (currentUser.role as string) === "subadmin") &&
     isAllowedToModify;

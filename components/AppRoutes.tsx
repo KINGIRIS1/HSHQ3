@@ -502,7 +502,10 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
 
     const isSubAdminAllowedTab = isViewAllowedForUser(currentUser, currentView, employees);
 
-    const tabAllowedCanPerformAction = canPerformAction && isSubAdminAllowedTab;
+    const tabAllowedCanPerformAction = 
+      canPerformAction && 
+      (isSubAdminAllowedTab || 
+       (isAssignAny && (isAdmin || isSubadmin || hasTeamLeaderPrivileges)));
 
     const showChotDanhSach = tabAllowedCanPerformAction && isHandoverAny && props.handoverTab === "today" && props.selectedRecordIds.size > 0;
     const showXuatExcelTraKQ = tabAllowedCanPerformAction && isHandoverAny && props.handoverTab === "returned";

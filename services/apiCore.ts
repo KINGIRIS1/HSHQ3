@@ -189,6 +189,39 @@ export const sanitizeData = (data: any, allowedColumns: string[]) => {
 };
 
 // --- MAPPERS ---
+let cachedSyncedIdsSet: Set<string> | null = null;
+const getCachedSyncedIds = (): Set<string> => {
+    if (cachedSyncedIdsSet === null) {
+        cachedSyncedIdsSet = new Set();
+        try {
+            if (typeof window !== 'undefined') {
+                const stored = localStorage.getItem('synced_record_ids');
+                if (stored) {
+                    const arr = JSON.parse(stored);
+                    if (Array.isArray(arr)) {
+                        arr.forEach(id => cachedSyncedIdsSet?.add(id));
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Lỗi khi đọc synced_record_ids từ localStorage:", e);
+        }
+    }
+    return cachedSyncedIdsSet;
+};
+
+export const markRecordAsSyncedInCache = (id: string) => {
+    const s = getCachedSyncedIds();
+    s.add(id);
+    try {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('synced_record_ids', JSON.stringify(Array.from(s)));
+        }
+    } catch (e) {
+        console.error("Lỗi khi lưu synced_record_ids vào localStorage:", e);
+    }
+};
+
 export const mapRecordFromDb = (item: any): any => {
     if (!item) return item;
     const r = { ...item };
@@ -242,9 +275,19 @@ export const mapRecordFromDb = (item: any): any => {
     if (r.privateNotes === undefined && (r.privatenotes !== undefined || r.private_notes !== undefined)) r.privateNotes = r.privatenotes || r.private_notes;
     if (r.personalNotes === undefined && (r.personalnotes !== undefined || r.personal_notes !== undefined)) r.personalNotes = r.personalnotes || r.personal_notes;
     
-    if (r.isDeptSynced === undefined && (r.isdeptsynced !== undefined || r.is_dept_synced !== undefined)) {
-        const val = r.isdeptsynced !== undefined ? r.isdeptsynced : r.is_dept_synced;
-        r.isDeptSynced = val === true || val === 'true' || val === 1 || val === '1';
+    if (r.isDeptSynced === true) {
+        if (r.id) {
+            markRecordAsSyncedInCache(r.id);
+        }
+    } else if (r.isDeptSynced === undefined) {
+        if (r.isdeptsynced !== undefined || r.is_dept_synced !== undefined) {
+            const val = r.isdeptsynced !== undefined ? r.isdeptsynced : r.is_dept_synced;
+            r.isDeptSynced = val === true || val === 'true' || val === 1 || val === '1';
+        } else {
+            // Tự khôi phục/suy luận giá trị nếu cột chưa tồn tại trong database Supabase của khách hàng
+            const syncedLocal = typeof window !== 'undefined' && getCachedSyncedIds().has(r.id);
+            r.isDeptSynced = syncedLocal || (r.status !== 'RECEIVED' && r.status !== 'RECEIVED_CONTRACT') || !!r.assignedTo;
+        }
     }
 
     if (r.hasDefect === undefined && (r.hasdefect !== undefined || r.has_defect !== undefined)) {
