@@ -206,6 +206,49 @@ function App() {
       setSelectedRecordIds(new Set());
   }, [currentView, recordFilterProps.handoverTab]);
 
+  // CHẾ ĐỘ TỰ ĐỘNG CHUYỂN CHUYÊN MÔN SAU 18:00 HẰNG NGÀY
+  useEffect(() => {
+      if (!currentUser || !records || records.length === 0) return;
+
+      const autoTransferAfter18 = async () => {
+          const today = new Date();
+          const currentHours = today.getHours();
+          
+          if (currentHours >= 18) {
+              const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+              const unsyncedTodayRecords = records.filter(r => {
+                  const recordDate = r.receivedDate ? r.receivedDate.split('T')[0] : '';
+                  return recordDate === todayStr && r.isDeptSynced === false;
+              });
+
+              if (unsyncedTodayRecords.length > 0) {
+                  console.log(`Auto-transfer active: It is after 18:00. Automatically syncing ${unsyncedTodayRecords.length} today's records...`);
+                  const updates = unsyncedTodayRecords.map(r => ({
+                      ...r,
+                      isDeptSynced: true
+                  }));
+                  try {
+                      await updateRecordsBatchById(updates);
+                      setToast({ 
+                          type: 'success', 
+                          message: `Hệ thống tự động đồng bộ ${updates.length} hồ sơ tiếp nhận hôm nay về các phòng chuyên môn (Sau 18h00).` 
+                      });
+                      loadData();
+                  } catch (err) {
+                      console.error("Lỗi tự động chuyển hồ sơ sau 18h:", err);
+                  }
+              }
+          }
+      };
+
+      // Run initially on load
+      autoTransferAfter18();
+
+      // Check every 5 minutes
+      const interval = setInterval(autoTransferAfter18, 5 * 60 * 1000);
+      return () => clearInterval(interval);
+  }, [records, currentUser, loadData]);
+
   // Chat Listener
   useGlobalChatListener(currentUser, currentView, notificationEnabled, setUnreadMessages);
 
@@ -353,6 +396,10 @@ function App() {
           return newSet;
       });
   }, []);
+
+  useEffect(() => {
+      setSelectedRecordIds(new Set());
+  }, [currentView]);
 
   const confirmAssign = async (employeeId: string, workflowType?: string | null) => {
       const nowStr = new Date().toISOString();

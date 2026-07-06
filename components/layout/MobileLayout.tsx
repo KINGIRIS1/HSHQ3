@@ -35,7 +35,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   const navItems = [
     { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
     { id: 'all_records', label: 'Hồ sơ', icon: FileText },
-    { id: 'barcode_generator', label: 'Mã vạch', icon: ScanBarcode },
+    { id: 'mobile_search', label: 'Tìm kiếm', icon: Search },
     { id: 'account_settings', label: 'Cài đặt', icon: Settings },
   ];
 

@@ -3,7 +3,7 @@ import { RecordFile, Employee, User, UserRole, Holiday } from '../../types';
 import MobileDashboard from './MobileDashboard';
 import MobileRecordList from './MobileRecordList';
 import MobileSettingsView from './MobileSettingsView';
-import BarcodeGeneratorView from '../BarcodeGeneratorView';
+import MobileSearchTab from './MobileSearchTab';
 
 interface MobileRoutesProps {
   currentView: string;
@@ -63,7 +63,16 @@ const MobileRoutes: React.FC<MobileRoutesProps> = (props) => {
       );
 
     case 'barcode_generator':
-      return <BarcodeGeneratorView />;
+    case 'mobile_search':
+      return (
+        <MobileSearchTab 
+          records={records}
+          employees={employees}
+          holidays={props.holidays}
+          currentUser={currentUser}
+          onViewRecordDetail={props.handleViewRecord}
+        />
+      );
 
     case 'account_settings':
       return (

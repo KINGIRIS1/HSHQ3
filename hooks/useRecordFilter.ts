@@ -304,7 +304,7 @@ export const useRecordFilter = (
 
         const isSpecializedView = isRegistrationView || isArchiveView || isCongVanView || isOtherView || isMeasurementView;
         if (isSpecializedView) {
-            result = result.filter(r => r.isDeptSynced === true);
+            result = result.filter(r => r.isDeptSynced !== false);
         }
 
         if (isArchiveView) {

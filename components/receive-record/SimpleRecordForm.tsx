@@ -95,17 +95,7 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
             </h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className={labelClass}>MÃ HỒ SƠ <span className="text-red-500">*</span></label>
-              <input 
-                type="text" 
-                readOnly 
-                className={`${plainInputClass} bg-slate-50 text-slate-500 font-medium cursor-not-allowed`}
-                value={formData.code || ''} 
-                placeholder="Mã số sẽ tự động sinh khi Lưu hoặc In..."
-              />
-            </div>
+          <div className="grid grid-cols-1 gap-4 mb-4">
             <div>
               <label className={labelClass}>CƠ QUAN PHÁT HÀNH / NƠI GỬI NHẬN <span className="text-red-500">*</span></label>
               <input 
@@ -135,9 +125,8 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className={labelClass}>Địa bàn Phường/xã <span className="text-red-500">*</span></label>
+              <label className={labelClass}>Địa bàn Phường/xã</label>
               <select 
-                required 
                 className={selectClass} 
                 value={formData.ward || ''} 
                 onChange={(e) => handleChange('ward', e.target.value)}
@@ -180,10 +169,9 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
               />
             </div>
             <div>
-              <label className={labelClass}>Hạn xử lý (Hẹn trả) <span className="text-red-500">*</span></label>
+              <label className={labelClass}>Hạn xử lý (Hẹn trả)</label>
               <input 
                 type="date" 
-                required
                 className={plainInputClass} 
                 value={dateVal(formData.deadline)} 
                 onChange={(e) => handleChange('deadline', e.target.value)} 

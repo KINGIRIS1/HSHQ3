@@ -176,7 +176,6 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
     // 5. Mặc định: Hiển thị tất cả ngoại trừ 'CMD', 'Tòa án', 'Thi hành án' và '2.7 Trích lục CMĐ' (không hiện ở tab hồ sơ)
     return [
       '1.1 Cung cấp dữ liệu đất đai',
-      '1.2 Công văn',
       '2.1 Trích lục',
       '2.2 Trích lục Quy hoạch',
       '2.3 Trích đo',
@@ -527,11 +526,13 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                 <div className="bg-white p-4 md:p-5 rounded-lg border border-gray-200 shadow-sm">
                     <h3 className="text-sm font-bold text-blue-800 uppercase mb-4 flex items-center gap-2 border-b pb-2"><Calendar size={16} /> Thông tin chung</h3>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div className="md:col-span-1">
-                            <label className="block text-xs font-bold text-gray-700 mb-1">Mã hồ sơ <span className="text-red-500">*</span></label>
-                            <input type="text" required className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 font-bold text-blue-700" value={val(formData.code)} onChange={(e) => handleChange('code', e.target.value)} />
-                        </div>
-                        <div className={isRegistrationRecord && !isDefaultTaxProcedure ? "md:col-span-2" : "md:col-span-3"}>
+                        {formData.recordType !== '1.2 Công văn' && (
+                            <div className="md:col-span-1">
+                                <label className="block text-xs font-bold text-gray-700 mb-1">Mã hồ sơ <span className="text-red-500">*</span></label>
+                                <input type="text" required className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 font-bold text-blue-700" value={val(formData.code)} onChange={(e) => handleChange('code', e.target.value)} />
+                            </div>
+                        )}
+                        <div className={formData.recordType === '1.2 Công văn' ? "md:col-span-4" : (isRegistrationRecord && !isDefaultTaxProcedure ? "md:col-span-2" : "md:col-span-3")}>
                             <label className="block text-xs font-bold text-gray-700 mb-1">Loại hồ sơ</label>
                             <select className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white" value={val(formData.recordType)} onChange={(e) => handleChange('recordType', e.target.value)}>
                                 <option value="">-- Chọn loại hồ sơ --</option>
@@ -554,7 +555,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                         {hasAdminRights && (
                             <>
                                 <div><label className="block text-xs font-bold text-gray-700 mb-1">Ngày nhận</label><input type="date" required className="w-full border border-gray-300 rounded-md px-3 py-2" value={dateVal(formData.receivedDate)} onChange={(e) => handleChange('receivedDate', e.target.value)} /></div>
-                                <div><label className="block text-xs font-bold text-gray-700 mb-1">Hẹn trả <span className="text-red-500">*</span></label><input type="date" required className="w-full border border-gray-300 rounded-md px-3 py-2 font-semibold text-red-600 bg-red-50" value={dateVal(formData.deadline)} onChange={(e) => handleChange('deadline', e.target.value)} /></div>
+                                <div><label className="block text-xs font-bold text-gray-700 mb-1">Hẹn trả {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label><input type="date" required={formData.recordType !== '1.2 Công văn'} className={`w-full border rounded-md px-3 py-2 font-semibold ${formData.recordType === '1.2 Công văn' ? 'border-gray-300 bg-white text-gray-700' : 'border-red-300 bg-red-50 text-red-600'}`} value={dateVal(formData.deadline)} onChange={(e) => handleChange('deadline', e.target.value)} /></div>
                                 <div><label className="block text-xs font-bold text-gray-700 mb-1">Ngày giao NV</label><input type="date" className="w-full border border-gray-300 rounded-md px-3 py-2" value={dateVal(formData.assignedDate)} onChange={(e) => handleChange('assignedDate', e.target.value)} /></div>
                                 <div><label className="block text-xs font-bold text-gray-700 mb-1">Trạng thái</label><select className="w-full border border-gray-300 rounded-md px-3 py-2 bg-yellow-50 font-medium" value={val(formData.status)} onChange={(e) => handleChange('status', e.target.value)}>{Object.values(RecordStatus).filter(s => {
                                     const isArchive = isArchiveType(formData.recordType);
@@ -618,8 +619,9 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                     <h3 className="text-sm font-bold text-blue-800 uppercase mb-4 flex items-center gap-2 border-b pb-2"><MapPin size={16} /> THÔNG TIN THỬA ĐẤT</h3>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-gray-700 mb-1">Phường/xã</label>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Phường/xã {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
                             <select 
+                                required={formData.recordType !== '1.2 Công văn'}
                                 className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white" 
                                 value={val(formData.ward)} 
                                 onChange={(e) => {
@@ -633,8 +635,8 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                         </div>
                         <div className="md:col-span-2"><label className="block text-xs font-bold text-gray-700 mb-1">Địa chỉ chi tiết</label><input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2" value={val(formData.address)} onChange={(e) => handleChange('address', e.target.value)} placeholder="Số nhà, đường, ấp..." /></div>
                         <div className="grid grid-cols-3 gap-2 md:col-span-4">
-                            <div><label className="block text-xs font-bold text-gray-700 mb-1">Tờ bản đồ</label><input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2 text-center font-mono" value={val(formData.mapSheet)} onChange={(e) => handleChange('mapSheet', e.target.value)} /></div>
-                            <div><label className="block text-xs font-bold text-gray-700 mb-1">Số thứ tự thửa</label><input type="text" className="w-full border border-gray-300 rounded-md px-3 py-2 text-center font-mono" value={val(formData.landPlot)} onChange={(e) => handleChange('landPlot', e.target.value)} /></div>
+                            <div><label className="block text-xs font-bold text-gray-700 mb-1">Tờ bản đồ {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label><input type="text" required={formData.recordType !== '1.2 Công văn'} className="w-full border border-gray-300 rounded-md px-3 py-2 text-center font-mono" value={val(formData.mapSheet)} onChange={(e) => handleChange('mapSheet', e.target.value)} /></div>
+                            <div><label className="block text-xs font-bold text-gray-700 mb-1">Số thứ tự thửa {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label><input type="text" required={formData.recordType !== '1.2 Công văn'} className="w-full border border-gray-300 rounded-md px-3 py-2 text-center font-mono" value={val(formData.landPlot)} onChange={(e) => handleChange('landPlot', e.target.value)} /></div>
                             <div><label className="block text-xs font-bold text-gray-700 mb-1">Diện tích (m²)</label><input type="number" className="w-full border border-gray-300 rounded-md px-3 py-2 text-right" value={formData.area || 0} onChange={(e) => handleChange('area', parseFloat(e.target.value))} /></div>
                         </div>
                     </div>

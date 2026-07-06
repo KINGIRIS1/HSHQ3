@@ -732,8 +732,14 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
       }
     }
 
-    if (!finalCode || !customerName || !formData.deadline || !formData.recordType) { 
-        setNotification({ type: 'error', message: "Vui lòng điền Mã hồ sơ (*), họ tên người nộp, hạn trả và chọn Loại hồ sơ." });
+    const isCongVan = formData.recordType === '1.2 Công văn';
+    if (!finalCode || !customerName || (!isCongVan && !formData.deadline) || !formData.recordType) { 
+        setNotification({ 
+            type: 'error', 
+            message: isCongVan 
+                ? "Vui lòng điền họ tên người nộp và chọn Loại hồ sơ." 
+                : "Vui lòng điền Mã hồ sơ (*), họ tên người nộp, hạn trả và chọn Loại hồ sơ." 
+        });
         return; 
     }
 
@@ -942,35 +948,37 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                     <div className="p-4 space-y-4">
                         {/* Row 1: Mã hồ sơ (1/4), Loại hồ sơ (2/4), Quy trình thuế (1/4) */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                            <div className="md:col-span-1">
-                                <label className={labelClass}>Mã hồ sơ <span className="text-red-500">*</span></label>
-                                {(() => {
-                                    const rType = formData.recordType || '';
-                                    const isType3 = rType.startsWith('3.');
-                                    if (isType3) {
-                                        return (
-                                            <input 
-                                                type="text" 
-                                                className={`${plainInputClass} bg-white text-blue-600 font-bold font-mono`} 
-                                                placeholder="Mã hồ sơ..."
-                                                value={formData.code || ''} 
-                                                onChange={(e) => handleChange('code', e.target.value)} 
-                                            />
-                                        );
-                                    } else {
-                                        return (
-                                            <input 
-                                                type="text" 
-                                                readOnly
-                                                className={`${plainInputClass} bg-slate-50 text-slate-500 font-medium cursor-not-allowed`} 
-                                                placeholder="Tự động tạo..."
-                                                value={formData.code || ''} 
-                                            />
-                                        );
-                                    }
-                                })()}
-                            </div>
-                            <div className={isRegistration(formData.recordType) && !isDefaultTaxProcedure(formData.recordType) ? "md:col-span-2" : "md:col-span-3"}>
+                            {formData.recordType !== '1.2 Công văn' && (
+                                <div className="md:col-span-1">
+                                    <label className={labelClass}>Mã hồ sơ <span className="text-red-500">*</span></label>
+                                    {(() => {
+                                        const rType = formData.recordType || '';
+                                        const isType3 = rType.startsWith('3.');
+                                        if (isType3) {
+                                            return (
+                                                <input 
+                                                    type="text" 
+                                                    className={`${plainInputClass} bg-white text-blue-600 font-bold font-mono`} 
+                                                    placeholder="Mã hồ sơ..."
+                                                    value={formData.code || ''} 
+                                                    onChange={(e) => handleChange('code', e.target.value)} 
+                                                />
+                                            );
+                                        } else {
+                                            return (
+                                                <input 
+                                                    type="text" 
+                                                    readOnly
+                                                    className={`${plainInputClass} bg-slate-50 text-slate-500 font-medium cursor-not-allowed`} 
+                                                    placeholder="Tự động tạo..."
+                                                    value={formData.code || ''} 
+                                                />
+                                            );
+                                        }
+                                    })()}
+                                </div>
+                            )}
+                            <div className={formData.recordType === '1.2 Công văn' ? "md:col-span-4" : (isRegistration(formData.recordType) && !isDefaultTaxProcedure(formData.recordType) ? "md:col-span-2" : "md:col-span-3")}>
                                 <label className={labelClass}>Loại hồ sơ</label>
                                 <select 
                                     className={selectClass} 
@@ -1043,8 +1051,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 <input type="date" required className={plainInputClass} value={dateVal(formData.receivedDate)} onChange={(e) => handleChange('receivedDate', e.target.value)} />
                             </div>
                             <div>
-                                <label className={`${labelClass} text-red-600`}>Hẹn trả <span className="text-red-500">*</span></label>
-                                <input type="date" required className={`${plainInputClass} bg-red-50/50 text-red-700 font-bold border-red-200`} value={dateVal(formData.deadline)} onChange={(e) => handleChange('deadline', e.target.value)} />
+                                <label className={`${labelClass} text-red-600`}>Hẹn trả {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
+                                <input type="date" required={formData.recordType !== '1.2 Công văn'} className={`${plainInputClass} bg-red-50/50 text-red-700 font-bold border-red-200`} value={dateVal(formData.deadline)} onChange={(e) => handleChange('deadline', e.target.value)} />
                             </div>
                             <div>
                                 <label className={labelClass}>Ngày giao NV</label>
@@ -1148,8 +1156,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
 
 
                         {/* Row 2: Mã hồ sơ, Ngày nhận, Hẹn trả */}
-                        {formData.recordType !== '1.2 Công văn' && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {formData.recordType !== '1.2 Công văn' && (
                                 <div>
                                     <label className={labelClass}>Mã hồ sơ <span className="text-red-500">*</span></label>
                                     {(() => {
@@ -1183,16 +1191,22 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                             : "* Lưu ý: Mã hồ sơ sẽ được tự động tạo khi nhấn Lưu hoặc In."}
                                     </p>
                                 </div>
-                                <div>
-                                    <label className={labelClass}>Ngày nhận</label>
-                                    <input type="date" required className={plainInputClass} value={dateVal(formData.receivedDate)} onChange={(e) => handleChange('receivedDate', e.target.value)} />
-                                </div>
-                                <div>
-                                    <label className={`${labelClass} text-blue-600`}>Hẹn trả <span className="text-red-500">*</span></label>
-                                    <input type="date" required className={`${plainInputClass} bg-blue-50 text-blue-700 font-bold border-blue-200`} value={dateVal(formData.deadline)} onChange={(e) => handleChange('deadline', e.target.value)} />
-                                </div>
+                            )}
+                            <div className={formData.recordType === '1.2 Công văn' ? 'md:col-span-1' : ''}>
+                                <label className={labelClass}>Ngày nhận</label>
+                                <input type="date" required className={plainInputClass} value={dateVal(formData.receivedDate)} onChange={(e) => handleChange('receivedDate', e.target.value)} />
                             </div>
-                        )}
+                            <div className={formData.recordType === '1.2 Công văn' ? 'md:col-span-2' : ''}>
+                                <label className={`${labelClass} text-blue-600`}>Hẹn trả {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
+                                <input 
+                                    type="date" 
+                                    required={formData.recordType !== '1.2 Công văn'} 
+                                    className={`${plainInputClass} bg-blue-50 text-blue-700 font-bold border-blue-200`} 
+                                    value={dateVal(formData.deadline)} 
+                                    onChange={(e) => handleChange('deadline', e.target.value)} 
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1283,8 +1297,13 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             </select>
                         </div>
                         <div>
-                            <label className={labelClass}>Phường/xã <span className="text-red-500">*</span></label>
-                            <select required className={selectClass} value={formData.ward || ''} onChange={(e) => handleChange('ward', e.target.value)}>
+                            <label className={labelClass}>Phường/xã {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
+                            <select 
+                                required={formData.recordType !== '1.2 Công văn'} 
+                                className={selectClass} 
+                                value={formData.ward || ''} 
+                                onChange={(e) => handleChange('ward', e.target.value)}
+                            >
                                 <option value="">-- Chọn phường/xã --</option>
                                 {wards.map(w => <option key={w} value={w}>{w}</option>)}
                             </select>
@@ -1297,12 +1316,12 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label className={labelClass}>Số thứ tự thửa <span className="text-red-500">*</span></label>
-                            <input type="text" required className={plainInputClass} placeholder="Số thửa..." value={formData.landPlot || ''} onChange={(e) => handleChange('landPlot', e.target.value)} />
+                            <label className={labelClass}>Số thứ tự thửa {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
+                            <input type="text" required={formData.recordType !== '1.2 Công văn'} className={plainInputClass} placeholder="Số thửa..." value={formData.landPlot || ''} onChange={(e) => handleChange('landPlot', e.target.value)} />
                         </div>
                         <div>
-                            <label className={labelClass}>Tờ bản đồ <span className="text-red-500">*</span></label>
-                            <input type="text" required className={plainInputClass} placeholder="Số tờ bản đồ..." value={formData.mapSheet || ''} onChange={(e) => handleChange('mapSheet', e.target.value)} />
+                            <label className={labelClass}>Tờ bản đồ {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
+                            <input type="text" required={formData.recordType !== '1.2 Công văn'} className={plainInputClass} placeholder="Số tờ bản đồ..." value={formData.mapSheet || ''} onChange={(e) => handleChange('mapSheet', e.target.value)} />
                         </div>
                         <div>
                             <label className={labelClass}>Ngày cấp GCN</label>

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { RecordFile, RecordStatus, Employee } from '../../types';
 import { STATUS_LABELS } from '../../constants';
+import { isMeasurementType, isRegType, isArchiveType } from '../../utils/appHelpers';
 import { 
   Search, 
   Filter, 
@@ -10,7 +11,12 @@ import {
   Phone, 
   Calendar,
   MoreVertical,
-  Plus
+  Plus,
+  Layers,
+  Ruler,
+  Award,
+  Archive,
+  Grid
 } from 'lucide-react';
 
 interface MobileRecordListProps {
@@ -32,22 +38,50 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterWard, setFilterWard] = useState('all');
+  const [activeDept, setActiveDept] = useState<'all' | 'dodac' | 'capgiay' | 'luutru' | 'other'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Tính số lượng hồ sơ cho mỗi bộ phận để hiển thị huy hiệu (badge count)
+  const deptCounts = useMemo(() => {
+    let dodac = 0;
+    let capgiay = 0;
+    let luutru = 0;
+    let other = 0;
+    records.forEach(r => {
+      if (isMeasurementType(r.recordType)) dodac++;
+      else if (isRegType(r.recordType)) capgiay++;
+      else if (isArchiveType(r.recordType)) luutru++;
+      else other++;
+    });
+    return { all: records.length, dodac, capgiay, luutru, other };
+  }, [records]);
 
   // Reset page when filtering
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterWard]);
+  }, [searchTerm, filterWard, activeDept]);
 
-  const filtered = records.filter(r => {
-    const matchesSearch = 
-      r.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (r.phoneNumber && r.phoneNumber.includes(searchTerm));
-    const matchesWard = filterWard === 'all' || r.ward === filterWard;
-    return matchesSearch && matchesWard;
-  });
+  const filtered = useMemo(() => {
+    return records.filter(r => {
+      // 1. Lọc theo bộ phận được chọn
+      if (activeDept === 'dodac' && !isMeasurementType(r.recordType)) return false;
+      if (activeDept === 'capgiay' && !isRegType(r.recordType)) return false;
+      if (activeDept === 'luutru' && !isArchiveType(r.recordType)) return false;
+      if (activeDept === 'other' && (isMeasurementType(r.recordType) || isRegType(r.recordType) || isArchiveType(r.recordType))) return false;
+
+      // 2. Lọc theo từ khóa tìm kiếm
+      const matchesSearch = 
+        r.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.phoneNumber && r.phoneNumber.includes(searchTerm));
+      
+      // 3. Lọc theo xã phường
+      const matchesWard = filterWard === 'all' || r.ward === filterWard;
+
+      return matchesSearch && matchesWard;
+    });
+  }, [records, searchTerm, filterWard, activeDept]);
 
   // Pagination logic
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
@@ -79,7 +113,7 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
   return (
     <div className="flex flex-col h-full">
       {/* Search & Filter Bar */}
-      <div className="bg-white px-4 py-3 border-b border-slate-100 sticky top-0 z-10 shadow-sm">
+      <div className="bg-white px-4 py-3 border-b border-slate-100 sticky top-0 z-10 shadow-sm space-y-2">
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -94,6 +128,39 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
           <button className="w-10 h-10 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center text-slate-600">
             <Filter size={18} />
           </button>
+        </div>
+
+        {/* Bộ lọc Phân hệ Bộ phận */}
+        <div className="flex gap-1.5 overflow-x-auto pt-1 pb-1 scrollbar-none scroll-smooth">
+          {[
+            { id: 'all', label: 'Tất cả', count: deptCounts.all, icon: Layers, activeColor: 'bg-blue-600 text-white border-blue-600' },
+            { id: 'dodac', label: 'Đo đạc', count: deptCounts.dodac, icon: Ruler, activeColor: 'bg-indigo-600 text-white border-indigo-600' },
+            { id: 'capgiay', label: 'Cấp giấy', count: deptCounts.capgiay, icon: Award, activeColor: 'bg-teal-600 text-white border-teal-600' },
+            { id: 'luutru', label: 'Lưu trữ', count: deptCounts.luutru, icon: Archive, activeColor: 'bg-amber-600 text-white border-amber-600' },
+            { id: 'other', label: 'Khác', count: deptCounts.other, icon: Grid, activeColor: 'bg-slate-600 text-white border-slate-600' },
+          ].map(dept => {
+            const Icon = dept.icon;
+            const isActive = activeDept === dept.id;
+            return (
+              <button
+                key={dept.id}
+                onClick={() => setActiveDept(dept.id as any)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 select-none ${
+                  isActive 
+                    ? dept.activeColor
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Icon size={12} />
+                <span>{dept.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                  isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {dept.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
