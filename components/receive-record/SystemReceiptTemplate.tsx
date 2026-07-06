@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import Barcode from 'react-barcode';
 import { RecordFile, Employee } from '../../types';
 import { getNormalizedWard, REGISTRATION_PROCEDURES } from '../../constants';
-import { Printer } from 'lucide-react';
+import { Printer, FileSignature } from 'lucide-react';
 
 interface SystemReceiptTemplateProps {
     data: Partial<RecordFile>;
@@ -10,9 +10,10 @@ interface SystemReceiptTemplateProps {
     onClose: () => void;
     currentUser?: any;
     employees?: Employee[];
+    onCreateContract?: (record: RecordFile) => void;
 }
 
-const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, receivingWard, onClose, currentUser, employees }) => {
+const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, receivingWard, onClose, currentUser, employees, onCreateContract }) => {
     const receiptRef = useRef<HTMLDivElement>(null);
     const controlSlipRef = useRef<HTMLDivElement>(null);
 
@@ -73,18 +74,24 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
     };
 
     const handlePrintAll = () => {
-        if (!controlSlipRef.current) return;
-        printHtml(controlSlipRef.current.innerHTML, 'In Phiếu Kiểm Soát');
+        if (!receiptRef.current || !controlSlipRef.current) return;
+        const receiptHtml = receiptRef.current.innerHTML;
+        const controlSlipHtml = controlSlipRef.current.innerHTML;
+        
+        // Print 2 copies of the Receipt and 1 copy of the Control Slip
+        const printContent = receiptHtml + 
+            '<div style="page-break-before: always; margin-top: 20px;" class="print-page-break"></div>' + 
+            receiptHtml + 
+            '<div style="page-break-before: always; margin-top: 20px;" class="print-page-break"></div>' + 
+            controlSlipHtml;
+            
+        printHtml(printContent, 'In Tất Cả');
     };
 
     const handlePrintReceipt = () => {
         if (!receiptRef.current) return;
-        const baseHtml = receiptRef.current.innerHTML;
-        const copy1 = baseHtml; // Default contains 'Liên 1: Giao người nộp (Bản chính)'
-        const copy2 = baseHtml.replace('Liên 1: Giao người nộp (Bản chính)', 'Liên 2: Lưu hồ sơ');
-        
-        const printContent = copy1 + '<div style="page-break-before: always; margin-top: 20px;" class="print-page-break"></div>' + copy2;
-        printHtml(printContent, 'In Biên Nhận');
+        // Print exactly 1 single copy of the receipt as requested
+        printHtml(receiptRef.current.innerHTML, 'In Biên Nhận');
     };
 
     const handlePrintControlSlip = () => {
@@ -192,6 +199,34 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                 { name: 'Giấy chứng nhận đã cấp bản phô tô', type: 'Bản sao' }
             );
         }
+
+        // 3. For 3.x (cấp giấy) except "cấp lại", ensure "Giấy chứng nhận đã cấp bản chính" exists
+        const rType = (data.recordType || '').toLowerCase();
+        const isReg = rType.startsWith('3.') || rType === 'đăng ký' || rType === 'cấp giấy' || rType === 'cấp đổi' || rType === 'cấp lại' || REGISTRATION_PROCEDURES.some(p => rType.includes(p.toLowerCase()));
+        
+        if (isReg) {
+            const isCappingLai = rType.includes('3.7') || rType.includes('cấp lại') || rType.includes('bị mất') || rType.includes('mất gcn');
+            if (!isCappingLai) {
+                if (!docs.some(d => d.name === 'Giấy chứng nhận đã cấp bản chính')) {
+                    docs.push({ name: 'Giấy chứng nhận đã cấp bản chính', type: 'Bản chính' });
+                }
+            }
+            
+            // Add "Đơn đăng ký biến động đất đai" if NOT a "gia hạn" procedure
+            const isGiaHan = rType.includes('3.9') || rType.includes('gia hạn');
+            if (!isGiaHan) {
+                if (!docs.some(d => d.name === 'Đơn đăng ký biến động đất đai' || d.name === 'Đơn đăng ký biến động')) {
+                    docs.push({ name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' });
+                }
+            }
+
+            if (data.hasTax) {
+                if (!docs.some(d => d.name === 'Tờ khai thuế')) {
+                    docs.push({ name: 'Tờ khai thuế', type: 'Bản chính' });
+                }
+            }
+        }
+
         return docs;
     })();
 
@@ -237,24 +272,24 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
         return `Ngày ${day} tháng ${month} năm ${year}`;
     };
 
-    const emptyRows = Array(6).fill(0).map((_, i) => (
-        <tr key={i} className="avoid-break" style={{ height: '125px' }}>
+    const emptyRows = Array(4).fill(0).map((_, i) => (
+        <tr key={i} className="avoid-break" style={{ height: '80px' }}>
             <td style={{ width: '12%', border: '1px solid black' }}></td>
             <td style={{ width: '58%', border: '1px solid black', padding: 0 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', height: '125px', margin: 0 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', height: '80px', margin: 0 }}>
                     <tbody>
-                        <tr style={{ height: '30px' }}>
-                            <td colSpan={2} style={{ borderBottom: '1px solid black', padding: '2px 6px', textAlign: 'left', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                        <tr style={{ height: '25px' }}>
+                            <td colSpan={2} style={{ borderBottom: '1px solid black', padding: '1px 6px', textAlign: 'left', whiteSpace: 'nowrap', fontSize: '13px' }}>
                                 1.Giao &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ..... giờ ..... phút, ngày ..... tháng ..... năm .........
                             </td>
                         </tr>
-                        <tr style={{ height: '95px' }}>
-                            <td style={{ width: '50%', borderRight: '1px solid black', padding: '4px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px', position: 'relative' }}>
-                                <div style={{ position: 'absolute', left: '6px', top: '4px', fontWeight: 'bold', fontSize: '13px' }}>2.Nhận</div>
-                                <div style={{ fontWeight: 'bold', marginTop: '18px' }}>Người giao</div>
+                        <tr style={{ height: '55px' }}>
+                            <td style={{ width: '50%', borderRight: '1px solid black', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px', position: 'relative' }}>
+                                <div style={{ position: 'absolute', left: '6px', top: '2px', fontWeight: 'bold', fontSize: '13px' }}>2.Nhận</div>
+                                <div style={{ fontWeight: 'bold', marginTop: '6px' }}>Người giao</div>
                             </td>
-                            <td style={{ width: '50%', padding: '4px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
-                                <div style={{ fontWeight: 'bold', marginTop: '18px' }}>Người nhận</div>
+                            <td style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
+                                <div style={{ fontWeight: 'bold', marginTop: '6px' }}>Người nhận</div>
                             </td>
                         </tr>
                     </tbody>
@@ -265,12 +300,30 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
         </tr>
     ));
 
+    const rTypeStr = (data.recordType || '').toLowerCase();
+    
+    // Chỉ hiển thị nút lập hợp đồng cho 2 trường hợp:
+    // 1. Trích đo cắm mốc (hoặc chứa 'cắm mốc' / '2.4')
+    // 2. Trích đo (hoặc chứa '2.3' / 'trích đo' nhưng loại trừ 'tách', 'hợp', 'lục')
+    const isTrichDoCamMoc = rTypeStr.includes('cắm mốc') || rTypeStr.includes('2.4');
+    const isTrichDo = (rTypeStr.includes('trích đo') || rTypeStr.includes('2.3')) && 
+                      !rTypeStr.includes('tách') && 
+                      !rTypeStr.includes('hợp') && 
+                      !rTypeStr.includes('lục');
+
+    const showContractButton = onCreateContract && (isTrichDoCamMoc || isTrichDo);
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center p-4 border-b">
                     <h2 className="text-xl font-bold">In Biên Nhận & Phiếu Kiểm Soát</h2>
                     <div className="flex space-x-2">
+                        {showContractButton && (
+                            <button onClick={() => { onCreateContract(data as RecordFile); onClose(); }} className="flex items-center px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 font-bold">
+                                <FileSignature className="w-4 h-4 mr-2" /> Hợp Đồng
+                            </button>
+                        )}
                         <button onClick={handlePrintReceipt} className="flex items-center px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                             <Printer className="w-4 h-4 mr-2" /> In Biên Nhận
                         </button>
@@ -289,9 +342,6 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                 <div className="p-8 overflow-y-auto flex-1 bg-gray-50">
                     <div>
                         <div ref={receiptRef} className="bg-white p-10 shadow-sm border border-gray-200 mx-auto text-black relative" style={{ maxWidth: '210mm', minHeight: '297mm', fontFamily: "'Times New Roman', Times, serif", fontSize: '14px', lineHeight: '1.3' }}>
-                            <div className="text-right italic font-bold text-xs mb-2 text-gray-500">
-                                Liên 1: Giao người nộp (Bản chính)
-                            </div>
                             
                             {/* Header */}
                         <div className="flex justify-between mb-4">
@@ -361,14 +411,11 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                             </table>
 
                             <div>2. Số lượng hồ sơ: 01 (bộ)</div>
-                            <div>3. Thời gian nhận hồ sơ: <span className="font-bold">{formatDateTime(rDate)}</span></div>
-                            <div>4. Thời gian trả kết quả giải quyết hồ sơ: <span className="font-bold">{formatDateTime(dDate)}</span></div>
-                            <div style={{ paddingLeft: '1.2rem', fontStyle: 'italic', fontSize: '13px', color: '#333', marginBottom: '4px' }}>
-                                (Thời gian giải quyết hồ sơ theo quy định là: <span className="font-bold">{getRegulatoryText(data.recordType || '', !!data.hasTax)}</span>)
-                            </div>
-                            <div>5. Đăng ký trả kết quả tại: Trung tâm phục vụ hành chính công xã {getNormalizedWard(receivingWard)}</div>
-                            <div>6. Phí, lệ phí (nếu có): <span className="font-bold">Chưa thanh toán</span></div>
-                            <div>Vào sổ theo dõi hồ sơ, Quyển số: .................... Số thứ tự:............(nếu có)</div>
+                            <div>3. Thời gian giải quyết hồ sơ theo quy định là: <span className="font-bold">{getRegulatoryText(data.recordType || '', !!data.hasTax)}</span></div>
+                            <div>4. Thời gian nhận hồ sơ: <span className="font-bold">{formatDateTime(rDate)}</span></div>
+                            <div>5. Thời gian trả kết quả giải quyết hồ sơ: <span className="font-bold">{formatDateTime(dDate)}</span></div>
+                            <div>6. Đăng ký trả kết quả tại: Trung tâm phục vụ hành chính công xã {getNormalizedWard(receivingWard)}</div>
+                            <div>7. Phí, lệ phí (nếu có): <span className="font-bold">Chưa thanh toán</span></div>
                         </div>
 
                         {/* Signatures */}
@@ -409,27 +456,27 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
 
                     <div style={{ pageBreakBefore: 'always', marginTop: '20px' }} className="print-page-break"></div>
                     
-                    <div ref={controlSlipRef} className="bg-white p-10 shadow-sm border border-gray-200 mx-auto text-black mt-8" style={{ maxWidth: '210mm', minHeight: '297mm', fontFamily: "'Times New Roman', Times, serif", fontSize: '14px', lineHeight: '1.3' }}>
+                    <div ref={controlSlipRef} className="bg-white p-8 shadow-sm border border-gray-200 mx-auto text-black mt-8" style={{ maxWidth: '210mm', minHeight: '270mm', fontFamily: "'Times New Roman', Times, serif", fontSize: '14px', lineHeight: '1.3' }}>
                         {/* Control Slip Header */}
-                        <div className="flex justify-between mb-4">
+                        <div className="flex justify-between mb-2">
                             <div className="text-center" style={{ width: '45%' }}>
                                 <div className="font-bold text-[14px]">VĂN PHÒNG ĐKĐĐ TP ĐỒNG NAI</div>
                                 <div className="font-bold text-[15px]">CHI NHÁNH HỚN QUẢN</div>
                             </div>
                             <div className="text-center" style={{ width: '50%' }}>
                                 <div className="font-bold text-[14px]">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-                                <div className="font-bold underline mb-2 text-[15px]">Độc lập - Tự do - Hạnh phúc</div>
+                                <div className="font-bold underline mb-1 text-[15px]">Độc lập - Tự do - Hạnh phúc</div>
                             </div>
                         </div>
 
                         {/* Control Slip Title */}
-                        <div className="text-center mt-6 mb-6">
+                        <div className="text-center mt-3 mb-4">
                             <div className="font-bold text-[18px] uppercase tracking-wide">PHIẾU KIỂM SOÁT QUÁ TRÌNH GIẢI QUYẾT HỒ SƠ</div>
-                            <div className="font-bold mt-2 text-[14px]">Mã hồ sơ:&nbsp;&nbsp;&nbsp;&nbsp;{data.code || data.id || ''}</div>
+                            <div className="font-bold mt-1 text-[14px]">Mã hồ sơ:&nbsp;&nbsp;&nbsp;&nbsp;{data.code || data.id || ''}</div>
                         </div>
 
                         {/* Details Block */}
-                        <div style={{ marginLeft: '10%', marginBottom: '25px', fontSize: '14px', lineHeight: '1.8' }}>
+                        <div style={{ marginLeft: '10%', marginBottom: '15px', fontSize: '14px', lineHeight: '1.5' }}>
                             <div className="flex">
                                 <div style={{ width: '160px' }}>Kèm theo hồ sơ của:</div>
                                 <div className="font-bold uppercase">{data.customerName || ''}</div>

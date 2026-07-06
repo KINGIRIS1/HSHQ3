@@ -42,6 +42,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ initialData, onSave, onPrin
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
+  const lastSelectedAreaRef = useRef<number | null>(null);
 
   // Helper tự động gợi ý loại dịch vụ phù hợp dựa trên diện tích nhập vào
   const autoSelectService = (area: number, currentAreaType: string) => {
@@ -141,6 +142,40 @@ const ContractForm: React.FC<ContractFormProps> = ({ initialData, onSave, onPrin
       }
   }, [activeTab]);
 
+  // Tự động gợi ý loại dịch vụ phù hợp dựa trên tổng diện tích (1 thửa đơn lẻ)
+  useEffect(() => {
+      if (pricingMethod !== 'single' || activeTab !== 'dd') return;
+      const area = formData.area || 0;
+      if (area === lastSelectedAreaRef.current) return;
+      
+      lastSelectedAreaRef.current = area;
+      
+      if (area > 0) {
+          const currentAreaType = formData.areaType;
+          const validPriceItems = priceList.filter(p => {
+              const n = p.serviceName;
+              const matchesTab = !_nd(n).includes('tach thua') && !_nd(n).includes('cam moc') && !_nd(n).includes('trich luc');
+              const isMatchArea = !p.areaType || !currentAreaType || _nd(p.areaType) === _nd(currentAreaType);
+              return matchesTab && isMatchArea;
+          });
+          
+          const matchedService = validPriceItems.find(p => area >= p.minArea && area < p.maxArea);
+          if (matchedService) {
+              setFormData(prev => ({
+                  ...prev,
+                  serviceType: matchedService.serviceName
+              }));
+          }
+      }
+  }, [formData.area, formData.areaType, activeTab, pricingMethod, priceList]);
+
+  // Tự động trở về chế độ 1 thửa đơn lẻ khi không còn thửa đất chi tiết nào
+  useEffect(() => {
+      if (tachThuaItems.length === 0 && activeTab !== 'tt') {
+          setPricingMethod('single');
+      }
+  }, [tachThuaItems, activeTab]);
+
   // Init Liquidation Data if missing (Fallback logic)
   useEffect(() => {
       if (mode === 'liquidation') {
@@ -170,7 +205,16 @@ const ContractForm: React.FC<ContractFormProps> = ({ initialData, onSave, onPrin
   const handleParseSplitImport = () => {
       if (!splitImportText.trim()) return;
 
-      const lines = splitImportText.split(/\n|;/).filter(line => line.trim() !== '');
+      // 1. Phân tách chuỗi nhập thành các khối chứa thông tin từng thửa đất độc lập
+      const delimiterRegex = /(?<!số\s+|vẽ\s+)thửa/gi;
+      const rawText = splitImportText.replace(/\r/g, '').replace(/;/g, '\n');
+      
+      let processedText = rawText;
+      if (!rawText.includes('\n') || (rawText.match(delimiterRegex) || []).length > 1) {
+          processedText = rawText.replace(delimiterRegex, '\n$&');
+      }
+      
+      const lines = processedText.split('\n').map(line => line.trim()).filter(line => line !== '');
       const newItems: SplitItem[] = [];
       const currentAreaType = formData.areaType;
 
@@ -187,6 +231,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ initialData, onSave, onPrin
       });
 
       lines.forEach(line => {
+          // Tìm diện tích đất (bỏ qua hậu tố m2 hoặc ký tự khác)
           const areaMatch = line.match(/(?:diện tích|dt)[:\s]*([\d,.]+)/i);
           if (areaMatch) {
               let areaStr = areaMatch[1];
@@ -200,11 +245,16 @@ const ContractForm: React.FC<ContractFormProps> = ({ initialData, onSave, onPrin
                   let serviceName = bestService ? bestService.serviceName : (availableServices[0] || '');
                   let price = bestService ? bestService.price : getDynamicPrice(serviceName);
 
-                  // Extract plot (thửa) and sheet (tờ) if present
+                  // Trích xuất Số thửa và Số tờ bản đồ
                   let landPlot = '';
                   let mapSheet = '';
 
-                  const plotMatch = line.match(/(?:thửa đất|thửa|thua|t)[:\s]*([0-9a-zA-Z\-_/]+)/i);
+                  // Ưu tiên tìm "số thửa" hoặc "thửa số"
+                  let plotMatch = line.match(/(?:số thửa|thửa số|số thửa|thửa số)[:\s]*([0-9a-zA-Z\-_/]+)/i);
+                  if (!plotMatch) {
+                      plotMatch = line.match(/(?<!thứ\s+)thửa[:\s]*([0-9a-zA-Z\-_/]+)/i);
+                  }
+                  
                   if (plotMatch) {
                       landPlot = plotMatch[1];
                   } else {
@@ -215,7 +265,7 @@ const ContractForm: React.FC<ContractFormProps> = ({ initialData, onSave, onPrin
                       }
                   }
 
-                  const sheetMatch = line.match(/(?:tờ bản đồ|tờ|to|bản đồ|bd)[:\s]*([0-9a-zA-Z\-_/]+)/i);
+                  const sheetMatch = line.match(/(?:số tờ|tờ số|tờ|to|bản đồ|bd)[:\s]*([0-9a-zA-Z\-_/]+)/i);
                   if (sheetMatch) {
                       mapSheet = sheetMatch[1];
                   }
@@ -233,8 +283,9 @@ const ContractForm: React.FC<ContractFormProps> = ({ initialData, onSave, onPrin
       });
 
       if (newItems.length > 0) {
+          setPricingMethod('multi');
           setTachThuaItems(newItems);
-          setNotification({ type: 'success', message: `Đã nhập tự động ${newItems.length} thửa đất.` });
+          setNotification({ type: 'success', message: `Đã tự động phân tích và chuyển sang chế độ Nhiều thửa cho ${newItems.length} thửa đất.` });
           setIsImportExpanded(false); 
       } else {
           setNotification({ type: 'error', message: 'Không tìm thấy thông tin diện tích hợp lệ trong văn bản.' });
@@ -748,33 +799,46 @@ const ContractForm: React.FC<ContractFormProps> = ({ initialData, onSave, onPrin
                                 <div className={`p-1.5 rounded-lg shadow-sm ${isLiquidationMode ? 'bg-orange-100 text-orange-600' : 'bg-white text-purple-600'}`}><Banknote size={20} /></div> 
                                 {isLiquidationMode ? 'Quyết toán Thanh Lý' : 'Tính chi phí Hợp Đồng'}
                             </h4>
-                            {activeTab !== 'tt' && activeTab !== 'cm' && (
-                                <div className="flex bg-purple-100/50 p-1 rounded-xl border border-purple-200 shrink-0 self-start sm:self-auto">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => {
-                                            setPricingMethod('single');
-                                            setTachThuaItems([]);
-                                        }} 
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pricingMethod === 'single' ? 'bg-purple-600 text-white shadow-sm' : 'text-purple-700 hover:bg-purple-100'}`}
-                                    >
-                                        Một thửa đơn lẻ
-                                    </button>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => {
-                                            setPricingMethod('multi');
-                                            if (tachThuaItems.length === 0) {
-                                                setTachThuaItems([{ serviceName: formData.serviceType || '', quantity: 1, price: 0, area: formData.area || undefined, landPlot: formData.landPlot || '', mapSheet: formData.mapSheet || '' }]);
-                                            }
-                                        }} 
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pricingMethod === 'multi' ? 'bg-purple-600 text-white shadow-sm' : 'text-purple-700 hover:bg-purple-100'}`}
-                                    >
-                                        Nhiều thửa chi tiết
-                                    </button>
-                                </div>
-                            )}
                         </div>
+
+                        {/* QUICK IMPORT SECTION (NEW PLACEMENT) */}
+                        {(activeTab === 'tt' || activeTab === 'dd') && (
+                            <div className="bg-white rounded-xl border border-purple-200 p-4 shadow-sm mb-5">
+                                <div 
+                                    className="flex justify-between items-center cursor-pointer mb-2 select-none"
+                                    onClick={() => setIsImportExpanded(!isImportExpanded)}
+                                >
+                                    <label className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase cursor-pointer">
+                                        <Wand2 size={16} /> Nhập nhanh từ nội dung chi tiết (Nhiều thửa)
+                                    </label>
+                                    {isImportExpanded ? <ChevronUp size={16} className="text-purple-400" /> : <ChevronDown size={16} className="text-purple-400" />}
+                                </div>
+                                
+                                {isImportExpanded && (
+                                    <div className="space-y-2 animate-fade-in">
+                                        <textarea 
+                                            className="w-full border border-purple-200 rounded-lg p-2 text-sm text-slate-700 outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 min-h-[80px]"
+                                            placeholder={`Ví dụ:\nthửa đất thứ nhất số tờ : 1; số thửa 24; diện tích:100\nthửa đất thứ 2 số tờ : 1; số thửa 24; diện tích:200`}
+                                            value={splitImportText}
+                                            onChange={(e) => setSplitImportText(e.target.value)}
+                                        />
+                                        <div className="flex justify-between items-center mt-1">
+                                            <p className="text-[10px] text-slate-500 italic">
+                                                * Hệ thống tự động phân tích diện tích từng thửa để tra cứu và đề xuất đơn giá phù hợp từ bảng giá.
+                                            </p>
+                                            <button 
+                                                type="button"
+                                                onClick={handleParseSplitImport}
+                                                disabled={!splitImportText.trim()}
+                                                className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                                            >
+                                                Phân tích & Nhập tự động
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         
                         {pricingMethod === 'single' && (activeTab === 'dd' || activeTab === 'cm' || activeTab === 'tl') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -855,44 +919,21 @@ const ContractForm: React.FC<ContractFormProps> = ({ initialData, onSave, onPrin
                                     </div>
                                 </div>
                                 
-                                {/* QUICK IMPORT SECTION (NEW) */}
-                                {(activeTab === 'tt' || activeTab === 'dd') && (
-                                    <div className="bg-white rounded-xl border border-purple-200 p-4 shadow-sm mb-3">
-                                        <div 
-                                            className="flex justify-between items-center cursor-pointer mb-2 select-none"
-                                            onClick={() => setIsImportExpanded(!isImportExpanded)}
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="block text-xs font-bold text-purple-800/70 uppercase">Danh sách các thửa đất</label>
+                                    {activeTab !== 'tt' && (
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                setPricingMethod('single');
+                                                setTachThuaItems([]);
+                                            }}
+                                            className="text-xs font-bold text-red-600 hover:text-red-800 flex items-center gap-1 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors border border-red-100"
                                         >
-                                            <label className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase cursor-pointer">
-                                                <Wand2 size={16} /> Nhập nhanh từ nội dung chi tiết
-                                            </label>
-                                            {isImportExpanded ? <ChevronUp size={16} className="text-purple-400" /> : <ChevronDown size={16} className="text-purple-400" />}
-                                        </div>
-                                        
-                                        {isImportExpanded && (
-                                            <div className="space-y-2 animate-fade-in">
-                                                <textarea 
-                                                    className="w-full border border-purple-200 rounded-lg p-2 text-sm text-slate-700 outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 min-h-[80px]"
-                                                    placeholder={`Ví dụ:\n- Thửa đất thứ nhất 1618-1: diện tích: 279,8 m²...\n- Thửa đất thứ hai 1618-2: diện tích: 150,5 m²...`}
-                                                    value={splitImportText}
-                                                    onChange={(e) => setSplitImportText(e.target.value)}
-                                                />
-                                                <div className="flex justify-end">
-                                                    <button 
-                                                        type="button"
-                                                        onClick={handleParseSplitImport}
-                                                        disabled={!splitImportText.trim()}
-                                                        className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 disabled:opacity-50 transition-colors"
-                                                    >
-                                                        Phân tích & Nhập tự động
-                                                    </button>
-                                                </div>
-                                                <p className="text-[10px] text-slate-500 italic mt-1">
-                                                    * Hệ thống sẽ tự động tìm diện tích (ví dụ "diện tích: 279,8") và chọn loại sản phẩm tương ứng trong bảng giá.
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                            <RotateCcw size={12} /> Quay về chế độ 1 thửa đơn lẻ
+                                        </button>
+                                    )}
+                                </div>
 
                                 <div className="bg-white rounded-xl border border-purple-200 overflow-hidden shadow-sm overflow-x-auto">
                                     <table className="w-full text-sm min-w-[700px]">

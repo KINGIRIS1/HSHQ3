@@ -105,6 +105,8 @@ interface AppRoutesProps {
   setNotificationEnabled: (enabled: boolean) => void;
   recordToLiquidate: RecordFile | null;
   setRecordToLiquidate: (r: RecordFile | null) => void;
+  recordToContract: RecordFile | null;
+  setRecordToContract: (r: RecordFile | null) => void;
   recordForMapCorrection: RecordFile | null;
   recordForMinutes?: RecordFile | null;
   onClearRecordForMinutes?: () => void;
@@ -1595,6 +1597,8 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
           currentUser={currentUser}
           records={records}
           holidays={holidays}
+          setCurrentView={props.setCurrentView}
+          setRecordToContract={props.setRecordToContract}
         />
       );
     case "receive_contract":
@@ -1607,6 +1611,8 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
           records={records}
           recordToLiquidate={props.recordToLiquidate}
           onClearRecordToLiquidate={() => props.setRecordToLiquidate(null)}
+          recordToContract={props.recordToContract}
+          onClearRecordToContract={() => props.setRecordToContract(null)}
         />
       );
 

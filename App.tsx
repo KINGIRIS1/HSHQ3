@@ -51,6 +51,7 @@ function App() {
 
   // Feature specific states
   const [recordToLiquidate, setRecordToLiquidate] = useState<RecordFile | null>(null);
+  const [recordToContract, setRecordToContract] = useState<RecordFile | null>(null);
   const [recordForMapCorrection, setRecordForMapCorrection] = useState<RecordFile | null>(null);
   const [recordForMinutes, setRecordForMinutes] = useState<RecordFile | null>(null);
 
@@ -1483,6 +1484,8 @@ function App() {
             setNotificationEnabled={setNotificationEnabled}
             recordToLiquidate={recordToLiquidate}
             setRecordToLiquidate={setRecordToLiquidate}
+            recordToContract={recordToContract}
+            setRecordToContract={setRecordToContract}
             recordForMapCorrection={recordForMapCorrection}
             recordForMinutes={recordForMinutes}
             onClearRecordForMinutes={() => setRecordForMinutes(null)}

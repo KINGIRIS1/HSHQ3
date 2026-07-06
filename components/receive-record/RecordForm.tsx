@@ -24,71 +24,51 @@ interface RecordFormProps {
   resetTrigger?: number;
 }
 
-const getDefaultDocsForProcedure = (procedure: string): Array<{ name: string; type: 'Bản chính' | 'Bản sao' }> => {
+const getDefaultDocsForProcedure = (procedure: string, hasTax: boolean = false): Array<{ name: string; type: 'Bản chính' | 'Bản sao' }> => {
     if (!procedure) return [];
     const lower = procedure.toLowerCase();
     
+    let docs: Array<{ name: string; type: 'Bản chính' | 'Bản sao' }> = [];
+    
     if (lower.includes('3.1') || lower.includes('thừa kế')) {
-        return [
-            { name: 'Văn bản khai nhận di sản thừa kế', type: 'Bản chính' },
-            { name: 'Giấy chứng tử', type: 'Bản sao' },
-            { name: 'Giấy chứng nhận QSDĐ', type: 'Bản chính' }
+        docs = [
+            { name: 'Văn bản khai nhận di sản thừa kế hoặc Văn bản thỏa thuận phân chia di sản thừa kế', type: 'Bản chính' },
+            { name: 'Giấy chứng tử', type: 'Bản sao' }
         ];
-    }
-    if (lower.includes('3.2') || lower.includes('tặng cho')) {
-        return [
-            { name: 'Hợp đồng tặng cho', type: 'Bản chính' },
-            { name: 'Giấy khai sinh', type: 'Bản sao' },
-            { name: 'Giấy chứng nhận QSDĐ', type: 'Bản chính' }
+    } else if (lower.includes('3.2') || lower.includes('tặng cho')) {
+        docs = [
+            { name: 'Hợp đồng tặng cho quyền sử dụng đất', type: 'Bản chính' },
+            { name: 'Giấy khai sinh', type: 'Bản sao' }
         ];
-    }
-    if (lower.includes('3.3') || lower.includes('chuyển nhượng')) {
-        return [
-            { name: 'Hợp đồng chuyển nhượng', type: 'Bản chính' },
-            { name: 'Giấy chứng nhận QSDĐ', type: 'Bản chính' }
+    } else if (lower.includes('3.3') || lower.includes('chuyển nhượng')) {
+        docs = [
+            { name: 'Hợp đồng chuyển nhượng', type: 'Bản chính' }
         ];
-    }
-    if (lower.includes('3.4') || lower.includes('thỏa thuận')) {
-        return [
+    } else if (lower.includes('3.4') || lower.includes('thỏa thuận')) {
+        docs = [
             { name: 'Văn bản thỏa thuận', type: 'Bản chính' },
-            { name: 'Giấy chứng nhận QSDĐ', type: 'Bản chính' },
             { name: 'Đăng ký kết hôn', type: 'Bản sao' }
         ];
-    }
-    if (lower.includes('3.5') || lower.includes('chuyển mục đích')) {
-        return [
-            { name: 'Đơn đăng ký biến động', type: 'Bản chính' },
-            { name: 'Giấy chứng nhận QSDĐ', type: 'Bản chính' }
+    } else if (lower.includes('3.5') || lower.includes('chuyển mục đích')) {
+        docs = [
+            { name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' }
         ];
-    }
-    if (lower.includes('3.6') || lower.includes('cấp đổi')) {
-        return [
-            { name: 'Đơn đề nghị cấp đổi', type: 'Bản chính' },
-            { name: 'Giấy chứng nhận QSDĐ', type: 'Bản chính' }
-        ];
-    }
-    if (lower.includes('3.7') || lower.includes('cấp lại')) {
-        return [
-            { name: 'Đơn đề nghị cấp lại', type: 'Bản chính' },
+    } else if (lower.includes('3.6') || lower.includes('cấp đổi')) {
+        docs = [];
+    } else if (lower.includes('3.7') || lower.includes('cấp lại')) {
+        docs = [
             { name: 'Giấy xác nhận mất GCN', type: 'Bản chính' }
         ];
-    }
-    if (lower.includes('3.8') || lower.includes('tách - hợp thửa')) {
-        return [
+    } else if (lower.includes('3.8') || lower.includes('tách - hợp thửa')) {
+        docs = [
             { name: 'Đơn đề nghị tách thửa, hợp thửa', type: 'Bản chính' },
-            { name: 'Giấy chứng nhận QSDĐ', type: 'Bản chính' },
             { name: 'Bản vẽ trích đo địa chính', type: 'Bản chính' }
         ];
-    }
-    if (lower.includes('3.9') || lower.includes('gia hạn')) {
-        return [
-            { name: 'Đơn đề nghị gia hạn sử dụng đất', type: 'Bản chính' },
-            { name: 'Giấy chứng nhận QSDĐ', type: 'Bản chính' }
+    } else if (lower.includes('3.9') || lower.includes('gia hạn')) {
+        docs = [
+            { name: 'Đơn đề nghị gia hạn sử dụng đất', type: 'Bản chính' }
         ];
-    }
-    
-    // 2.x
-    if (lower.startsWith('2.') || lower.includes('trích đo') || lower.includes('đo đạc') || lower.includes('trích lục') || lower.includes('số thửa')) {
+    } else if (lower.startsWith('2.') || lower.includes('trích đo') || lower.includes('đo đạc') || lower.includes('trích lục') || lower.includes('số thửa')) {
         return [
             { name: 'Phiếu yêu cầu lập hợp đồng đo đạc dịch vụ', type: 'Bản chính' },
             { name: 'Trích lục', type: 'Bản chính' },
@@ -96,8 +76,31 @@ const getDefaultDocsForProcedure = (procedure: string): Array<{ name: string; ty
             { name: 'Giấy chứng nhận đã cấp bản phô tô', type: 'Bản sao' }
         ];
     }
+
+    const isReg = lower.startsWith('3.') || lower.includes('đăng ký') || lower.includes('cấp giấy') || lower.includes('cấp đổi') || lower.includes('cấp lại') || REGISTRATION_PROCEDURES.some(p => lower.includes(p.toLowerCase()));
     
-    return [];
+    if (isReg) {
+        // Add "Đơn đăng ký biến động đất đai" if NOT a "gia hạn" procedure
+        const isGiaHan = lower.includes('3.9') || lower.includes('gia hạn');
+        if (!isGiaHan) {
+            if (!docs.some(d => d.name === 'Đơn đăng ký biến động đất đai' || d.name === 'Đơn đăng ký biến động')) {
+                docs.push({ name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' });
+            }
+        }
+
+        // Add "Giấy chứng nhận đã cấp bản chính" if NOT a "cấp lại" procedure
+        const isCappingLai = lower.includes('3.7') || lower.includes('cấp lại') || lower.includes('bị mất') || lower.includes('mất gcn');
+        if (!isCappingLai) {
+            docs.push({ name: 'Giấy chứng nhận đã cấp bản chính', type: 'Bản chính' });
+        }
+        
+        // Add "Tờ khai thuế" if hasTax is true
+        if (hasTax) {
+            docs.push({ name: 'Tờ khai thuế', type: 'Bản chính' });
+        }
+    }
+
+    return docs;
 };
 
 const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holidays, calculateDeadline, generateCode, onPrint, initialData, onCancelEdit, currentUser, employees, currentView, onLoadingChange, isInModal, onReceiptNumberChange, resetTrigger }) => {
@@ -671,21 +674,30 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                 newData.price = null;
             }
 
+            let calculatedHasTax = newData.hasTax;
             // Tự động bật/tắt quy trình thuế dựa trên thủ tục được chọn
             if (isDefaultTaxProcedure(value)) {
                 setHasTaxProcedure(true);
                 newData.hasTax = true;
+                calculatedHasTax = true;
             } else if (isRegistration(value)) {
                 setHasTaxProcedure(false);
                 newData.hasTax = false;
+                calculatedHasTax = false;
             } else {
                 setHasTaxProcedure(false);
                 newData.hasTax = false;
+                calculatedHasTax = false;
             }
 
             // Khôi phục giấy tờ mặc định cho từng thủ tục
             if (value && (!initialData || !initialData.id)) {
-                setOtherDocRows(getDefaultDocsForProcedure(value));
+                setOtherDocRows(getDefaultDocsForProcedure(value, calculatedHasTax));
+            }
+        }
+        if (field === 'hasTax') {
+            if (newData.recordType && (!initialData || !initialData.id)) {
+                setOtherDocRows(getDefaultDocsForProcedure(newData.recordType, value));
             }
         }
         return newData;

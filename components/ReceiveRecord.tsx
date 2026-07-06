@@ -25,6 +25,8 @@ interface ReceiveRecordProps {
   currentUser: User;
   records?: RecordFile[];
   holidays: Holiday[]; // New prop
+  setCurrentView?: (view: string) => void;
+  setRecordToContract?: (record: RecordFile | null) => void;
 }
 
 // Hàm chuyển đổi Âm lịch sang Dương lịch (Cố định cho các ngày lễ chính 2024-2026)
@@ -59,7 +61,7 @@ const formatDateKey = (date: Date): string => {
     return `${year}-${month}-${day}`;
 };
 
-const ReceiveRecord: React.FC<ReceiveRecordProps> = ({ onSave, onDelete, wards, employees, currentUser, records = [], holidays }) => {
+const ReceiveRecord: React.FC<ReceiveRecordProps> = ({ onSave, onDelete, wards, employees, currentUser, records = [], holidays, setCurrentView, setRecordToContract }) => {
   const [viewMode, setViewMode] = useState<'create' | 'list' | 'bulk' | 'vphc'>('create');
   
   // State cho thông báo Custom (Toast)
@@ -586,6 +588,12 @@ const ReceiveRecord: React.FC<ReceiveRecordProps> = ({ onSave, onDelete, wards, 
               onClose={() => setSystemReceiptData(null)} 
               currentUser={currentUser}
               employees={employees}
+              onCreateContract={(rec) => {
+                  if (setRecordToContract && setCurrentView) {
+                      setRecordToContract(rec);
+                      setCurrentView('receive_contract');
+                  }
+              }}
           />
       )}
     </div>

@@ -28,6 +28,8 @@ interface ReceiveContractProps {
   // New props for handling external liquidation request
   recordToLiquidate: RecordFile | null;
   onClearRecordToLiquidate: () => void;
+  recordToContract: RecordFile | null;
+  onClearRecordToContract: () => void;
 }
 
 // --- HÀM ĐỌC SỐ TIỀN ---
@@ -64,7 +66,7 @@ function _nd(s: string): string {
     return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 }
 
-const ReceiveContract: React.FC<ReceiveContractProps> = ({ wards, currentUser, employees, records, recordToLiquidate, onClearRecordToLiquidate }) => {
+const ReceiveContract: React.FC<ReceiveContractProps> = ({ wards, currentUser, employees, records, recordToLiquidate, onClearRecordToLiquidate, recordToContract, onClearRecordToContract }) => {
   // Thay đổi: activeModule giờ bao gồm cả 'list', 'liquidation_list' và 'annex_list'
   const [activeModule, setActiveModule] = useState<'contract' | 'liquidation' | 'list' | 'liquidation_list' | 'annex_list'>('list'); 
   const [priceList, setPriceList] = useState<PriceItem[]>([]);
@@ -164,6 +166,91 @@ const ReceiveContract: React.FC<ReceiveContractProps> = ({ wards, currentUser, e
       const { code } = peekNextContractCode(cfg);
       setNextCodeProposal(code);
   };
+
+  // --- LOGIC XỬ LÝ KHI CÓ YÊU CẦU LẬP HỢP ĐỒNG TỪ BÊN NGOÀI ---
+  useEffect(() => {
+      if (recordToContract && contracts.length > 0) {
+          const normalize = (s: string) => String(s || '').trim().toLowerCase();
+          const recCode = normalize(recordToContract.code);
+          
+          const existingContract = contracts.find(c => {
+              const cRecordCode = normalize(c.recordCode || '');
+              const cCode = normalize(c.code || '');
+              return (cRecordCode === recCode || cCode === recCode);
+          });
+
+          if (existingContract) {
+              setEditingContract({
+                  ...existingContract,
+                  status: 'PENDING'
+              });
+          } else {
+              let areaType = '';
+              const w = (recordToContract.ward || '').toLowerCase();
+              if (w.includes('phường') || w.includes('tt.') || w.includes('thị trấn') || w.includes('minh hưng') || w.includes('chơn thành')) {
+                  areaType = 'Đất đô thị';
+              } else {
+                  areaType = 'Đất nông thôn';
+              }
+
+              const recType = (recordToContract.recordType || '').toLowerCase();
+              let serviceType = '';
+              let contractType: 'Đo đạc' | 'Tách thửa' | 'Cắm mốc' | 'Trích lục' = 'Đo đạc';
+
+              if (recType.includes('trích lục')) {
+                  contractType = 'Trích lục';
+                  const match = priceList.find(p => p.serviceName.toLowerCase().includes('trích lục'));
+                  serviceType = match ? match.serviceName : 'Trích lục bản đồ địa chính';
+              } else if (recType.includes('cắm mốc')) {
+                  contractType = 'Cắm mốc';
+                  const match = priceList.find(p => p.serviceName.toLowerCase().includes('cắm mốc'));
+                  serviceType = match ? match.serviceName : 'Cắm mốc ranh giới';
+              } else if (recType.includes('tách thửa') || recType.includes('tách - hợp thửa')) {
+                  contractType = 'Tách thửa';
+                  serviceType = 'Đo đạc tách thửa';
+              } else {
+                  const area = recordToContract.area || 0;
+                  const match = priceList.find(p => 
+                      p.serviceName.toLowerCase().includes('đo đạc') && 
+                      area >= p.minArea && area < p.maxArea
+                  );
+                  serviceType = match ? match.serviceName : 'Đo đạc hiện trạng';
+              }
+
+              const newContract: Contract = {
+                  id: Math.random().toString(36).substr(2, 9),
+                  code: generateContractCode(),
+                  recordCode: recordToContract.code,
+                  customerName: recordToContract.customerName,
+                  phoneNumber: recordToContract.phoneNumber,
+                  address: recordToContract.address,
+                  ward: recordToContract.ward,
+                  landPlot: recordToContract.landPlot,
+                  mapSheet: recordToContract.mapSheet,
+                  area: recordToContract.area || 0,
+                  
+                  contractType: contractType,
+                  serviceType: serviceType, 
+                  areaType: areaType,       
+                  
+                  plotCount: 1,
+                  markerCount: 1,
+                  quantity: 1, 
+                  unitPrice: 0, 
+                  vatRate: 8, 
+                  vatAmount: 0, 
+                  totalAmount: 0, 
+                  deposit: 0,
+                  createdDate: new Date().toISOString(),
+                  status: 'PENDING'
+              };
+              setEditingContract(newContract);
+          }
+          
+          setActiveModule('contract');
+          onClearRecordToContract();
+      }
+  }, [recordToContract, contracts, priceList]);
 
   // --- LOGIC XỬ LÝ KHI CÓ YÊU CẦU THANH LÝ TỪ BÊN NGOÀI ---
   useEffect(() => {
