@@ -822,31 +822,8 @@ function App() {
 
   const advanceStatus = useCallback(async (record: RecordFile) => {
       if (record.status === RecordStatus.RECEIVED) {
-          let targetView = 'assign_tasks';
-          const rType = (record.recordType || '').trim().toLowerCase();
-          if (isArchiveType(record.recordType)) {
-              targetView = 'archive_assign_tasks';
-          } else if (isRegType(record.recordType)) {
-              targetView = 'registration_assign_tasks';
-          } else if (rType.includes('công văn') || record.recordType === '1.2 Công văn') {
-              targetView = 'congvan_assign_tasks';
-          } else if (isMeasurementType(record.recordType)) {
-              targetView = 'assign_tasks';
-          } else {
-              if (currentView.startsWith('registration_')) {
-                  targetView = 'registration_assign_tasks';
-              } else if (currentView.startsWith('archive_')) {
-                  targetView = 'archive_assign_tasks';
-              } else if (currentView.startsWith('congvan_')) {
-                  targetView = 'congvan_assign_tasks';
-              } else if (currentView === 'other_records') {
-                  targetView = 'other_assign_tasks';
-              } else {
-                  targetView = 'assign_tasks';
-              }
-          }
-          setCurrentView(targetView);
-          setToast({ type: 'success', message: 'Hồ sơ đang ở bước chờ giao. Đã chuyển sang cấu hình phân công xử lý để giao việc!' });
+          setAssignTargetRecords([record]);
+          setIsAssignModalOpen(true);
           return;
       }
 
@@ -1122,105 +1099,14 @@ function App() {
                       <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
                           <div className="bg-white rounded-xl shadow-2xl border border-indigo-100 w-full max-w-md overflow-hidden animate-fade-in-up text-left">
                               <div className="bg-indigo-600 px-5 py-3 text-white font-bold text-sm flex items-center justify-between">
-                                   <span>NHẬP THÔNG TIN TỜ THỬA DIỆN TÍCH & TRÌNH KÝ THUẾ</span>
+                                   <span>TRÌNH KÝ PHIẾU CHUYỂN THUẾ</span>
                                    <button onClick={() => { setTaxModalOpen(false); setTaxTargetRecord(null); }} className="text-white/80 hover:text-white font-bold">✕</button>
                               </div>
                               <div className="p-5 space-y-4">
                                   <p className="text-xs text-gray-600 leading-relaxed">
-                                      Vui lòng nhập đầy đủ thông tin thửa đất, tờ bản đồ, diện tích theo từng loại đất và chọn lãnh đạo Ban Giám đốc để trình ký thuế cho hồ sơ <strong>{taxTargetRecord.code}</strong>:
+                                      Vui lòng chọn lãnh đạo Ban Giám đốc để trình ký thuế cho hồ sơ <strong>{taxTargetRecord.code}</strong>:
                                   </p>
-                                  <div className="grid grid-cols-2 gap-3">
-                                      <div>
-                                          <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Số thửa mới <span className="text-red-500">*</span></label>
-                                          <input 
-                                              type="text" 
-                                              value={taxLandPlot} 
-                                              onChange={e => setTaxLandPlot(e.target.value)} 
-                                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                              placeholder="Ví dụ: 123"
-                                              required
-                                          />
-                                      </div>
-                                      <div>
-                                          <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Tờ bản đồ mới <span className="text-red-500">*</span></label>
-                                          <input 
-                                              type="text" 
-                                              value={taxMapSheet} 
-                                              onChange={e => setTaxMapSheet(e.target.value)} 
-                                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                              placeholder="Ví dụ: 45"
-                                              required
-                                          />
-                                      </div>
-                                  </div>
 
-                                  <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/50 space-y-3">
-                                      <span className="text-xs font-extrabold text-indigo-700 block uppercase tracking-wider">Diện tích từng loại đất (m²)</span>
-                                      <div className="grid grid-cols-2 gap-2">
-                                          <div>
-                                              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">ONT/ODT</label>
-                                              <input 
-                                                  type="number" 
-                                                  value={taxResidentialArea} 
-                                                  onChange={e => updateTaxCategoryAndTotal('residential', e.target.value)} 
-                                                  className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                                                  placeholder="0"
-                                              />
-                                          </div>
-                                          <div>
-                                              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">CLN</label>
-                                              <input 
-                                                  type="number" 
-                                                  value={taxClnArea} 
-                                                  onChange={e => updateTaxCategoryAndTotal('cln', e.target.value)} 
-                                                  className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                                                  placeholder="0"
-                                              />
-                                          </div>
-                                          <div>
-                                              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">BHK</label>
-                                              <input 
-                                                  type="number" 
-                                                  value={taxBhkArea} 
-                                                  onChange={e => updateTaxCategoryAndTotal('bhk', e.target.value)} 
-                                                  className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                                                  placeholder="0"
-                                              />
-                                          </div>
-                                          <div>
-                                              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">LUC</label>
-                                              <input 
-                                                  type="number" 
-                                                  value={taxLucArea} 
-                                                  onChange={e => updateTaxCategoryAndTotal('luc', e.target.value)} 
-                                                  className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                                                  placeholder="0"
-                                              />
-                                          </div>
-                                          <div className="col-span-2">
-                                              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Đất khác</label>
-                                              <input 
-                                                  type="number" 
-                                                  value={taxOtherLandArea} 
-                                                  onChange={e => updateTaxCategoryAndTotal('other', e.target.value)} 
-                                                  className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                                                  placeholder="0"
-                                              />
-                                          </div>
-                                      </div>
-                                  </div>
-
-                                  <div>
-                                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Tổng diện tích mới (m²) <span className="text-red-500">*</span></label>
-                                      <input 
-                                          type="number" 
-                                          value={taxArea} 
-                                          onChange={e => setTaxArea(e.target.value)} 
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                          placeholder="Ví dụ: 150"
-                                          required
-                                      />
-                                  </div>
                                   <div>
                                       <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Chọn lãnh đạo trình ký (Ban Giám đốc) <span className="text-red-500">*</span></label>
                                       <select
@@ -1253,20 +1139,6 @@ function App() {
                                           onClick={async () => {
                                               if (!taxTargetRecord) return;
                                               
-                                              // Validate fields strictly just like in receive record form
-                                              if (!taxLandPlot || !taxLandPlot.trim()) {
-                                                  setToast({ type: 'error', message: 'Vui lòng nhập đầy đủ Số thửa mới.' });
-                                                  return;
-                                              }
-                                              if (!taxMapSheet || !taxMapSheet.trim()) {
-                                                  setToast({ type: 'error', message: 'Vui lòng nhập đầy đủ Tờ bản đồ mới.' });
-                                                  return;
-                                              }
-                                              const areaNum = parseFloat(taxArea);
-                                              if (!taxArea || isNaN(areaNum) || areaNum <= 0) {
-                                                  setToast({ type: 'error', message: 'Vui lòng nhập đầy đủ Diện tích mới hợp lệ (lớn hơn 0).' });
-                                                  return;
-                                              }
                                               if (!taxDirector) {
                                                   setToast({ type: 'error', message: 'Vui lòng chọn Lãnh đạo là Ban Giám đốc để trình ký.' });
                                                   return;
@@ -1286,14 +1158,14 @@ function App() {
                                               const updates = {
                                                   status: nextStatus,
                                                   currentStepIndex: nextStepIndex,
-                                                  landPlot: taxLandPlot.trim(),
-                                                  mapSheet: taxMapSheet.trim(),
-                                                  area: areaNum,
-                                                  residentialArea: parseFloat(taxResidentialArea) || 0,
-                                                  clnArea: parseFloat(taxClnArea) || 0,
-                                                  bhkArea: parseFloat(taxBhkArea) || 0,
-                                                  lucArea: parseFloat(taxLucArea) || 0,
-                                                  otherLandArea: parseFloat(taxOtherLandArea) || 0,
+                                                  landPlot: taxTargetRecord.landPlot || '',
+                                                  mapSheet: taxTargetRecord.mapSheet || '',
+                                                  area: taxTargetRecord.area || 0,
+                                                  residentialArea: taxTargetRecord.residentialArea || 0,
+                                                  clnArea: taxTargetRecord.clnArea || 0,
+                                                  bhkArea: taxTargetRecord.bhkArea || 0,
+                                                  lucArea: taxTargetRecord.lucArea || 0,
+                                                  otherLandArea: taxTargetRecord.otherLandArea || 0,
                                                   completedWorkDate: nowStr,
                                                   submittedTo: taxDirector,
                                                   submissionDate: nowStr
@@ -1301,11 +1173,11 @@ function App() {
                                               
                                               setRecords(prev => prev.map(r => r.id === taxTargetRecord.id ? { ...r, ...updates } : r));
                                               await updateRecordApi({ ...taxTargetRecord, ...updates });
-                                              setToast({ type: 'success', message: `Đã cập nhật thông tin tờ thửa diện tích, chuyển trình ký thuế và trình lên lãnh đạo thành công!` });
+                                              setToast({ type: 'success', message: `Đã chuyển trình ký thuế và trình lên lãnh đạo thành công!` });
                                               setTaxModalOpen(false);
                                               setTaxTargetRecord(null);
                                           }}
-                                          className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors animate-pulse"
+                                          className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
                                       >
                                           Xác nhận & Trình
                                       </button>
