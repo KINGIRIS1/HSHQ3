@@ -103,23 +103,7 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ isOpen, onClose, records, onC
                     team: 'Ban Giám đốc'
                 });
             });
-            
-            // Đưa các tài khoản ADMIN/SUBADMIN vào
-            users.forEach(u => {
-                if (u.role === UserRole.ADMIN || u.role === UserRole.SUBADMIN) {
-                    const emp = getLinkedEmployeeForUser(u);
-                    const empId = u.employeeId || u.username || 'admin';
-                    if (!directorsMap.has(empId)) {
-                        directorsMap.set(empId, {
-                            id: empId,
-                            name: u.name,
-                            position: emp?.position || (u.role === UserRole.ADMIN ? 'Giám đốc / Quản trị viên' : 'Phó giám đốc / Phó quản trị'),
-                            team: 'Ban Giám đốc'
-                        });
-                    }
-                }
-            });
-            
+ 
             return Array.from(directorsMap.values());
         }
     }, [users, employees, isCheckMode, records]);
