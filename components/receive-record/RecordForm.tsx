@@ -126,6 +126,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
     return currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUBADMIN;
   }, [currentUser]);
 
+  const isNewRecord = !(initialData && initialData.id);
+
   const d = new Date();
   const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -764,7 +766,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
         ? parseFloat((residentialArea + clnArea + bhkArea + lucArea + otherLandArea).toFixed(4))
         : (parseFloat(formData.area as any) || 0);
 
-    if (isRegistration(formData.recordType)) {
+    if (isNewRecord && isRegistration(formData.recordType)) {
         if (!formData.landPlot?.trim()) {
             setNotification({ type: 'error', message: "Vui lòng nhập Số thứ tự thửa đất đối với các thủ tục của Cấp giấy." });
             return;
@@ -1235,10 +1237,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                 <div className="p-4 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <div className="md:col-span-4">
-                            <label className={labelClass}>Họ và tên người nộp <span className="text-red-500">*</span></label>
+                            <label className={labelClass}>Họ và tên người nộp {isNewRecord && <span className="text-red-500">*</span>}</label>
                             <input 
                                 type="text" 
-                                required 
+                                required={isNewRecord} 
                                 className={plainInputClass} 
                                 placeholder="Họ và tên..." 
                                 value={applicantName} 
@@ -1246,10 +1248,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             />
                         </div>
                         <div className="md:col-span-4">
-                            <label className={labelClass}>CCCD/Số Giấy <span className="text-red-500">*</span></label>
+                            <label className={labelClass}>CCCD/Số Giấy {isNewRecord && <span className="text-red-500">*</span>}</label>
                             <input 
                                 type="text" 
-                                required 
+                                required={isNewRecord} 
                                 className={plainInputClass} 
                                 placeholder="CCCD..." 
                                 value={applicantCccd} 
@@ -1257,10 +1259,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             />
                         </div>
                         <div className="md:col-span-4">
-                            <label className={labelClass}>SĐT người nộp <span className="text-red-500">*</span></label>
+                            <label className={labelClass}>SĐT người nộp {isNewRecord && <span className="text-red-500">*</span>}</label>
                             <input 
                                 type="text" 
-                                required 
+                                required={isNewRecord} 
                                 className={plainInputClass} 
                                 placeholder="Số điện thoại..." 
                                 value={applicantPhone} 
@@ -1268,10 +1270,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             />
                         </div>
                         <div className="md:col-span-12 mt-2">
-                            <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
+                            <label className={labelClass}>Địa chỉ thường trú {isNewRecord && <span className="text-red-500">*</span>}</label>
                             <input 
                                 type="text" 
-                                required 
+                                required={isNewRecord} 
                                 className={plainInputClass} 
                                 placeholder="Nhập địa chỉ thường trú..." 
                                 value={formData.customerAddress || ''} 
@@ -1291,15 +1293,15 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                 <div className="p-4 space-y-5">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label className={labelClass}>Tỉnh/Thành phố <span className="text-red-500">*</span></label>
+                            <label className={labelClass}>Tỉnh/Thành phố {isNewRecord && <span className="text-red-500">*</span>}</label>
                             <select className={selectClass} disabled value="Thành Phố Đồng Nai">
                                 <option value="Thành Phố Đồng Nai">Thành Phố Đồng Nai</option>
                             </select>
                         </div>
                         <div>
-                            <label className={labelClass}>Phường/xã {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
+                            <label className={labelClass}>Phường/xã {isNewRecord && formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
                             <select 
-                                required={formData.recordType !== '1.2 Công văn'} 
+                                required={isNewRecord && formData.recordType !== '1.2 Công văn'} 
                                 className={selectClass} 
                                 value={formData.ward || ''} 
                                 onChange={(e) => handleChange('ward', e.target.value)}
@@ -1316,12 +1318,12 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label className={labelClass}>Số thứ tự thửa {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
-                            <input type="text" required={formData.recordType !== '1.2 Công văn'} className={plainInputClass} placeholder="Số thửa..." value={formData.landPlot || ''} onChange={(e) => handleChange('landPlot', e.target.value)} />
+                            <label className={labelClass}>Số thứ tự thửa {isNewRecord && formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
+                            <input type="text" required={isNewRecord && formData.recordType !== '1.2 Công văn'} className={plainInputClass} placeholder="Số thửa..." value={formData.landPlot || ''} onChange={(e) => handleChange('landPlot', e.target.value)} />
                         </div>
                         <div>
-                            <label className={labelClass}>Tờ bản đồ {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
-                            <input type="text" required={formData.recordType !== '1.2 Công văn'} className={plainInputClass} placeholder="Số tờ bản đồ..." value={formData.mapSheet || ''} onChange={(e) => handleChange('mapSheet', e.target.value)} />
+                            <label className={labelClass}>Tờ bản đồ {isNewRecord && formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
+                            <input type="text" required={isNewRecord && formData.recordType !== '1.2 Công văn'} className={plainInputClass} placeholder="Số tờ bản đồ..." value={formData.mapSheet || ''} onChange={(e) => handleChange('mapSheet', e.target.value)} />
                         </div>
                         <div>
                             <label className={labelClass}>Ngày cấp GCN</label>
@@ -1461,7 +1463,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                         <td className="px-3 py-1.5">
                                             <input 
                                                 type="text" 
-                                                required 
+                                                required={isNewRecord} 
                                                 readOnly={(isApplicantOwner || isMeasOrArch) && index === 0}
                                                 className={`w-full border border-slate-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 ${(isApplicantOwner || isMeasOrArch) && index === 0 ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : 'bg-white text-slate-800'}`} 
                                                 value={row.name} 
@@ -1472,7 +1474,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                         <td className="px-3 py-1.5">
                                             <input 
                                                 type="text" 
-                                                required 
+                                                required={isNewRecord} 
                                                 readOnly={(isApplicantOwner || isMeasOrArch) && index === 0}
                                                 className={`w-full border border-slate-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 ${(isApplicantOwner || isMeasOrArch) && index === 0 ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : 'bg-white text-slate-800'}`} 
                                                 value={row.cccd} 

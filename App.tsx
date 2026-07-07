@@ -188,6 +188,16 @@ function App() {
       handleSaveEmployee, handleDeleteEmployee, handleDeleteAllData, handleUpdateUser, handleDeleteUser
   } = useAppData(currentUser);
 
+  const handleAddOrUpdateWithToast = useCallback(async (recordData: any, forceDeleteOnWithdrawn: boolean = false) => {
+      const res = await handleAddOrUpdateRecord(recordData, forceDeleteOnWithdrawn);
+      if (res) {
+          setToast({ type: 'success', message: recordData.id ? `Đã cập nhật hồ sơ thành công: ${res.code}` : `Đã tiếp nhận hồ sơ mới: ${res.code}` });
+      } else if (recordData.status !== RecordStatus.WITHDRAWN) {
+          setToast({ type: 'error', message: 'Lỗi khi lưu hồ sơ.' });
+      }
+      return res;
+  }, [handleAddOrUpdateRecord, setToast]);
+
   const records = useMemo(() => {
       return rawRecords;
   }, [rawRecords]);
@@ -1430,7 +1440,7 @@ function App() {
             
             previewWorkbook={previewWorkbook} previewExcelName={previewExcelName}
 
-            handleAddOrUpdate={handleAddOrUpdateRecord}
+            handleAddOrUpdate={handleAddOrUpdateWithToast}
             handleImportRecords={onImportRecords}
             handleSaveEmployee={handleSaveEmployee}
             handleDeleteEmployee={handleDeleteEmployee}
@@ -1534,7 +1544,7 @@ function App() {
             
             handleViewRecord={(r) => setViewingRecord(r)}
             handleMapCorrectionRequest={handleMapCorrectionRequest}
-            handleAddOrUpdateRecord={handleAddOrUpdateRecord}
+            handleAddOrUpdateRecord={handleAddOrUpdateWithToast}
             handleDeleteRecord={handleDeleteRecord}
             handleUpdateUser={handleUpdateUser}
             handleDeleteUser={handleDeleteUser}
@@ -1603,7 +1613,7 @@ function App() {
             
             previewWorkbook={previewWorkbook} previewExcelName={previewExcelName}
 
-            handleAddOrUpdate={handleAddOrUpdateRecord}
+            handleAddOrUpdate={handleAddOrUpdateWithToast}
             handleImportRecords={onImportRecords}
             handleSaveEmployee={handleSaveEmployee}
             handleDeleteEmployee={handleDeleteEmployee}

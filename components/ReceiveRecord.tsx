@@ -470,7 +470,13 @@ const ReceiveRecord: React.FC<ReceiveRecordProps> = ({ onSave, onDelete, wards, 
   };
 
   const handleSaveRecordWithForce = async (record: RecordFile): Promise<RecordFile | null> => {
-      return await onSave(record, true);
+      const result = await onSave(record, true);
+      if (result) {
+          notify(record.id ? `Cập nhật hồ sơ thành công: ${result.code}` : `Đã tiếp nhận hồ sơ mới: ${result.code}`, 'success');
+      } else {
+          notify(`Lỗi khi lưu hồ sơ.`, 'error');
+      }
+      return result;
   };
 
   return (
