@@ -1,9 +1,10 @@
 import React from 'react';
-import { RecordFile, Employee, User, UserRole, Holiday } from '../../types';
+import { RecordFile, Employee, User, UserRole, Holiday, RolePermissions, RecordStatus } from '../../types';
 import MobileDashboard from './MobileDashboard';
 import MobileRecordList from './MobileRecordList';
 import MobileSettingsView from './MobileSettingsView';
 import MobileSearchTab from './MobileSearchTab';
+import PersonalProfile from '../PersonalProfile';
 
 interface MobileRoutesProps {
   currentView: string;
@@ -33,6 +34,11 @@ interface MobileRoutesProps {
   onDeleteEmployee: (id: string) => void;
   onDeleteAllData: () => Promise<boolean>;
   onHolidaysChanged: () => void;
+  rolePermissions?: RolePermissions;
+  onUpdateStatus?: (record: RecordFile, newStatus: RecordStatus) => void;
+  onUpdateRecord?: (record: RecordFile) => Promise<RecordFile | null>;
+  onCreateLiquidation?: (record: RecordFile) => void;
+  onMapCorrection?: (record: RecordFile) => void;
 }
 
 const MobileRoutes: React.FC<MobileRoutesProps> = (props) => {
@@ -65,12 +71,19 @@ const MobileRoutes: React.FC<MobileRoutesProps> = (props) => {
     case 'barcode_generator':
     case 'mobile_search':
       return (
-        <MobileSearchTab 
+        <PersonalProfile
+          user={currentUser}
           records={records}
+          isDirector={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUBADMIN}
+          users={users}
           employees={employees}
+          rolePermissions={props.rolePermissions}
+          onUpdateStatus={props.onUpdateStatus || (() => {})}
+          onUpdateRecord={props.onUpdateRecord}
+          onViewRecord={props.handleViewRecord}
+          onCreateLiquidation={props.onCreateLiquidation}
+          onMapCorrection={props.onMapCorrection}
           holidays={props.holidays}
-          currentUser={currentUser}
-          onViewRecordDetail={props.handleViewRecord}
         />
       );
 

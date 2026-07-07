@@ -181,6 +181,24 @@ export const useRecordFilter = (
             } else {
                 result = result.filter(r => r.status === RecordStatus.PENDING_SIGN);
             }
+
+            // Exclude 'Trình ký Thuế' records from the main 'Trình Ký GCN' tab
+            if (currentView === 'registration_check_list') {
+                const getActiveStepLabel = (r: RecordFile) => {
+                    try {
+                        const helper = getGcnWorkflowStepsHelper(r, []);
+                        if (helper && helper.steps) {
+                            const currentStep = helper.steps.find(s => s.status === 'current');
+                            if (currentStep) return currentStep.label.toLowerCase();
+                        }
+                    } catch (e) {}
+                    return '';
+                };
+                result = result.filter(r => {
+                    if (!isRegType(r.recordType)) return true;
+                    return !getActiveStepLabel(r).includes('trình ký thuế');
+                });
+            }
         } else if (isPendingCheckView) {
             // Tab Kiểm tra: Hiển thị hồ sơ Chờ kiểm tra và Đã kiểm tra
             result = result.filter(r => r.status === RecordStatus.PENDING_CHECK || r.status === RecordStatus.CHECKED);
@@ -250,15 +268,22 @@ export const useRecordFilter = (
             };
 
             if (currentView === 'registration_phieu_chuyen_thue') {
-                result = result.filter(r => getActiveStepLabel(r).includes('phiếu chuyển thuế'));
+                result = result.filter(r => getActiveStepLabel(r).includes('phiếu chuyển'));
             } else if (currentView === 'registration_trinh_ky_thue') {
-                result = result.filter(r => getActiveStepLabel(r).includes('trình ký thuế'));
+                result = result.filter(r => {
+                    const label = getActiveStepLabel(r);
+                    if (!label.includes('trình ký thuế')) return false;
+                    if (isDirector) {
+                        return r.status === RecordStatus.PENDING_SIGN && r.submittedTo === currentUser?.employeeId;
+                    }
+                    return r.status === RecordStatus.PENDING_SIGN;
+                });
             } else if (currentView === 'registration_tbt') {
                 result = result.filter(r => r.status === RecordStatus.TBT || getActiveStepLabel(r) === 'tbt');
             } else if (currentView === 'registration_in_gcn') {
-                result = result.filter(r => r.status === RecordStatus.PENDING_CHECK || getActiveStepLabel(r) === 'in gcn');
+                result = result.filter(r => getActiveStepLabel(r).includes('in gcn') || getActiveStepLabel(r).includes('in giấy chứng nhận'));
             } else if (currentView === 'registration_tham_tra') {
-                result = result.filter(r => r.status === RecordStatus.CHECKED || getActiveStepLabel(r) === 'thẩm tra');
+                result = result.filter(r => r.status === RecordStatus.PENDING_CHECK || getActiveStepLabel(r).includes('thẩm tra'));
             }
 
             // Employee filtering for registration step-specific views:
@@ -269,7 +294,11 @@ export const useRecordFilter = (
             })();
 
             if (currentUser && currentUser.role === UserRole.EMPLOYEE && !isUserTeamLeaderOrDelegated) {
-                result = result.filter(r => r.assignedTo === currentUser.employeeId);
+                if (currentView === 'registration_tham_tra') {
+                    result = result.filter(r => r.checkedBy === currentUser.employeeId || r.assignedTo === currentUser.employeeId);
+                } else {
+                    result = result.filter(r => r.assignedTo === currentUser.employeeId);
+                }
             }
         }
 

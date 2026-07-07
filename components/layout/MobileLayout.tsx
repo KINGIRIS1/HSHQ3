@@ -10,7 +10,8 @@ import {
   Menu,
   Search,
   Plus,
-  ScanBarcode
+  ScanBarcode,
+  User as UserIcon
 } from 'lucide-react';
 
 interface MobileLayoutProps {
@@ -34,8 +35,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
-    { id: 'all_records', label: 'Hồ sơ', icon: FileText },
-    { id: 'mobile_search', label: 'Tìm kiếm', icon: Search },
+    { id: 'all_records', label: 'Tìm kiếm', icon: Search },
+    { id: 'mobile_search', label: 'Hồ sơ cá nhân', icon: UserIcon },
     { id: 'account_settings', label: 'Cài đặt', icon: Settings },
   ];
 

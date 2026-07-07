@@ -35,7 +35,8 @@ export const supabase = createClient(urlToUse, keyToUse, {
     auth: {
         persistSession: true, // Giữ đăng nhập khi F5
         autoRefreshToken: true,
-    },
+        lockType: 'localstorage',
+    } as any,
     db: {
         schema: 'public',
     }

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { RecordFile, Employee, User, RecordStatus, Holiday, RolePermissions, DepartmentPermissions, DEFAULT_ROLE_PERMISSIONS } from '../types';
 import { fetchRecords, fetchEmployees, fetchUsers, fetchUpdateInfo, fetchHolidays,
     createRecordApi, updateRecordApi, deleteRecordApi, createRecordsBatchApi,
@@ -75,6 +75,8 @@ const getWorkingDaysCount = (startDateStr: string, endDate: Date, listHolidays: 
 };
 
 export const useAppData = (currentUser: User | null) => {
+    const hasCheckedAutoTransitionRef = useRef(false);
+
     const [records, setRecords] = useState<RecordFile[]>(() => {
         return getFromCache(CACHE_KEYS.RECORDS, []);
     });
@@ -103,6 +105,7 @@ export const useAppData = (currentUser: User | null) => {
     const [updateUrl, setUpdateUrl] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
+        hasCheckedAutoTransitionRef.current = false;
         try {
             // Tạo timeout promise để tránh việc fetch bị treo mãi mãi
             // Nâng lên 25 giây để tải toàn bộ hơn 5600 hồ sơ từ Supabase Cloud thành công trên mọi đường truyền
@@ -209,7 +212,8 @@ export const useAppData = (currentUser: User | null) => {
 
     // Tự động chuyển trạng thái hồ sơ trình ký có thuế sang TBT sau 7 ngày làm việc
     useEffect(() => {
-        if (records.length === 0) return;
+        if (records.length === 0 || holidays.length === 0) return;
+        if (hasCheckedAutoTransitionRef.current) return;
         
         const qualifyingRecords = records.filter(r => 
             r.status === RecordStatus.PENDING_SIGN && 
@@ -217,7 +221,10 @@ export const useAppData = (currentUser: User | null) => {
             r.submissionDate
         );
         
-        if (qualifyingRecords.length === 0) return;
+        if (qualifyingRecords.length === 0) {
+            hasCheckedAutoTransitionRef.current = true;
+            return;
+        }
         
         const today = new Date();
         const recordsToUpdate: RecordFile[] = [];
@@ -234,6 +241,7 @@ export const useAppData = (currentUser: User | null) => {
         });
         
         if (recordsToUpdate.length > 0) {
+            hasCheckedAutoTransitionRef.current = true;
             setRecords(prev => prev.map(r => {
                 const updated = recordsToUpdate.find(u => u.id === r.id);
                 return updated ? updated : r;
@@ -246,6 +254,8 @@ export const useAppData = (currentUser: User | null) => {
                     console.error("Lỗi tự động cập nhật trạng thái TBT cho hồ sơ:", updatedRecord.code, err);
                 }
             });
+        } else {
+            hasCheckedAutoTransitionRef.current = true;
         }
     }, [records, holidays]);
 

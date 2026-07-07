@@ -520,12 +520,12 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 h-full animate-fade-in-up">
         {/* SUB-HEADER TABS FOR MEASUREMENT RECORDS */}
         {isMeasurementView && (
-          <div className="flex border-b border-gray-200 bg-gray-50 px-4 overflow-x-auto">
+          <div className="flex border-b border-gray-200 bg-gray-50 px-2 lg:px-4 overflow-x-auto select-none no-scrollbar">
             {!isDirector && (
               <>
                 <button
                   onClick={() => props.setCurrentView("all_records")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "all_records" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "all_records" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <FileText size={16} /> Tất cả hồ sơ
                 </button>
@@ -535,7 +535,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                   hasTeamLeaderPrivileges) && (
                   <button
                     onClick={() => props.setCurrentView("assign_tasks")}
-                    className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "assign_tasks" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                    className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "assign_tasks" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                   >
                     <UserPlusIcon size={16} /> Chưa giao
                   </button>
@@ -543,14 +543,14 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
 
                 <button
                   onClick={() => props.setCurrentView("completed_list")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "completed_list" || currentView === "archive_completed_list" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "completed_list" || currentView === "archive_completed_list" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <CheckSquare size={16} /> Đang thực hiện
                 </button>
 
                 <button
                   onClick={() => props.setCurrentView("pending_check_list")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "pending_check_list" ? "border-orange-600 text-orange-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "pending_check_list" ? "border-orange-600 text-orange-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <ClipboardList size={16} /> Kiểm tra
                 </button>
@@ -560,7 +560,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {(isAdmin || isSubadmin || isDirector || isOneDoor || hasTeamLeaderPrivileges) && (
               <button
                 onClick={() => props.setCurrentView("check_list")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "check_list" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "check_list" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <ClipboardList size={16} /> {isDirector ? "Chờ ký" : "Trình ký"}
               </button>
@@ -569,7 +569,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {isDirector && (
               <button
                 onClick={() => props.setCurrentView("director_completed")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "director_completed" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "director_completed" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <CheckSquare size={16} /> Hoàn thành
               </button>
@@ -582,7 +582,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                 hasTeamLeaderPrivileges) && (
                 <button
                   onClick={() => props.setCurrentView("handover_list")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "handover_list" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "handover_list" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <Send size={16} /> Giao 1 cửa
                 </button>
@@ -592,10 +592,10 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
 
         {/* SUB-HEADER TABS FOR REGISTRATION RECORDS (Cấp giấy) */}
         {isRegistrationView && (
-          <div className="flex border-b border-gray-200 bg-gray-50 px-4 overflow-x-auto select-none no-scrollbar">
+          <div className="flex border-b border-gray-200 bg-gray-50 px-2 lg:px-4 overflow-x-auto select-none no-scrollbar">
             <button
               onClick={() => props.setCurrentView("registration_records")}
-              className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_records" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_records" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <FileText size={16} /> Tất cả hồ sơ
             </button>
@@ -603,7 +603,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {(isAdmin || isSubadmin || hasTeamLeaderPrivileges) && (
               <button
                 onClick={() => props.setCurrentView("registration_assign_tasks")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_assign_tasks" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_assign_tasks" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <UserPlusIcon size={16} /> Chưa giao
               </button>
@@ -611,35 +611,35 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
 
             <button
               onClick={() => props.setCurrentView("registration_phieu_chuyen_thue")}
-              className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_phieu_chuyen_thue" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_phieu_chuyen_thue" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <FileText size={16} /> Phiếu chuyển Thuế
             </button>
 
             <button
               onClick={() => props.setCurrentView("registration_trinh_ky_thue")}
-              className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_trinh_ky_thue" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_trinh_ky_thue" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <FileSignature size={16} /> Trình ký Thuế
             </button>
 
             <button
               onClick={() => props.setCurrentView("registration_tbt")}
-              className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_tbt" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_tbt" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <Receipt size={16} /> TBT
             </button>
 
             <button
               onClick={() => props.setCurrentView("registration_in_gcn")}
-              className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_in_gcn" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_in_gcn" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <Printer size={16} /> In GCN
             </button>
 
             <button
               onClick={() => props.setCurrentView("registration_tham_tra")}
-              className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_tham_tra" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_tham_tra" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <ClipboardList size={16} /> Thẩm tra
             </button>
@@ -647,7 +647,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {(isAdmin || isSubadmin || isDirector || isOneDoor || hasTeamLeaderPrivileges) && (
               <button
                 onClick={() => props.setCurrentView("registration_check_list")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_check_list" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_check_list" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <ClipboardList size={16} /> {isDirector ? "Chờ ký GCN" : "Trình Ký GCN"}
               </button>
@@ -656,7 +656,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {isViewAllowedForUser(currentUser, "registration_vao_so", employees) && (
               <button
                 onClick={() => props.setCurrentView("registration_vao_so")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_vao_so" ? "border-teal-600 text-teal-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_vao_so" ? "border-teal-600 text-teal-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <BookOpen size={16} /> Vô số GCN
               </button>
@@ -665,7 +665,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {(isAdmin || isSubadmin || isOneDoor || hasTeamLeaderPrivileges) && (
               <button
                 onClick={() => props.setCurrentView("registration_handover_list")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_handover_list" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_handover_list" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <Send size={16} /> Giao 1 cửa
               </button>
@@ -675,12 +675,12 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
 
         {/* SUB-HEADER TABS FOR ARCHIVE RECORDS (Lưu trữ) */}
         {isArchiveView && (
-          <div className="flex border-b border-gray-200 bg-gray-50 px-4 overflow-x-auto">
+          <div className="flex border-b border-gray-200 bg-gray-50 px-2 lg:px-4 overflow-x-auto select-none no-scrollbar">
             {!isDirector && (
               <>
                 <button
                   onClick={() => props.setCurrentView("archive_records")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_records" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_records" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <FileText size={16} /> Tất cả hồ sơ
                 </button>
@@ -690,7 +690,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                   hasTeamLeaderPrivileges) && (
                   <button
                     onClick={() => props.setCurrentView("archive_assign_tasks")}
-                    className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_assign_tasks" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                    className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_assign_tasks" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                   >
                     <UserPlusIcon size={16} /> Chưa giao
                   </button>
@@ -698,14 +698,14 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
 
                 <button
                   onClick={() => props.setCurrentView("archive_completed_list")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_completed_list" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_completed_list" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <CheckSquare size={16} /> Đang thực hiện
                 </button>
 
                 <button
                   onClick={() => props.setCurrentView("archive_pending_check_list")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_pending_check_list" ? "border-orange-600 text-orange-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_pending_check_list" ? "border-orange-600 text-orange-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <ClipboardList size={16} /> Kiểm tra
                 </button>
@@ -715,7 +715,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {(isAdmin || isSubadmin || isDirector || isOneDoor || hasTeamLeaderPrivileges) && (
               <button
                 onClick={() => props.setCurrentView("archive_check_list")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_check_list" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_check_list" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <ClipboardList size={16} /> {isDirector ? "Chờ ký" : "Trình ký"}
               </button>
@@ -724,7 +724,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {isDirector && (
               <button
                 onClick={() => props.setCurrentView("archive_director_completed")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_director_completed" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_director_completed" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <CheckSquare size={16} /> Hoàn thành
               </button>
@@ -737,7 +737,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                 hasTeamLeaderPrivileges) && (
                 <button
                   onClick={() => props.setCurrentView("archive_handover_list")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_handover_list" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "archive_handover_list" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <Send size={16} /> Giao 1 cửa
                 </button>
@@ -747,31 +747,31 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
 
         {/* SUB-HEADER TABS FOR CONG VAN RECORDS (Công văn) */}
         {isCongVanView && (
-          <div className="flex border-b border-gray-200 bg-gray-50 px-4 overflow-x-auto">
+          <div className="flex border-b border-gray-200 bg-gray-50 px-2 lg:px-4 overflow-x-auto select-none no-scrollbar">
             <button
               onClick={() => props.setCurrentView("congvan_records")}
-              className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_records" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_records" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <FileText size={16} /> Tất cả hồ sơ
             </button>
 
             <button
               onClick={() => props.setCurrentView("congvan_assign_tasks")}
-              className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_assign_tasks" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_assign_tasks" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <UserPlusIcon size={16} /> Chưa giao
             </button>
 
             <button
               onClick={() => props.setCurrentView("congvan_completed_list")}
-              className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_completed_list" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_completed_list" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <CheckSquare size={16} /> Đang thực hiện
             </button>
 
             <button
               onClick={() => props.setCurrentView("congvan_pending_check_list")}
-              className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_pending_check_list" ? "border-orange-600 text-orange-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_pending_check_list" ? "border-orange-600 text-orange-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <ClipboardList size={16} /> Kiểm tra
             </button>
@@ -779,7 +779,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {(isAdmin || isSubadmin || isDirector || isOneDoor || hasTeamLeaderPrivileges) && (
               <button
                 onClick={() => props.setCurrentView("congvan_check_list")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_check_list" || currentView === "congvan_director_completed" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_check_list" || currentView === "congvan_director_completed" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <ClipboardList size={16} /> Trình ký
               </button>
@@ -792,7 +792,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                 hasTeamLeaderPrivileges) && (
                 <button
                   onClick={() => props.setCurrentView("congvan_handover_list")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_handover_list" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "congvan_handover_list" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <Send size={16} /> Giao 1 cửa
                 </button>
@@ -802,12 +802,12 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
 
         {/* SUB-HEADER TABS FOR OTHER RECORDS */}
         {isOtherView && (
-          <div className="flex border-b border-gray-200 bg-gray-50 px-4 overflow-x-auto">
+          <div className="flex border-b border-gray-200 bg-gray-50 px-2 lg:px-4 overflow-x-auto select-none no-scrollbar">
             {!isDirector && (
               <>
                 <button
                   onClick={() => props.setCurrentView("other_records")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "other_records" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "other_records" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <FileText size={16} /> Tất cả hồ sơ
                 </button>
@@ -817,7 +817,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                   hasTeamLeaderPrivileges) && (
                   <button
                     onClick={() => props.setCurrentView("other_assign_tasks")}
-                    className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "other_assign_tasks" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                    className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "other_assign_tasks" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                   >
                     <UserPlusIcon size={16} /> Chưa giao
                   </button>
@@ -828,7 +828,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {(isAdmin || isSubadmin || isDirector || isOneDoor || hasTeamLeaderPrivileges) && (
               <button
                 onClick={() => props.setCurrentView("other_check_list")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "other_check_list" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "other_check_list" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <ClipboardList size={16} /> {isDirector ? "Chờ ký" : "Trình ký"}
               </button>
@@ -837,7 +837,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             {isDirector && (
               <button
                 onClick={() => props.setCurrentView("other_director_completed")}
-                className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "other_director_completed" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "other_director_completed" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
                 <CheckSquare size={16} /> Hoàn thành
               </button>
@@ -850,7 +850,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                 hasTeamLeaderPrivileges) && (
                 <button
                   onClick={() => props.setCurrentView("other_handover_list")}
-                  className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "other_handover_list" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                  className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "other_handover_list" ? "border-green-600 text-green-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                 >
                   <Send size={16} /> Giao 1 cửa
                 </button>

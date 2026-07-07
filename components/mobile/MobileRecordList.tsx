@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { RecordFile, RecordStatus, Employee } from '../../types';
 import { STATUS_LABELS } from '../../constants';
 import { isMeasurementType, isRegType, isArchiveType } from '../../utils/appHelpers';
+import { Html5Qrcode } from 'html5-qrcode';
 import { 
   Search, 
   Filter, 
@@ -16,7 +17,9 @@ import {
   Ruler,
   Award,
   Archive,
-  Grid
+  Grid,
+  Camera,
+  X
 } from 'lucide-react';
 
 interface MobileRecordListProps {
@@ -41,6 +44,86 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
   const [activeDept, setActiveDept] = useState<'all' | 'dodac' | 'capgiay' | 'luutru' | 'other'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const qrCodeInstanceRef = useRef<Html5Qrcode | null>(null);
+  const scannerId = "mobile-record-list-barcode-reader";
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (qrCodeInstanceRef.current && qrCodeInstanceRef.current.isScanning) {
+        qrCodeInstanceRef.current.stop().catch(err => console.error(err));
+      }
+    };
+  }, []);
+
+  const startScanning = async () => {
+    setScanError(null);
+    setIsScanning(true);
+
+    setTimeout(async () => {
+      try {
+        const html5QrCode = new Html5Qrcode(scannerId);
+        qrCodeInstanceRef.current = html5QrCode;
+
+        const config = { 
+          fps: 10, 
+          qrbox: { width: 280, height: 150 },
+          aspectRatio: 1.777778
+        };
+
+        const tryStart = async (cameraSource: any) => {
+          return html5QrCode.start(
+            cameraSource,
+            config,
+            (decodedText) => {
+              handleScanSuccess(decodedText);
+            },
+            () => {}
+          );
+        };
+
+        try {
+          await tryStart({ facingMode: "environment" });
+        } catch (firstErr) {
+          try {
+            await tryStart({ facingMode: "user" });
+          } catch (secondErr) {
+            const devices = await Html5Qrcode.getCameras();
+            if (devices && devices.length > 0) {
+              await tryStart(devices[0].id);
+            } else {
+              throw new Error("Không tìm thấy camera");
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error("Camera error:", err);
+        setScanError("Không thể truy cập camera. Vui lòng cấp quyền.");
+        setIsScanning(false);
+      }
+    }, 300);
+  };
+
+  const stopScanning = async () => {
+    if (qrCodeInstanceRef.current && qrCodeInstanceRef.current.isScanning) {
+      try {
+        await qrCodeInstanceRef.current.stop();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    qrCodeInstanceRef.current = null;
+    setIsScanning(false);
+  };
+
+  const handleScanSuccess = (decodedText: string) => {
+    const cleanCode = decodedText.trim();
+    setSearchTerm(cleanCode);
+    stopScanning();
+  };
 
   // Tính số lượng hồ sơ cho mỗi bộ phận để hiển thị huy hiệu (badge count)
   const deptCounts = useMemo(() => {
@@ -120,15 +203,60 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
             <input 
               type="text" 
               placeholder="Tìm tên, mã, SĐT..." 
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
-          <button className="w-10 h-10 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center text-slate-600">
+          
+          {/* Camera Scan Button */}
+          <button 
+            onClick={isScanning ? stopScanning : startScanning}
+            className={`w-10 h-10 border rounded-xl flex items-center justify-center transition-all shrink-0 ${
+              isScanning 
+                ? 'bg-red-50 border-red-200 text-red-600' 
+                : 'bg-blue-50 border-blue-200 text-blue-600'
+            }`}
+            title="Quét mã vạch"
+          >
+            {isScanning ? <X size={18} /> : <Camera size={18} />}
+          </button>
+
+          <button className="w-10 h-10 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 shrink-0">
             <Filter size={18} />
           </button>
         </div>
+
+        {/* Camera Scanner Stream View */}
+        {isScanning && (
+          <div className="border-2 border-dashed border-blue-400 bg-slate-900 rounded-xl overflow-hidden p-2 flex flex-col items-center justify-center relative animate-fade-in">
+            <div className="w-full max-w-sm overflow-hidden rounded-lg bg-black">
+              <div id={scannerId} className="w-full min-h-[140px]"></div>
+            </div>
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              <div className="w-3/4 h-[60px] border-2 border-red-500 rounded-md opacity-80 flex items-center justify-center relative">
+                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-600 animate-bounce"></div>
+              </div>
+            </div>
+            <p className="text-[10px] text-white/90 text-center mt-2 bg-black/60 px-3 py-1 rounded-full z-10">
+              Đưa mã vạch hồ sơ vào khung quét để tìm kiếm
+            </p>
+          </div>
+        )}
+
+        {scanError && (
+          <div className="text-xs text-red-600 bg-red-50 border border-red-100 p-2.5 rounded-xl mt-1 flex items-center gap-2">
+            <span>⚠️ {scanError}</span>
+          </div>
+        )}
 
         {/* Bộ lọc Phân hệ Bộ phận */}
         <div className="flex gap-1.5 overflow-x-auto pt-1 pb-1 scrollbar-none scroll-smooth">
