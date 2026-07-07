@@ -272,10 +272,9 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
         return `Ngày ${day} tháng ${month} năm ${year}`;
     };
 
-    const emptyRows = Array(4).fill(0).map((_, i) => (
+    const emptyRows = Array(6).fill(0).map((_, i) => (
         <tr key={i} className="avoid-break" style={{ height: '80px' }}>
-            <td style={{ width: '12%', border: '1px solid black' }}></td>
-            <td style={{ width: '58%', border: '1px solid black', padding: 0 }}>
+            <td style={{ width: '70%', border: '1px solid black', padding: 0 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', height: '80px', margin: 0 }}>
                     <tbody>
                         <tr style={{ height: '25px' }}>
@@ -499,8 +498,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                         <table className="w-full border-collapse border border-black mt-4">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '12%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>TÊN CƠ<br/>QUAN</th>
-                                    <th style={{ width: '58%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>THỜI GIAN GIAO, NHẬN HỒ SƠ</th>
+                                    <th style={{ width: '70%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>THỜI GIAN GIAO, NHẬN HỒ SƠ</th>
                                     <th style={{ width: '15%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>KẾT QUẢ</th>
                                     <th style={{ width: '15%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>Ghi chú</th>
                                 </tr>
