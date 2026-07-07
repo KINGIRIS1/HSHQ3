@@ -78,6 +78,10 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
   const [mode, setMode] = useState<'new' | 'existing'>('new');
   const [selectedExistingBatch, setSelectedExistingBatch] = useState<string>('');
   
+  const isReturnedTab = useMemo(() => {
+    return targetRecords.length > 0 && targetRecords.every(r => r.status === RecordStatus.RETURNED);
+  }, [targetRecords]);
+
   // State quản lý danh sách hồ sơ để thay đổi cờ DNLis
   const [localRecords, setLocalRecords] = useState<RecordFile[]>([]);
 
@@ -143,12 +147,15 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
       checkWarnings();
   }, [isOpen, targetRecords]);
 
-  // Lọc records theo nhóm bộ phận của view hiện tại để tính đợt giao riêng biệt
   const filteredRecordsForBatches = useMemo(() => {
       if (!currentView) return records;
       const activeGroup = getViewActiveGroup(currentView);
-      return records.filter(r => getRecordGroup(r) === activeGroup);
-  }, [records, currentView]);
+      const isReturnedMode = targetRecords.length > 0 && targetRecords.every(r => r.status === RecordStatus.RETURNED);
+      return records.filter(r => 
+          getRecordGroup(r) === activeGroup && 
+          (isReturnedMode ? r.status === RecordStatus.RETURNED : r.status !== RecordStatus.RETURNED)
+      );
+  }, [records, currentView, targetRecords]);
 
   const nextBatchInfo = useMemo(() => {
       let maxBatch = 0;
@@ -165,9 +172,14 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
 
   const historyBatches = useMemo(() => {
       const batches: Record<string, { date: string, batch: number, count: number, fullDate: string }> = {};
+      const isReturnedMode = targetRecords.length > 0 && targetRecords.every(r => r.status === RecordStatus.RETURNED);
       
       filteredRecordsForBatches.forEach(r => {
-          if ((r.status === RecordStatus.HANDOVER || r.status === RecordStatus.SIGNED || r.status === RecordStatus.WITHDRAWN || r.status === RecordStatus.REJECTED) && r.exportBatch && r.exportDate) {
+          const matchStatus = isReturnedMode 
+              ? (r.status === RecordStatus.RETURNED)
+              : (r.status === RecordStatus.HANDOVER || r.status === RecordStatus.SIGNED || r.status === RecordStatus.WITHDRAWN || r.status === RecordStatus.REJECTED);
+              
+          if (matchStatus && r.exportBatch && r.exportDate) {
               const datePart = r.exportDate.split('T')[0];
               const key = `${datePart}_${r.exportBatch}`;
               
@@ -178,8 +190,8 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
                       count: 0,
                       fullDate: r.exportDate 
                   };
-              }
-              batches[key].count++;
+               }
+               batches[key].count++;
           }
       });
 
@@ -188,7 +200,7 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
           if (dateDiff !== 0) return dateDiff;
           return b.batch - a.batch;
       });
-  }, [filteredRecordsForBatches]);
+  }, [filteredRecordsForBatches, targetRecords]);
 
   const registrationRecordsInBatch = useMemo(() => {
       return localRecords.filter(r => isRegistrationRecord(r.recordType));
@@ -250,13 +262,18 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-fade-in-up flex flex-col overflow-hidden">
         <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-            <h3 className="font-bold text-gray-800 text-lg">Chốt Danh Sách Giao 1 Cửa</h3>
+            <h3 className="font-bold text-gray-800 text-lg">
+                {isReturnedTab ? "Chốt Danh Sách Trả Kết Quả (TKQ)" : "Chốt Danh Sách Giao 1 Cửa"}
+            </h3>
             <button onClick={onClose} className="text-gray-400 hover:text-red-500"><X size={20}/></button>
         </div>
 
         <div className="p-6 space-y-4">
             <p className="text-sm text-gray-600 mb-2">
-                Bạn đang thực hiện chốt <strong>{selectedCount > 0 ? selectedCount : 'toàn bộ'}</strong> hồ sơ sang trạng thái "Đã giao".
+                {isReturnedTab 
+                    ? `Bạn đang thực hiện chốt <strong>${selectedCount > 0 ? selectedCount : 'toàn bộ'}</strong> hồ sơ sang danh sách trả kết quả (TKQ).`
+                    : `Bạn đang thực hiện chốt <strong>${selectedCount > 0 ? selectedCount : 'toàn bộ'}</strong> hồ sơ sang trạng thái "Đã giao".`
+                }
             </p>
 
             {/* CẢNH BÁO CHỈNH LÝ BẢN ĐỒ (CHỈ HIỆN KHI CÓ HỒ SƠ CHƯA CHUYỂN LIST) */}
@@ -301,7 +318,7 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
                         <Plus size={16} className="text-blue-600" /> Tạo đợt mới (Hôm nay)
                     </div>
                     <div className="text-sm text-gray-600 mt-1 pl-6">
-                        Đợt tiếp theo: <span className="font-bold text-blue-700">Đợt {nextBatchInfo.batch}</span>
+                        Đợt tiếp theo: <span className="font-bold text-blue-700">Đợt {nextBatchInfo.batch}{isReturnedTab ? ' (DD-LT)' : ''}</span>
                         <br/>
                         <span className="text-xs text-gray-500">Ngày: {formatDate(todayStr)}</span>
                     </div>
@@ -332,7 +349,7 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
                             {historyBatches.length > 0 ? (
                                 historyBatches.map(h => (
                                     <option key={`${h.date}_${h.batch}`} value={`${h.date}_${h.batch}`}>
-                                        Đợt {h.batch} - Ngày {formatDate(h.date)} (Đã có {h.count} HS)
+                                        Đợt {h.batch}{isReturnedTab ? ' (DD-LT)' : ''} - Ngày {formatDate(h.date)} (Đã có {h.count} HS)
                                     </option>
                                 ))
                             ) : (

@@ -33,11 +33,16 @@ export interface TachThuaRecord extends GenericRecord {
 
 export interface MapSheetConversion {
     id: string;
-    created_at: string;
+    created_at?: string;
     xa_phuong_cu: string;
     so_to_cu: string;
+    so_thua_cu?: string;
+    xa_phuong_trung_gian?: string;
+    so_to_trung_gian?: string;
+    so_thua_trung_gian?: string;
     xa_phuong_moi: string;
     so_to_moi: string;
+    so_thua_moi?: string;
 }
 
 // Mock Data Stores
@@ -418,19 +423,121 @@ export const saveMapSheetConversions = async (records: Partial<MapSheetConversio
         return true;
     }
     try {
-        // Prepare records for insertion
         const newRecords = records.map(r => ({
             xa_phuong_cu: r.xa_phuong_cu,
             so_to_cu: r.so_to_cu,
+            so_thua_cu: r.so_thua_cu || '',
+            xa_phuong_trung_gian: r.xa_phuong_trung_gian || '',
+            so_to_trung_gian: r.so_to_trung_gian || '',
+            so_thua_trung_gian: r.so_thua_trung_gian || '',
             xa_phuong_moi: r.xa_phuong_moi,
-            so_to_moi: r.so_to_moi
+            so_to_moi: r.so_to_moi,
+            so_thua_moi: r.so_thua_moi || ''
         }));
 
         const { error } = await supabase.from('map_sheet_conversions').insert(newRecords);
-        if (error) throw error;
+        if (error) {
+            // Check if error is due to missing columns, if so fallback to original columns so it never breaks!
+            if (error.message?.includes('column') || error.code === '42703') {
+                console.warn("Database missing 3-phase columns, falling back to 2-phase save.");
+                const fallbackRecords = records.map(r => ({
+                    xa_phuong_cu: r.xa_phuong_cu,
+                    so_to_cu: r.so_to_cu,
+                    xa_phuong_moi: r.xa_phuong_moi || '',
+                    so_to_moi: r.so_to_moi || ''
+                }));
+                const { error: fallbackError } = await supabase.from('map_sheet_conversions').insert(fallbackRecords);
+                if (fallbackError) throw fallbackError;
+                return true;
+            }
+            throw error;
+        }
         return true;
     } catch (error) {
         logError("saveMapSheetConversions", error);
+        return false;
+    }
+};
+
+export const saveSingleMapSheetConversion = async (record: Partial<MapSheetConversion>): Promise<boolean> => {
+    if (!isConfigured) {
+        if (!record.id) {
+            const newRec = { ...record, id: generateId(), created_at: new Date().toISOString() } as MapSheetConversion;
+            MOCK_MAP_CONVERSIONS.unshift(newRec);
+        } else {
+            const idx = MOCK_MAP_CONVERSIONS.findIndex(r => r.id === record.id);
+            if (idx !== -1) MOCK_MAP_CONVERSIONS[idx] = { ...MOCK_MAP_CONVERSIONS[idx], ...record } as MapSheetConversion;
+        }
+        return true;
+    }
+    try {
+        const dataToSave = {
+            xa_phuong_cu: record.xa_phuong_cu,
+            so_to_cu: record.so_to_cu,
+            so_thua_cu: record.so_thua_cu || '',
+            xa_phuong_trung_gian: record.xa_phuong_trung_gian || '',
+            so_to_trung_gian: record.so_to_trung_gian || '',
+            so_thua_trung_gian: record.so_thua_trung_gian || '',
+            xa_phuong_moi: record.xa_phuong_moi,
+            so_to_moi: record.so_to_moi,
+            so_thua_moi: record.so_thua_moi || ''
+        };
+
+        if (record.id) {
+            // Update
+            const { error } = await supabase.from('map_sheet_conversions').update(dataToSave).eq('id', record.id);
+            if (error) {
+                // If column error, fallback to original 4 columns
+                if (error.message?.includes('column') || error.code === '42703') {
+                    const fallbackData = {
+                        xa_phuong_cu: record.xa_phuong_cu,
+                        so_to_cu: record.so_to_cu,
+                        xa_phuong_moi: record.xa_phuong_moi,
+                        so_to_moi: record.so_to_moi
+                    };
+                    const { error: err2 } = await supabase.from('map_sheet_conversions').update(fallbackData).eq('id', record.id);
+                    if (err2) throw err2;
+                    return true;
+                }
+                throw error;
+            }
+        } else {
+            // Insert
+            const { error } = await supabase.from('map_sheet_conversions').insert([dataToSave]);
+            if (error) {
+                if (error.message?.includes('column') || error.code === '42703') {
+                    const fallbackData = {
+                        xa_phuong_cu: record.xa_phuong_cu,
+                        so_to_cu: record.so_to_cu,
+                        xa_phuong_moi: record.xa_phuong_moi,
+                        so_to_moi: record.so_to_moi
+                    };
+                    const { error: err2 } = await supabase.from('map_sheet_conversions').insert([fallbackData]);
+                    if (err2) throw err2;
+                    return true;
+                }
+                throw error;
+            }
+        }
+        return true;
+    } catch (error) {
+        logError("saveSingleMapSheetConversion", error);
+        return false;
+    }
+};
+
+export const deleteMapSheetConversion = async (id: string): Promise<boolean> => {
+    if (!isConfigured) {
+        const idx = MOCK_MAP_CONVERSIONS.findIndex(r => r.id === id);
+        if (idx !== -1) MOCK_MAP_CONVERSIONS.splice(idx, 1);
+        return true;
+    }
+    try {
+        const { error } = await supabase.from('map_sheet_conversions').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+    } catch (error) {
+        logError("deleteMapSheetConversion", error);
         return false;
     }
 };
@@ -441,7 +548,6 @@ export const deleteAllMapSheetConversions = async (): Promise<boolean> => {
         return true;
     }
     try {
-        // Supabase requires a filter for delete. We can delete where id is not null.
         const { error } = await supabase.from('map_sheet_conversions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         if (error) throw error;
         return true;

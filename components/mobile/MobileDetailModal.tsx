@@ -65,8 +65,8 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
   ));
 
   const isTrichDo = !!(record?.recordType && (
-      record.recordType.toLowerCase().includes('trích đo') || 
-      record.recordType.toLowerCase().includes('trich do')
+      record.recordType.trim().startsWith('2.3') ||
+      record.recordType.trim().startsWith('2.4')
   ));
 
   const isTachThua = !!(record?.recordType && (

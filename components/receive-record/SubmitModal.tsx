@@ -85,12 +85,12 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ isOpen, onClose, records, onC
             
             return Array.from(checkersMap.values());
         } else {
-            // Chế độ trình ký: CHỈ Ban Giám đốc (Giám đốc, Phó giám đốc)
+            // Chế độ trình ký: CHỈ Ban Giám đốc (Huỳnh Duy, Ngô Thị Hồng, Nguyễn Viết Tính)
+            // Không hiện Admin/Subadmin dể gây nhầm lẫn.
+            const boardOfDirectorsNames = ['huỳnh duy', 'ngô thị hồng', 'nguyễn viết tính'];
             const eligibleEmployees = employees.filter(emp => {
-                const teamName = getEmployeeTeam(emp);
-                const pos = (emp.position || '').toLowerCase();
-                const isDirectorPos = pos.includes('giam doc') || pos.includes('giám đốc') || pos.includes('pho giam doc') || pos.includes('phó giám đốc') || pos.includes('lanh dao') || pos.includes('lãnh đạo');
-                return teamName === 'Ban Giám đốc' || isDirectorPos;
+                const nameLower = (emp.name || '').toLowerCase().trim();
+                return boardOfDirectorsNames.some(name => nameLower.includes(name));
             });
             
             const directorsMap = new Map<string, { id: string; name: string; position: string; team: string }>();

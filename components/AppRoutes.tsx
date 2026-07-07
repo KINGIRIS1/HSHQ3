@@ -554,6 +554,8 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                 >
                   <ClipboardList size={16} /> Kiểm tra
                 </button>
+
+
               </>
             )}
 
@@ -637,12 +639,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
               <Printer size={16} /> In GCN
             </button>
 
-            <button
-              onClick={() => props.setCurrentView("registration_tham_tra")}
-              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_tham_tra" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-            >
-              <ClipboardList size={16} /> Thẩm tra
-            </button>
+
 
             {(isAdmin || isSubadmin || isDirector || isOneDoor || hasTeamLeaderPrivileges) && (
               <button
@@ -1228,10 +1225,13 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
 
               {isHandoverAny && props.handoverTab === "returned" && (
                 <button
-                  onClick={props.handleExportReturnedList}
+                  onClick={() => {
+                    props.setExportModalType("returned" as any);
+                    props.setIsExportModalOpen(true);
+                  }}
                   className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700 shadow-sm text-sm font-bold whitespace-nowrap"
                 >
-                  <FileSpreadsheet size={16} /> Xuất Excel (Đã trả KQ)
+                  <FileSpreadsheet size={16} /> Xuất DS TKQ
                 </button>
               )}
             </div>
@@ -1286,6 +1286,19 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
               )}
 
             {tabAllowedCanPerformAction &&
+              isHandoverAny &&
+              props.handoverTab === "returned" &&
+              props.selectedRecordIds.size > 0 && (
+                <button
+                  onClick={() => props.setIsAddToBatchModalOpen(true)}
+                  className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 font-bold shadow-md transition-all animate-pulse"
+                >
+                  <CheckCircle size={18} /> Chốt DS TKQ (
+                  {props.selectedRecordIds.size})
+                </button>
+              )}
+
+            {tabAllowedCanPerformAction &&
               (isAdmin || isSubadmin || isDirector || hasTeamLeaderPrivileges) &&
               isCheckAny &&
               props.selectedRecordIds.size > 0 && (
@@ -1299,6 +1312,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
               )}
             {tabAllowedCanPerformAction &&
               isCompletedAny &&
+              (isArchiveView || isMeasurementView || isRegistrationView) &&
               props.selectedRecordIds.size > 0 && (
                 <button
                   onClick={() => {
@@ -1316,7 +1330,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
               )}
             {tabAllowedCanPerformAction &&
               (isAdmin || isSubadmin || hasTeamLeaderPrivileges) &&
-              isPendingCheckAny &&
+              (isPendingCheckAny || (isCompletedAny && isArchiveView)) &&
               props.selectedRecordIds.size > 0 && (
                 <button
                   onClick={() => {

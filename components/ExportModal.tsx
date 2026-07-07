@@ -11,7 +11,7 @@ interface ExportModalProps {
   onClose: () => void;
   records: RecordFile[];
   wards: string[];
-  type: 'handover' | 'check_list'; // Phân loại danh sách
+  type: 'handover' | 'check_list' | 'returned'; // Phân loại danh sách
   onPreview: (workbook: XLSX.WorkBook, fileName: string) => void; // Callback để mở Preview
   employees: Employee[];
   currentView?: string;
@@ -75,10 +75,37 @@ const getEmployeeTeam = (emp: Employee): string => {
   return 'Khác';
 };
 
+const getViewActiveGroup = (view: string | undefined): 'measurement' | 'registration' | 'archive' | 'other' => {
+    if (!view) return 'measurement';
+    if (view.startsWith('archive_') || view === 'archive_records') {
+        return 'archive';
+    }
+    if (['registration_records', 'registration_assign_tasks', 'registration_completed_list', 'registration_pending_check_list', 'registration_check_list', 'registration_handover_list', 'registration_director_completed', 'registration_vao_so'].includes(view)) {
+        return 'registration';
+    }
+    if (['other_records', 'other_assign_tasks', 'other_check_list', 'other_handover_list', 'other_director_completed'].includes(view)) {
+        return 'other';
+    }
+    return 'measurement';
+};
+
+const getRecordGroup = (r: RecordFile): 'measurement' | 'registration' | 'archive' | 'other' => {
+    if (isArchiveType(r.recordType)) return 'archive';
+    if (isReg(r.recordType)) return 'registration';
+    return 'measurement';
+};
+
 const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, wards, type, onPreview, employees, currentView }) => {
   const [selectedBatchKey, setSelectedBatchKey] = useState<string>('');
   const [selectedWard, setSelectedWard] = useState<string>('all');
   const [selectedDept, setSelectedDept] = useState<string>('all');
+
+  // Filter the list of records to only include those belonging to the active group of the current view
+  const groupFilteredRecords = useMemo(() => {
+    if (!currentView) return records;
+    const activeGroup = getViewActiveGroup(currentView);
+    return records.filter(r => getRecordGroup(r) === activeGroup);
+  }, [records, currentView]);
 
   const getRecordDepartment = (r: RecordFile): string => {
     if (r.assignedTo) {
@@ -134,7 +161,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
   const batchOptions = useMemo(() => {
     const batches: Record<string, { date: string, batch: number | string, count: number }> = {};
 
-    records.forEach(r => {
+    groupFilteredRecords.forEach(r => {
       if (type === 'handover') {
           // Logic cho Giao 1 cửa
           if (r.status === RecordStatus.HANDOVER || r.status === RecordStatus.SIGNED || r.status === RecordStatus.WITHDRAWN || r.status === RecordStatus.REJECTED) {
@@ -151,6 +178,28 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
               } else if (r.status === RecordStatus.HANDOVER) {
                   // Fallback cho những hồ sơ thiếu exportBatch (Chưa chốt đợt hoặc nhập từ Excel)
                   const dateStr = (r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
+                  const key = `${dateStr}_NOT_BATCHED`;
+                  if (!batches[key]) {
+                      batches[key] = { date: dateStr, batch: 'Lẻ (Chưa tạo đợt)', count: 0 };
+                  }
+                  batches[key].count++;
+              }
+          }
+      } else if (type === 'returned') {
+          // Logic cho Trả kết quả (TKQ)
+          if (r.status === RecordStatus.RETURNED) {
+              if (selectedDept !== 'all' && getRecordDepartment(r) !== selectedDept) {
+                  return;
+              }
+              if (r.exportBatch && r.exportDate) {
+                  const dateStr = r.exportDate.split('T')[0];
+                  const key = `${dateStr}_${r.exportBatch}`;
+                  if (!batches[key]) {
+                      batches[key] = { date: dateStr, batch: r.exportBatch, count: 0 };
+                  }
+                  batches[key].count++;
+              } else {
+                  const dateStr = (r.resultReturnedDate || r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
                   const key = `${dateStr}_NOT_BATCHED`;
                   if (!batches[key]) {
                       batches[key] = { date: dateStr, batch: 'Lẻ (Chưa tạo đợt)', count: 0 };
@@ -253,38 +302,48 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
     // NẾU selectedWard là 'all' thì hiển thị "TOÀN BỘ", ngược lại hiển thị tên xã
     const wardTitle = selectedWard === 'all' ? "" : ` - ${selectedWard.toUpperCase()}`;
 
-    if (type === 'handover') {
+    if (type === 'handover' || type === 'returned') {
         const parts = selectedBatchKey.split('_');
         const dateStr = parts[0];
         const batchStr = parts.slice(1).join('_');
         
-        recordsToExport = records.filter(r => {
+        recordsToExport = groupFilteredRecords.filter(r => {
             const targetWard = r.handoverWard || r.ward;
             const matchWard = selectedWard === 'all' || targetWard === selectedWard;
+            const matchStatus = type === 'returned' 
+                ? r.status === RecordStatus.RETURNED 
+                : (r.status === RecordStatus.HANDOVER || r.status === RecordStatus.SIGNED || r.status === RecordStatus.WITHDRAWN || r.status === RecordStatus.REJECTED);
             
             if (batchStr === 'NOT_BATCHED') {
-                const rDateObj = (r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
-                return r.status === RecordStatus.HANDOVER && !r.exportBatch && rDateObj === dateStr && matchWard;
+                const rDateObj = (r.resultReturnedDate || r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
+                return matchStatus && !r.exportBatch && rDateObj === dateStr && matchWard;
             } else {
                 const batchNum = parseInt(batchStr);
                 return r.exportDate?.startsWith(dateStr) && r.exportBatch === batchNum && matchWard;
             }
         });
 
-        title = `DANH SÁCH BÀN GIAO HỒ SƠ 1 CỬA${wardTitle}`;
+        title = type === 'returned' 
+            ? `DANH SÁCH TRẢ KẾT QUẢ (TKQ)${wardTitle}` 
+            : `DANH SÁCH BÀN GIAO HỒ SƠ 1 CỬA${wardTitle}`;
         const deptClean = selectedDept !== 'all' ? selectedDept.replace('Tổ ', '') : '';
         const deptSuffix = deptClean ? ` (${deptClean})` : '';
-        const displayBatch = batchStr === 'NOT_BATCHED' ? 'CHƯA TẠO ĐỢT' : `Đợt ${batchStr}${deptSuffix}`;
+        const displayBatch = batchStr === 'NOT_BATCHED' 
+            ? 'CHƯA TẠO ĐỢT' 
+            : (type === 'returned' ? `Đợt ${batchStr} (DD-LT)` : `Đợt ${batchStr}${deptSuffix}`);
         subTitle = `${displayBatch}  -  TỔNG SỐ HỒ SƠ: ${recordsToExport.length}`;
         const safeDate = dateStr.replace(/-/g, '');
         const deptFileSuffix = deptClean ? `_${removeVietnameseTones(deptClean)}` : '';
-        fileName = `Giao_1_Cua_${batchStr === 'NOT_BATCHED' ? 'Le' : `Dot_${batchStr}`}_${safeDate}${deptFileSuffix}`;
+        
+        fileName = type === 'returned'
+            ? `Tra_KQ_TKQ_${batchStr === 'NOT_BATCHED' ? 'Le' : `Dot_${batchStr}_(DD-LT)`}_${safeDate}`
+            : `Giao_1_Cua_${batchStr === 'NOT_BATCHED' ? 'Le' : `Dot_${batchStr}`}_${safeDate}${deptFileSuffix}`;
 
     } else {
         // Check List
         const dateStr = selectedBatchKey.replace('date_', '');
         
-        recordsToExport = records.filter(r => {
+        recordsToExport = groupFilteredRecords.filter(r => {
             const matchDate = r.receivedDate === dateStr;
             const matchStatus = r.status === RecordStatus.PENDING_SIGN || r.status === RecordStatus.SIGNED;
             const matchWard = selectedWard === 'all' || r.ward === selectedWard;
@@ -314,11 +373,13 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
         }
         
         // Cập nhật lại phụ đề hiển thị số lượng hồ sơ thực tế sau khi lọc bộ phận
-        if (type === 'handover') {
+        if (type === 'handover' || type === 'returned') {
             const parts = selectedBatchKey.split('_');
             const batchStr = parts.slice(1).join('_');
             const deptClean = selectedDept.replace('Tổ ', '');
-            const displayBatch = batchStr === 'NOT_BATCHED' ? 'CHƯA TẠO ĐỢT' : `Đợt ${batchStr} (${deptClean})`;
+            const displayBatch = batchStr === 'NOT_BATCHED' 
+                ? 'CHƯA TẠO ĐỢT' 
+                : (type === 'returned' ? `Đợt ${batchStr} (DD-LT)` : `Đợt ${batchStr} (${deptClean})`);
             subTitle = `${displayBatch}  -  SỐ LƯỢNG: ${recordsToExport.length}`;
         } else {
             const dateStr = selectedBatchKey.replace('date_', '');
@@ -605,7 +666,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
         <div className="flex justify-between items-center p-5 border-b">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <Printer className="text-blue-600" />
-            {type === 'handover' ? 'Xuất DS Giao 1 Cửa' : 'Xuất DS Trình Ký'}
+            {type === 'returned' ? 'Xuất DS Trả Kết Quả (TKQ)' : type === 'handover' ? 'Xuất DS Giao 1 Cửa' : 'Xuất DS Trình Ký'}
           </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-red-600 transition-colors">
             <X size={24} />
@@ -625,12 +686,15 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
                             {batchOptions.map(opt => {
                                 const deptClean = selectedDept !== 'all' ? selectedDept.replace('Tổ ', '') : '';
                                 const deptSuffix = deptClean ? ` (${deptClean})` : '';
+                                const displayBatchText = type === 'returned' 
+                                    ? `Đợt ${opt.batch} (DD-LT)` 
+                                    : `Đợt ${opt.batch}${deptSuffix}`;
                                 return (
                                     <option key={opt.key} value={opt.key}>
-                                        {type === 'handover' 
+                                        {type === 'handover' || type === 'returned'
                                           ? (opt.batch === 'Lẻ (Chưa tạo đợt)' 
                                               ? `Lẻ (Chưa tạo đợt) - Ngày ${formatDate(opt.date)} (${opt.count} HS)`
-                                              : `Đợt ${opt.batch}${deptSuffix} - Ngày ${formatDate(opt.date)} (${opt.count} HS)`)
+                                              : `${displayBatchText} - Ngày ${formatDate(opt.date)} (${opt.count} HS)`)
                                           : `Ngày tiếp nhận: ${formatDate(opt.date)} (${opt.count} HS)`
                                         }
                                     </option>
@@ -643,6 +707,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
                     <div className="text-center p-4 bg-gray-50 rounded-lg text-gray-500 border border-gray-200 text-sm">
                         {type === 'handover' 
                             ? 'Chưa có đợt giao nào. Hãy thực hiện "Chốt danh sách" trước.'
+                            : type === 'returned'
+                            ? 'Chưa có đợt trả kết quả nào. Hãy thực hiện "Chốt DS TKQ" trước.'
                             : 'Không có hồ sơ nào đang chờ ký.'}
                     </div>
                 )}
@@ -667,7 +733,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
                         </div>
                     </div>
 
-                    {type !== 'handover' && (
+                    {type !== 'handover' && type !== 'returned' && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">3. Lọc theo Tổ / Bộ phận Chuyên môn (Tùy chọn) {isDeptFixed && <span className="text-xs text-blue-600 font-normal">(Cố định theo Tab)</span>}</label>
                             <div className="relative">

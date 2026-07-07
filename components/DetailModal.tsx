@@ -67,12 +67,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
 
   const isTrichDo = !!(record?.recordType && (
       record.recordType.trim().startsWith('2.3') ||
-      record.recordType.trim().startsWith('2.4') ||
-      record.recordType.trim().startsWith('2.5') ||
-      (!record.recordType.trim().startsWith('2.1') && 
-       !record.recordType.trim().startsWith('2.2') && 
-       !record.recordType.trim().startsWith('2.6') && 
-       isMeasurementType(record.recordType))
+      record.recordType.trim().startsWith('2.4')
   ));
 
   const isTachThua = !!(record?.recordType && (
@@ -138,17 +133,26 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
       if (label.includes("thẩm tra")) {
           return checkerName || "";
       }
-      if (label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
+      if (label.includes("trình ký") || label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
           if (directorName) {
               const fromStr = checkerName || assignedName;
               return fromStr ? `Trình: ${fromStr} -> Duyệt: ${directorName}` : `Duyệt: ${directorName}`;
           }
           return checkerName || assignedName || "";
       }
+      if (label.includes("ký duyệt")) {
+          if (directorName) {
+              return `Duyệt: ${directorName}`;
+          }
+          return "";
+      }
       if (label.includes("vô số")) {
           return assignedName || "";
       }
       if (label.includes("giao 1 cửa") || label.includes("giao một cửa") || label.includes("trả kết quả")) {
+          if (assignedEmp) {
+              return `${assignedEmp.name} (${assignedEmp.position || 'Nhân viên'})`;
+          }
           return "";
       }
       
@@ -1006,7 +1010,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
             </div>
             
             <div className="flex items-center gap-2">
-                {onCreateLiquidation && record && record.recordType !== 'Cung cấp tài liệu đất đai' && record.recordType !== 'Sao lục' && record.recordType !== 'Công văn' && canLiquidate && (
+                {onCreateLiquidation && record && showLiquidationAndAnnex && canLiquidate && (
                     <button
                         onClick={() => { onClose(); onCreateLiquidation(record); }}
                         className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded hover:bg-green-100 transition-all text-sm font-bold shadow-sm"
@@ -1976,7 +1980,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             subText: record.completedWorkDate && record.assignedTo ? (() => {
                                                 const assigned = employees.find(e => e.id === record.assignedTo);
                                                 if (!assigned) return undefined;
-                                                return `${assigned.name}`;
+                                                return `${assigned.name} (${assigned.position || 'Nhân viên'})`;
                                             })() : undefined,
                                             colorClass: {
                                                 border: "border-cyan-500 text-cyan-600",
@@ -1984,7 +1988,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                 text: "text-cyan-600"
                                             }
                                         },
-                                        ...(!isLuuTru ? [
+                                        ...(isLuuTru ? [
                                             {
                                                 label: "TRÌNH KIỂM TRA",
                                                 date: record.pendingCheckDate,
@@ -2020,7 +2024,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             label: "TRÌNH KÝ",
                                             date: record.submissionDate,
                                             icon: Send,
-                                            subText: undefined,
+                                            subText: record.submissionDate && record.submittedTo ? (() => {
+                                                const director = users.find(u => u.employeeId === record.submittedTo) || employees.find(e => e.id === record.submittedTo);
+                                                if (!director) return undefined;
+                                                return `${director.name}`;
+                                            })() : undefined,
                                             colorClass: {
                                                 border: "border-purple-500 text-purple-600",
                                                 bg: "bg-purple-500",

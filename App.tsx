@@ -73,7 +73,7 @@ function App() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState<RecordFile | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [exportModalType, setExportModalType] = useState<'handover' | 'check_list'>('handover');
+  const [exportModalType, setExportModalType] = useState<'handover' | 'check_list' | 'returned'>('handover');
   const [isAddToBatchModalOpen, setIsAddToBatchModalOpen] = useState(false);
   const [isExcelPreviewOpen, setIsExcelPreviewOpen] = useState(false);
   const [previewWorkbook, setPreviewWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -582,7 +582,7 @@ function App() {
       }
   };
 
-  const getUpdatesForStatusChange = (newStatus: RecordStatus, customDateStr?: string) => {
+  const getUpdatesForStatusChange = (record: RecordFile | null, newStatus: RecordStatus, customDateStr?: string) => {
       const targetDateStr = customDateStr || new Date().toISOString();
       const updates: any = { status: newStatus };
 
@@ -651,6 +651,84 @@ function App() {
               if (!updates.completedDate) updates.completedDate = targetDateStr;
               break;
       }
+
+      if (record) {
+          let flow = [
+              RecordStatus.RECEIVED,
+              RecordStatus.ASSIGNED,
+              RecordStatus.IN_PROGRESS,
+              RecordStatus.COMPLETED_WORK,
+              RecordStatus.PENDING_CHECK,
+              RecordStatus.CHECKED,
+              RecordStatus.PENDING_SIGN,
+              RecordStatus.SIGNED,
+              RecordStatus.HANDOVER
+          ];
+          if (isMeasurementType(record.recordType)) {
+              flow = [
+                  RecordStatus.RECEIVED,
+                  RecordStatus.ASSIGNED,
+                  RecordStatus.IN_PROGRESS,
+                  RecordStatus.PENDING_CHECK,
+                  RecordStatus.PENDING_SIGN,
+                  RecordStatus.HANDOVER
+              ];
+          } else if (isArchiveType(record.recordType)) {
+              flow = [
+                  RecordStatus.RECEIVED,
+                  RecordStatus.ASSIGNED,
+                  RecordStatus.IN_PROGRESS,
+                  RecordStatus.COMPLETED_WORK,
+                  RecordStatus.PENDING_SIGN,
+                  RecordStatus.SIGNED,
+                  RecordStatus.HANDOVER
+              ];
+          }
+
+          const getIndex = (status: RecordStatus) => {
+              const idx = flow.indexOf(status);
+              return idx === -1 ? 999 : idx;
+          };
+
+          const targetIdx = flow.indexOf(newStatus);
+          if (targetIdx >= 0) {
+              const received = record.receivedDate || targetDateStr;
+              let assigned = record.assignedDate || (targetIdx >= getIndex(RecordStatus.ASSIGNED) ? targetDateStr : null);
+              let completedWork = record.completedWorkDate || (targetIdx >= getIndex(RecordStatus.COMPLETED_WORK) ? (assigned || targetDateStr) : null);
+              let pendingCheck = record.pendingCheckDate || (targetIdx >= getIndex(RecordStatus.PENDING_CHECK) ? (completedWork || targetDateStr) : null);
+              let checked = record.checkedDate || (targetIdx >= getIndex(RecordStatus.CHECKED) ? (pendingCheck || targetDateStr) : null);
+              let submission = record.submissionDate || (targetIdx >= getIndex(RecordStatus.PENDING_SIGN) ? (checked || targetDateStr) : null);
+              let approval = record.approvalDate || (targetIdx >= getIndex(RecordStatus.SIGNED) ? (submission || targetDateStr) : null);
+              let completed = record.completedDate || (targetIdx >= getIndex(RecordStatus.HANDOVER) ? (approval || targetDateStr) : null);
+
+              if (isMeasurementType(record.recordType)) {
+                  // "chờ kiểm tra làm ngày đã thực hiện"
+                  if (targetIdx >= getIndex(RecordStatus.PENDING_CHECK)) {
+                      pendingCheck = record.pendingCheckDate || targetDateStr;
+                      completedWork = record.completedWorkDate || pendingCheck;
+                  }
+                  // "đã trình ký làm ngày cho đã kiểm tra"
+                  if (targetIdx >= getIndex(RecordStatus.PENDING_SIGN)) {
+                      submission = record.submissionDate || targetDateStr;
+                      checked = record.checkedDate || submission;
+                  }
+                  // "ngày giao 1 cửa làm ngày đã ký"
+                  if (targetIdx >= getIndex(RecordStatus.HANDOVER)) {
+                      completed = record.completedDate || targetDateStr;
+                      approval = record.approvalDate || completed;
+                  }
+              }
+
+              if (targetIdx >= getIndex(RecordStatus.ASSIGNED) && assigned) updates.assignedDate = record.assignedDate || assigned;
+              if ((targetIdx >= getIndex(RecordStatus.COMPLETED_WORK) || isMeasurementType(record.recordType)) && completedWork) updates.completedWorkDate = record.completedWorkDate || completedWork;
+              if (targetIdx >= getIndex(RecordStatus.PENDING_CHECK) && pendingCheck) updates.pendingCheckDate = record.pendingCheckDate || pendingCheck;
+              if ((targetIdx >= getIndex(RecordStatus.CHECKED) || isMeasurementType(record.recordType)) && checked) updates.checkedDate = record.checkedDate || checked;
+              if (targetIdx >= getIndex(RecordStatus.PENDING_SIGN) && submission) updates.submissionDate = record.submissionDate || submission;
+              if ((targetIdx >= getIndex(RecordStatus.SIGNED) || isMeasurementType(record.recordType)) && approval) updates.approvalDate = record.approvalDate || approval;
+              if (targetIdx >= getIndex(RecordStatus.HANDOVER) && completed) updates.completedDate = record.completedDate || completed;
+          }
+      }
+
       return updates;
   };
 
@@ -711,7 +789,7 @@ function App() {
       if (field === 'status') {
           const isStandardStatus = Object.values(RecordStatus).includes(value as RecordStatus);
           if (isStandardStatus) {
-              baseUpdates = getUpdatesForStatusChange(value as RecordStatus, targetDateStr);
+              baseUpdates = getUpdatesForStatusChange(null, value as RecordStatus, targetDateStr);
           }
       } else if (field === 'deadline' || field === 'receivedDate') {
           baseUpdates[field] = targetDateStr;
@@ -745,7 +823,7 @@ function App() {
                               currentStepIndex: match.index
                           };
                           // Fill matching status changes timelines
-                          const flowUpdates = getUpdatesForStatusChange(match.status, targetDateStr);
+                          const flowUpdates = getUpdatesForStatusChange(r, match.status, targetDateStr);
                           recordUpdates = { ...recordUpdates, ...flowUpdates };
                       }
                   }
@@ -795,7 +873,7 @@ function App() {
           updates.exportBatch = null;
           updates.exportDate = null;
       } else if (field === 'status') {
-          updates = getUpdatesForStatusChange(value as RecordStatus);
+          updates = getUpdatesForStatusChange(record, value as RecordStatus);
           
           if (value === RecordStatus.REJECTED || value === RecordStatus.WITHDRAWN) {
               updates.completedDate = record.completedDate || nowStr;
@@ -914,7 +992,7 @@ function App() {
               setToast({ type: 'success', message: `Hồ sơ ${record.code} đã hoàn thành tất cả các bước!` });
           }
       } else {
-          const flow = [
+          let flow = [
               RecordStatus.RECEIVED,
               RecordStatus.ASSIGNED,
               RecordStatus.IN_PROGRESS,
@@ -926,6 +1004,28 @@ function App() {
               RecordStatus.HANDOVER,
               RecordStatus.RETURNED
           ];
+          if (isMeasurementType(record.recordType)) {
+              flow = [
+                  RecordStatus.RECEIVED,
+                  RecordStatus.ASSIGNED,
+                  RecordStatus.IN_PROGRESS,
+                  RecordStatus.PENDING_CHECK,
+                  RecordStatus.PENDING_SIGN,
+                  RecordStatus.HANDOVER,
+                  RecordStatus.RETURNED
+              ];
+          } else if (isArchiveType(record.recordType)) {
+              flow = [
+                  RecordStatus.RECEIVED,
+                  RecordStatus.ASSIGNED,
+                  RecordStatus.IN_PROGRESS,
+                  RecordStatus.COMPLETED_WORK,
+                  RecordStatus.PENDING_SIGN,
+                  RecordStatus.SIGNED,
+                  RecordStatus.HANDOVER,
+                  RecordStatus.RETURNED
+              ];
+          }
           const foundIdx = flow.indexOf(record.status);
           if (foundIdx !== -1 && foundIdx < flow.length - 1) {
               const nextStatus = flow[foundIdx + 1];
@@ -941,7 +1041,7 @@ function App() {
                   return;
               }
 
-              const updates = getUpdatesForStatusChange(nextStatus);
+              const updates = getUpdatesForStatusChange(record, nextStatus);
               setRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
               await updateRecordApi({ ...record, ...updates });
               setToast({ type: 'success', message: `Đã chuyển trạng thái hồ sơ sang ${nextStatus}!` });
@@ -961,9 +1061,10 @@ function App() {
           }
 
           const nowStr = new Date().toISOString();
+          const isReturnedMode = targets.every(r => r.status === RecordStatus.RETURNED);
           const updates = targets.map(r => ({
               ...r,
-              status: RecordStatus.HANDOVER,
+              status: isReturnedMode ? RecordStatus.RETURNED : RecordStatus.HANDOVER,
               exportBatch: batch,
               exportDate: date,
               completedDate: r.completedDate || nowStr,
@@ -972,7 +1073,12 @@ function App() {
 
           await updateRecordsBatchById(updates);
           await exportReturnedListToExcel(updates, String(batch), date);
-          setToast({ type: 'success', message: `Đã chốt đợt giao nhận số ${batch} và xuất file excel thành công!` });
+          
+          if (isReturnedMode) {
+              setToast({ type: 'success', message: `Đã chốt đợt trả kết quả số ${batch} và xuất file excel thành công!` });
+          } else {
+              setToast({ type: 'success', message: `Đã chốt đợt giao nhận số ${batch} và xuất file excel thành công!` });
+          }
           setIsAddToBatchModalOpen(false);
           setSelectedRecordIds(new Set());
           loadData();

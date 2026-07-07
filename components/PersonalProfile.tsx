@@ -494,10 +494,23 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                  });
             }
         } else {
+            const received = record.receivedDate || nowStr;
+            const assigned = record.assignedDate || received;
+            const completedWork = record.completedWorkDate || assigned;
+            const pendingCheck = record.pendingCheckDate || completedWork;
+            const checked = record.checkedDate || pendingCheck;
+            const submission = record.submissionDate || checked;
+            const approval = nowStr;
+
             const updatedRecord = {
                 ...record,
                 status: RecordStatus.SIGNED,
-                approvalDate: nowStr
+                assignedDate: record.assignedDate || assigned,
+                completedWorkDate: record.completedWorkDate || completedWork,
+                pendingCheckDate: record.pendingCheckDate || pendingCheck,
+                checkedDate: record.checkedDate || checked,
+                submissionDate: record.submissionDate || submission,
+                approvalDate: approval
             };
             if (onUpdateRecord) {
                 await onUpdateRecord(updatedRecord);
@@ -660,15 +673,24 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                 const nowStr = new Date().toISOString();
                 const isLuuTruAll = isArchiveType(record.recordType);
                 const responsibleId = record.assignedTo || user.employeeId || null;
+
+                const received = record.receivedDate || nowStr;
+                const assigned = record.assignedDate || received;
+                const completedWork = record.completedWorkDate || assigned;
+                const pendingCheck = record.pendingCheckDate || completedWork;
+                const checked = record.checkedDate || pendingCheck;
+                const submission = nowStr;
+
                 const updatedRecord = {
                     ...record,
                     status: RecordStatus.PENDING_SIGN,
                     submittedTo: directorId,
-                    submissionDate: nowStr,
-                    completedWorkDate: record.completedWorkDate || nowStr,
-                    pendingCheckDate: isLuuTruAll ? (record.pendingCheckDate || nowStr) : record.pendingCheckDate,
-                    checkedDate: (record.status === RecordStatus.PENDING_CHECK || record.status === RecordStatus.CHECKED || isLuuTruAll) ? (record.checkedDate || nowStr) : record.checkedDate,
-                    checkedBy: (record.status === RecordStatus.PENDING_CHECK || record.status === RecordStatus.CHECKED || isLuuTruAll) ? (record.checkedBy || ((user.role === UserRole.TEAM_LEADER || user.role === UserRole.SUBADMIN || user.role === UserRole.ADMIN) ? user.employeeId : null) || responsibleId) : record.checkedBy
+                    assignedDate: record.assignedDate || assigned,
+                    completedWorkDate: record.completedWorkDate || completedWork,
+                    pendingCheckDate: record.pendingCheckDate || pendingCheck,
+                    checkedDate: record.checkedDate || checked,
+                    submissionDate: submission,
+                    checkedBy: record.checkedBy || ((user.role === UserRole.TEAM_LEADER || user.role === UserRole.SUBADMIN || user.role === UserRole.ADMIN) ? user.employeeId : null) || responsibleId
                 };
                 
                 if (onUpdateRecord) {
@@ -1562,7 +1584,8 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                           const updatedRecord = {
                               ...record,
                               status: RecordStatus.PENDING_CHECK,
-                              completedWorkDate: record.completedWorkDate || new Date().toISOString(),
+                              assignedDate: record.assignedDate || (record.receivedDate || new Date().toISOString()),
+                              completedWorkDate: record.completedWorkDate || (record.assignedDate || (record.receivedDate || new Date().toISOString())),
                               pendingCheckDate: new Date().toISOString(),
                               checkedBy: checkerId
                           };

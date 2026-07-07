@@ -231,6 +231,12 @@ export interface GcnStepConfig {
 export function isStepHiddenForWorkflow(stepLabel: string, workflowType: string): boolean {
     const label = stepLabel.toLowerCase();
     
+    // Hide "Thẩm tra" step entirely for "cấp giấy" workflows as per user's request:
+    // "bỏ phần này trong trình kiểm tra ở cả đo dạc và cấp giấy"
+    if (label.includes("thẩm tra")) {
+        return true;
+    }
+    
     // For the new Cấp lại workflows, we do NOT hide any steps!
     if (['quy_trinh_4a', 'quy_trinh_4b', 'quy_trinh_5a', 'quy_trinh_5b'].includes(workflowType)) {
         return false;

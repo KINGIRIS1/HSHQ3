@@ -33,7 +33,7 @@ interface AppModalsProps {
     deletingRecord: RecordFile | null;
     returnRecord: RecordFile | null;
     assignTargetRecords: RecordFile[];
-    exportModalType: 'handover' | 'check_list';
+    exportModalType: 'handover' | 'check_list' | 'returned';
     
     // Preview Data
     previewWorkbook: XLSX.WorkBook | null;
