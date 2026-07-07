@@ -87,11 +87,15 @@ function App() {
   // States for GCN / Cấp giấy workflow additional inputs
   const [taxModalOpen, setTaxModalOpen] = useState(false);
   const [taxTargetRecord, setTaxTargetRecord] = useState<RecordFile | null>(null);
+  const [taxLandPlot, setTaxLandPlot] = useState('');
+  const [taxMapSheet, setTaxMapSheet] = useState('');
+  const [taxArea, setTaxArea] = useState('');
+  const [taxResidentialArea, setTaxResidentialArea] = useState('');
+  const [taxClnArea, setTaxClnArea] = useState('');
+  const [taxBhkArea, setTaxBhkArea] = useState('');
+  const [taxLucArea, setTaxLucArea] = useState('');
+  const [taxOtherLandArea, setTaxOtherLandArea] = useState('');
   const [taxDirector, setTaxDirector] = useState('');
-
-  const [isTbtConfirmModalOpen, setIsTbtConfirmModalOpen] = useState(false);
-  const [tbtConfirmTargetRecord, setTbtConfirmTargetRecord] = useState<RecordFile | null>(null);
-  const [tbtPaymentDate, setTbtPaymentDate] = useState('');
 
   const [foilModalOpen, setFoilModalOpen] = useState(false);
   const [foilTargetRecord, setFoilTargetRecord] = useState<RecordFile | null>(null);
@@ -203,34 +207,21 @@ function App() {
   }, [currentView, recordFilterProps.handoverTab]);
 
   // CHẾ ĐỘ TỰ ĐỘNG CHUYỂN CHUYÊN MÔN SAU 18:00 HẰNG NGÀY
-  const recordsRef = useRef(records);
   useEffect(() => {
-      recordsRef.current = records;
-  }, [records]);
-
-  const isAutoSyncingRef = useRef(false);
-
-  useEffect(() => {
-      if (!currentUser) return;
+      if (!currentUser || !records || records.length === 0) return;
 
       const autoTransferAfter18 = async () => {
-          if (isAutoSyncingRef.current) return;
-          
           const today = new Date();
           const currentHours = today.getHours();
           
           if (currentHours >= 18) {
-              const currentRecords = recordsRef.current;
-              if (!currentRecords || currentRecords.length === 0) return;
-
               const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-              const unsyncedTodayRecords = currentRecords.filter(r => {
+              const unsyncedTodayRecords = records.filter(r => {
                   const recordDate = r.receivedDate ? r.receivedDate.split('T')[0] : '';
                   return recordDate === todayStr && r.isDeptSynced === false;
               });
 
               if (unsyncedTodayRecords.length > 0) {
-                  isAutoSyncingRef.current = true;
                   console.log(`Auto-transfer active: It is after 18:00. Automatically syncing ${unsyncedTodayRecords.length} today's records...`);
                   const updates = unsyncedTodayRecords.map(r => ({
                       ...r,
@@ -238,26 +229,25 @@ function App() {
                   }));
                   try {
                       await updateRecordsBatchById(updates);
-                      await loadData();
+                      setToast({ 
+                          type: 'success', 
+                          message: `Hệ thống tự động đồng bộ ${updates.length} hồ sơ tiếp nhận hôm nay về các phòng chuyên môn (Sau 18h00).` 
+                      });
+                      loadData();
                   } catch (err) {
                       console.error("Lỗi tự động chuyển hồ sơ sau 18h:", err);
-                  } finally {
-                      isAutoSyncingRef.current = false;
                   }
               }
           }
       };
 
-      // Run initially on load, wait 3s to let other data finish loading
-      const initialTimeout = setTimeout(autoTransferAfter18, 3000);
+      // Run initially on load
+      autoTransferAfter18();
 
       // Check every 5 minutes
       const interval = setInterval(autoTransferAfter18, 5 * 60 * 1000);
-      return () => {
-          clearTimeout(initialTimeout);
-          clearInterval(interval);
-      };
-  }, [currentUser, loadData]);
+      return () => clearInterval(interval);
+  }, [records, currentUser, loadData]);
 
   // Chat Listener
   useGlobalChatListener(currentUser, currentView, notificationEnabled, setUnreadMessages);
@@ -847,19 +837,10 @@ function App() {
 
           const currentStep = stepConfigs[currentIdx];
           if (currentStep && (currentStep.label.toLowerCase() === 'tbt' || currentStep.label.includes('TBT'))) {
-              setTbtConfirmTargetRecord(record);
-              const existingDate = record.taxPaymentDate ? record.taxPaymentDate.split('T')[0] : '';
-              if (existingDate) {
-                  setTbtPaymentDate(existingDate);
-              } else {
-                  const today = new Date();
-                  const y = today.getFullYear();
-                  const m = String(today.getMonth() + 1).padStart(2, '0');
-                  const d = String(today.getDate()).padStart(2, '0');
-                  setTbtPaymentDate(`${y}-${m}-${d}`);
+              if (!record.taxPaymentDate) {
+                  setToast({ type: 'error', message: 'Hồ sơ đang chờ người dân nộp tiền thuế. Vui lòng xác nhận đóng thuế trong chi tiết hồ sơ.' });
+                  return;
               }
-              setIsTbtConfirmModalOpen(true);
-              return;
           }
 
           const nextIdx = currentIdx + 1;
@@ -877,8 +858,16 @@ function App() {
                   return;
               }
 
-              if (nextStep.label.toLowerCase().includes("phiếu chuyển")) {
+              if (nextStep.label.includes("Phiếu chuyển Thuế") || nextStep.label.includes("Lập phiếu chuyển thuế") || nextStep.label.toLowerCase().includes("trình ký thuế")) {
                   setTaxTargetRecord(record);
+                  setTaxLandPlot(record.landPlot || '');
+                  setTaxMapSheet(record.mapSheet || '');
+                  setTaxArea(record.area ? String(record.area) : '');
+                  setTaxResidentialArea(record.residentialArea ? String(record.residentialArea) : '');
+                  setTaxClnArea(record.clnArea ? String(record.clnArea) : '');
+                  setTaxBhkArea(record.bhkArea ? String(record.bhkArea) : '');
+                  setTaxLucArea(record.lucArea ? String(record.lucArea) : '');
+                  setTaxOtherLandArea(record.otherLandArea ? String(record.otherLandArea) : '');
                   setTaxDirector(record.submittedTo || '');
                   setTaxModalOpen(true);
                   return;
@@ -1006,9 +995,13 @@ function App() {
   }, [records, selectedRecordIds]);
 
   const handleExportReturnedList = useCallback(() => {
-      setExportModalType('handover');
-      setIsExportModalOpen(true);
-  }, []);
+      const targets = recordFilterProps.filteredRecords;
+      if (targets.length === 0) {
+          setToast({ type: 'error', message: 'Không có hồ sơ nào trong danh sách để xuất!' });
+          return;
+      }
+      exportReturnedListToExcel(targets, recordFilterProps.filterFromDate, recordFilterProps.filterToDate, recordFilterProps.filterWard);
+  }, [recordFilterProps, setToast]);
 
   const handleConfirmSignBatch = useCallback(async () => {
       const selectedIds = Array.from(selectedRecordIds);
@@ -1089,6 +1082,23 @@ function App() {
                       return teamName === 'Ban Giám đốc' || isDirectorPos;
                   });
 
+                  const updateTaxCategoryAndTotal = (category: string, value: string) => {
+                      let res = parseFloat(category === 'residential' ? value : taxResidentialArea) || 0;
+                      let cln = parseFloat(category === 'cln' ? value : taxClnArea) || 0;
+                      let bhk = parseFloat(category === 'bhk' ? value : taxBhkArea) || 0;
+                      let luc = parseFloat(category === 'luc' ? value : taxLucArea) || 0;
+                      let other = parseFloat(category === 'other' ? value : taxOtherLandArea) || 0;
+
+                      if (category === 'residential') setTaxResidentialArea(value);
+                      else if (category === 'cln') setTaxClnArea(value);
+                      else if (category === 'bhk') setTaxBhkArea(value);
+                      else if (category === 'luc') setTaxLucArea(value);
+                      else if (category === 'other') setTaxOtherLandArea(value);
+
+                      const total = res + cln + bhk + luc + other;
+                      setTaxArea(total > 0 ? String(parseFloat(total.toFixed(4))) : '');
+                  };
+
                   return (
                       <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
                           <div className="bg-white rounded-xl shadow-2xl border border-indigo-100 w-full max-w-md overflow-hidden animate-fade-in-up text-left">
@@ -1103,45 +1113,19 @@ function App() {
 
                                   <div>
                                       <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Chọn lãnh đạo trình ký (Ban Giám đốc) <span className="text-red-500">*</span></label>
-                                      {directors.length > 0 ? (
-                                          <div className="grid grid-cols-1 gap-2 mt-2">
-                                              {directors.map(dir => {
-                                                  const employeeId = dir.employeeId || '';
-                                                  const position = employees.find(e => e.id === employeeId)?.position || 'Lãnh đạo Ban Giám đốc';
-                                                  const isSelected = taxDirector === employeeId;
-                                                  return (
-                                                      <button
-                                                          key={employeeId}
-                                                          type="button"
-                                                          onClick={() => setTaxDirector(employeeId)}
-                                                          className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all duration-150 ${
-                                                              isSelected
-                                                                  ? 'border-indigo-600 bg-indigo-50/70 text-indigo-950 shadow-sm ring-1 ring-indigo-600/30 font-semibold'
-                                                                  : 'border-gray-200 hover:border-indigo-300 hover:bg-slate-50/50 text-gray-800'
-                                                          }`}
-                                                      >
-                                                          <div className="flex items-center gap-3">
-                                                              <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                                                                  isSelected
-                                                                      ? 'border-indigo-600 bg-indigo-600 text-white'
-                                                                      : 'border-gray-300 bg-white'
-                                                              }`}>
-                                                                  {isSelected && (
-                                                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                                      </svg>
-                                                                  )}
-                                                              </div>
-                                                              <div>
-                                                                  <p className="text-sm">{dir.name}</p>
-                                                                  <p className="text-xs text-gray-400 font-normal">{position}</p>
-                                                              </div>
-                                                          </div>
-                                                      </button>
-                                                  );
-                                              })}
-                                          </div>
-                                      ) : null}
+                                      <select
+                                          value={taxDirector}
+                                          onChange={e => setTaxDirector(e.target.value)}
+                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                          required
+                                      >
+                                          <option value="">-- Chọn lãnh đạo trình ký --</option>
+                                          {directors.map(dir => (
+                                              <option key={dir.employeeId} value={dir.employeeId}>
+                                                  {dir.name} - {employees.find(e => e.id === dir.employeeId)?.position || 'Lãnh đạo Ban Giám đốc'}
+                                              </option>
+                                          ))}
+                                      </select>
                                       {directors.length === 0 && (
                                           <p className="text-[11px] text-red-500 mt-1">
                                               Không tìm thấy người ký thuộc Ban Giám đốc nào trong hệ thống!
@@ -1168,7 +1152,7 @@ function App() {
                                               const stepConfigs = getGcnWorkflowSteps(taxTargetRecord, holidays);
                                               let currentStepIndex = taxTargetRecord.currentStepIndex;
                                               if (currentStepIndex === undefined || currentStepIndex === null) {
-                                                  const foundIdx = stepConfigs.findIndex(s => s.label.toLowerCase().includes("phiếu chuyển") || s.label.toLowerCase().includes("trình ký thuế"));
+                                                  const foundIdx = stepConfigs.findIndex(s => s.label.includes("Phiếu chuyển Thuế") || s.label.includes("Lập phiếu chuyển thuế") || s.label.toLowerCase().includes("trình ký thuế"));
                                                   currentStepIndex = foundIdx !== -1 ? foundIdx : 0;
                                               }
                                               const nextStepIndex = currentStepIndex + 1;
@@ -1178,6 +1162,14 @@ function App() {
                                               const updates = {
                                                   status: nextStatus,
                                                   currentStepIndex: nextStepIndex,
+                                                  landPlot: taxTargetRecord.landPlot || '',
+                                                  mapSheet: taxTargetRecord.mapSheet || '',
+                                                  area: taxTargetRecord.area || 0,
+                                                  residentialArea: taxTargetRecord.residentialArea || 0,
+                                                  clnArea: taxTargetRecord.clnArea || 0,
+                                                  bhkArea: taxTargetRecord.bhkArea || 0,
+                                                  lucArea: taxTargetRecord.lucArea || 0,
+                                                  otherLandArea: taxTargetRecord.otherLandArea || 0,
                                                   completedWorkDate: nowStr,
                                                   submittedTo: taxDirector,
                                                   submissionDate: nowStr
@@ -1288,7 +1280,6 @@ function App() {
           users={users}
           wards={wards}
           holidays={holidays}
-          rolePermissions={rolePermissions}
           handleViewRecord={(r) => setViewingRecord(r)}
           setEditingRecord={setEditingRecord}
           setIsModalOpen={setIsModalOpen}
@@ -1306,10 +1297,6 @@ function App() {
           onDeleteEmployee={handleDeleteEmployee}
           onDeleteAllData={handleDeleteAllData}
           onHolidaysChanged={loadData}
-          onUpdateStatus={(r, status) => handleQuickUpdate(r.id, "status", status)}
-          onUpdateRecord={handleAddOrUpdateRecord}
-          onCreateLiquidation={(r) => { setRecordToLiquidate(r); setCurrentView('receive_contract'); }}
-          onMapCorrection={handleMapCorrectionRequest}
         />
         
         <AppModals 
@@ -1540,7 +1527,7 @@ function App() {
                         const isLuuTru = isArchiveType(r.recordType) || 
                                          r.recordType === 'Sao lục' || 
                                          r.recordType === 'Công văn' ||
-                                         r.recordType === '1.1 Công văn';
+                                         r.recordType === '1.2 Công văn';
                         
                         let extraUpdates: any = {};
                         if (isRegType(r.recordType)) {

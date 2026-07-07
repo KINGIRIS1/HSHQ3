@@ -157,9 +157,11 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ isOpen, onClose, records, onC
  
                 <div className="p-6">
                     <div className="mb-6">
-                        <p className="text-gray-700 mb-2 font-medium text-sm">
-                            Bạn đang {isCheckMode ? 'trình kiểm tra' : 'trình ký'} <span className={`font-bold ${isCheckMode ? 'text-orange-600' : 'text-indigo-600'}`}>{records.length}</span> hồ sơ.
-                        </p>
+                        {!isCheckMode && (
+                            <p className="text-gray-700 mb-2 font-medium text-sm">
+                                Bạn đang trình ký <span className="font-bold text-indigo-600">{records.length}</span> hồ sơ.
+                            </p>
+                        )}
                         <p className="text-xs text-gray-500 mb-4">
                             Vui lòng chọn {isCheckMode ? 'Tổ trưởng/Tổ phó tương ứng' : 'Giám đốc/Phó giám đốc'} để hoàn tất hồ sơ:
                         </p>

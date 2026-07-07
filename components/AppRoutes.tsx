@@ -1187,7 +1187,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                 </div>
               )}
 
-              {tabAllowedCanPerformAction && (
+              {tabAllowedCanPerformAction && ["all_records", "registration_records", "archive_records"].includes(currentView) && (
                 <>
                   <div className="h-6 w-px bg-gray-300 mx-1"></div>
                   <button
@@ -1208,7 +1208,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                 </>
               )}
 
-              {isHandoverAny && (
+              {isHandoverAny && props.handoverTab === "today" && (
                 <button
                   onClick={() => {
                     props.setExportModalType(
@@ -1223,6 +1223,15 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                   className="flex items-center gap-1 bg-white text-gray-700 border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-50 shadow-sm text-sm font-bold whitespace-nowrap"
                 >
                   <FileOutput size={16} /> Xuất Danh Sách
+                </button>
+              )}
+
+              {isHandoverAny && props.handoverTab === "returned" && (
+                <button
+                  onClick={props.handleExportReturnedList}
+                  className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700 shadow-sm text-sm font-bold whitespace-nowrap"
+                >
+                  <FileSpreadsheet size={16} /> Xuất Excel (Đã trả KQ)
                 </button>
               )}
             </div>
@@ -1275,16 +1284,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                   {props.selectedRecordIds.size})
                 </button>
               )}
-            {tabAllowedCanPerformAction &&
-              isHandoverAny &&
-              props.handoverTab === "returned" && (
-                <button
-                  onClick={props.handleExportReturnedList}
-                  className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 font-bold shadow-md transition-all"
-                >
-                  <FileSpreadsheet size={18} /> Xuất Excel (Đã trả KQ)
-                </button>
-              )}
+
             {tabAllowedCanPerformAction &&
               (isAdmin || isSubadmin || isDirector || hasTeamLeaderPrivileges) &&
               isCheckAny &&
