@@ -15,7 +15,7 @@ import { syncTemplatesFromCloud } from './services/docxService';
 import { updateRecordApi, saveEmployeeApi, saveUserApi, forceUpdateRecordsBatchApi, updateRecordsBatchById } from './services/api';
 import { migrateCungCapTaiLieu, migrateCongVanToLandRecords, saveArchiveRecord, fetchArchiveRecords } from './services/apiArchive';
 import * as XLSX from 'xlsx-js-style';
-import { CheckCircle, AlertTriangle } from 'lucide-react';
+import { CheckCircle, AlertTriangle, X } from 'lucide-react';
 
 import { useAppData } from './hooks/useAppData';
 import { useRecordFilter } from './hooks/useRecordFilter';
@@ -146,7 +146,7 @@ function App() {
   // Toast effect
   useEffect(() => {
       if (toast) {
-          const timer = setTimeout(() => setToast(null), 3000);
+          const timer = setTimeout(() => setToast(null), 30000);
           return () => clearTimeout(timer);
       }
   }, [toast]);
@@ -215,14 +215,18 @@ function App() {
           const currentHours = today.getHours();
           
           if (currentHours >= 18) {
-              const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+              const todayEnd = new Date();
+              todayEnd.setHours(23, 59, 59, 999);
+
               const unsyncedTodayRecords = records.filter(r => {
-                  const recordDate = r.receivedDate ? r.receivedDate.split('T')[0] : '';
-                  return recordDate === todayStr && r.isDeptSynced === false;
+                  if (r.isDeptSynced === true) return false;
+                  if (!r.receivedDate) return false;
+                  const recDate = new Date(r.receivedDate);
+                  return recDate <= todayEnd;
               });
 
               if (unsyncedTodayRecords.length > 0) {
-                  console.log(`Auto-transfer active: It is after 18:00. Automatically syncing ${unsyncedTodayRecords.length} today's records...`);
+                  console.log(`Auto-transfer active: It is after 18:00. Automatically syncing ${unsyncedTodayRecords.length} unsynced records...`);
                   const updates = unsyncedTodayRecords.map(r => ({
                       ...r,
                       isDeptSynced: true
@@ -1456,9 +1460,18 @@ function App() {
         />
 
         {toast && (
-            <div className={`fixed bottom-20 right-4 px-6 py-3 rounded-lg shadow-xl text-white font-bold animate-fade-in-up z-50 flex items-center gap-2 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
-                {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-                {toast.message}
+            <div className={`fixed bottom-20 right-4 px-6 py-3 rounded-lg shadow-xl text-white font-bold animate-fade-in-up z-50 flex items-center justify-between gap-4 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+                <div className="flex items-center gap-2">
+                    {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+                    <span>{toast.message}</span>
+                </div>
+                <button 
+                    onClick={() => setToast(null)} 
+                    className="text-white hover:text-gray-200 transition-colors focus:outline-none p-1 rounded-full hover:bg-white/10 cursor-pointer"
+                    aria-label="Close toast"
+                >
+                    <X size={16} />
+                </button>
             </div>
         )}
         {renderGcnWorkflowModals()}
@@ -1732,9 +1745,18 @@ function App() {
         />
 
         {toast && (
-            <div className={`fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-xl text-white font-bold animate-fade-in-up z-50 flex items-center gap-2 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
-                {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-                {toast.message}
+            <div className={`fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-xl text-white font-bold animate-fade-in-up z-50 flex items-center justify-between gap-4 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+                <div className="flex items-center gap-2">
+                    {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+                    <span>{toast.message}</span>
+                </div>
+                <button 
+                    onClick={() => setToast(null)} 
+                    className="text-white hover:text-gray-200 transition-colors focus:outline-none p-1 rounded-full hover:bg-white/10 cursor-pointer"
+                    aria-label="Close toast"
+                >
+                    <X size={16} />
+                </button>
             </div>
         )}
         {renderGcnWorkflowModals()}

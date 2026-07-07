@@ -31,12 +31,17 @@ if (!isConfigured) {
 const urlToUse = isConfigured ? SUPABASE_URL : 'https://placeholder.supabase.co';
 const keyToUse = isConfigured ? SUPABASE_ANON_KEY : 'placeholder';
 
+// A custom lock function that avoids Web Locks API entirely to prevent timeouts inside sandboxed iframes.
+const customLock = async <R>(name: string, acquireTimeout: number, fn: () => Promise<R>): Promise<R> => {
+    return await fn();
+};
+
 export const supabase = createClient(urlToUse, keyToUse, {
     auth: {
         persistSession: true, // Giữ đăng nhập khi F5
         autoRefreshToken: true,
-        lockType: 'localstorage',
-    } as any,
+        lock: customLock,
+    },
     db: {
         schema: 'public',
     }
