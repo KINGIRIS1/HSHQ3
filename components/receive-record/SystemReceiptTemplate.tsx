@@ -379,16 +379,16 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
         rows.push(
             <tr key={0} className="avoid-break" style={{ height: '150px' }}>
                 {/* Cột 1: TÊN CƠ QUAN (Chứa nhãn 1.Giao và 2.Nhận) */}
-                <td style={{ width: '15%', border: '1px solid black', padding: 0 }}>
+                <td style={{ width: '15%', border: '1px solid black', padding: 0, height: '150px' }}>
                     <table className="nested-table" style={{ width: '100%', borderCollapse: 'collapse', height: '150px', margin: 0 }}>
                         <tbody>
                             <tr style={{ height: '30px' }}>
-                                <td className="border-b" style={{ padding: '1px 6px', textAlign: 'left', fontSize: '13px', fontWeight: 'normal' }}>
+                                <td className="border-b" style={{ padding: '1px 6px', textAlign: 'left', fontSize: '13px', fontWeight: 'normal', height: '30px' }}>
                                     1.Giao
                                 </td>
                             </tr>
                             <tr style={{ height: '120px' }}>
-                                <td style={{ padding: '2px 6px', textAlign: 'left', verticalAlign: 'top', fontSize: '13px', fontWeight: 'normal' }}>
+                                <td style={{ padding: '2px 6px', textAlign: 'left', verticalAlign: 'top', fontSize: '13px', fontWeight: 'normal', height: '120px' }}>
                                     2.Nhận
                                 </td>
                             </tr>
@@ -397,20 +397,20 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                 </td>
                 
                 {/* Cột 2: THỜI GIAN GIAO, NHẬN HỒ SƠ */}
-                <td style={{ width: '55%', border: '1px solid black', padding: 0 }}>
+                <td style={{ width: '55%', border: '1px solid black', padding: 0, height: '150px' }}>
                     <table className="nested-table" style={{ width: '100%', borderCollapse: 'collapse', height: '150px', margin: 0 }}>
                         <tbody>
                             <tr style={{ height: '30px' }}>
-                                <td className="border-b" colSpan={2} style={{ padding: '1px 6px', textAlign: 'left', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                                <td className="border-b" colSpan={2} style={{ padding: '1px 6px', textAlign: 'left', whiteSpace: 'nowrap', fontSize: '13px', height: '30px' }}>
                                     {formatDateTime(rDate)}
                                 </td>
                             </tr>
                             <tr style={{ height: '120px' }}>
-                                <td className="border-r" style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
+                                <td className="border-r" style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px', height: '120px' }}>
                                     <div style={{ fontWeight: 'bold', marginTop: '2px' }}>Người giao</div>
                                     <div style={{ marginTop: '80px', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '12px' }}>{receiverName || ''}</div>
                                 </td>
-                                <td style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
+                                <td style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px', height: '120px' }}>
                                     <div style={{ fontWeight: 'bold', marginTop: '2px' }}>Người nhận</div>
                                 </td>
                             </tr>
@@ -419,10 +419,10 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                 </td>
                 
                 {/* Cột 3: KẾT QUẢ */}
-                <td style={{ width: '15%', border: '1px solid black' }}></td>
+                <td style={{ width: '15%', border: '1px solid black', height: '150px' }}></td>
                 
                 {/* Cột 4: Ghi chú */}
-                <td style={{ width: '15%', border: '1px solid black' }}></td>
+                <td style={{ width: '15%', border: '1px solid black', height: '150px' }}></td>
             </tr>
         );
         
@@ -431,16 +431,16 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
             rows.push(
                 <tr key={i} className="avoid-break" style={{ height: '150px' }}>
                     {/* Cột 1: TÊN CƠ QUAN */}
-                    <td style={{ width: '15%', border: '1px solid black', padding: 0 }}>
+                    <td style={{ width: '15%', border: '1px solid black', padding: 0, height: '150px' }}>
                         <table className="nested-table" style={{ width: '100%', borderCollapse: 'collapse', height: '150px', margin: 0 }}>
                             <tbody>
                                 <tr style={{ height: '30px' }}>
-                                    <td className="border-b" style={{ padding: '1px 6px', textAlign: 'left', fontSize: '13px', fontWeight: 'normal' }}>
+                                    <td className="border-b" style={{ padding: '1px 6px', textAlign: 'left', fontSize: '13px', fontWeight: 'normal', height: '30px' }}>
                                         1.Giao
                                     </td>
                                 </tr>
                                 <tr style={{ height: '120px' }}>
-                                    <td style={{ padding: '2px 6px', textAlign: 'left', verticalAlign: 'top', fontSize: '13px', fontWeight: 'normal' }}>
+                                    <td style={{ padding: '2px 6px', textAlign: 'left', verticalAlign: 'top', fontSize: '13px', fontWeight: 'normal', height: '120px' }}>
                                         2.Nhận
                                     </td>
                                 </tr>
@@ -449,19 +449,19 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                     </td>
                     
                     {/* Cột 2: THỜI GIAN GIAO, NHẬN HỒ SƠ */}
-                    <td style={{ width: '55%', border: '1px solid black', padding: 0 }}>
+                    <td style={{ width: '55%', border: '1px solid black', padding: 0, height: '150px' }}>
                         <table className="nested-table" style={{ width: '100%', borderCollapse: 'collapse', height: '150px', margin: 0 }}>
                             <tbody>
                                 <tr style={{ height: '30px' }}>
-                                    <td className="border-b" colSpan={2} style={{ padding: '1px 6px', textAlign: 'left', whiteSpace: 'nowrap', fontSize: '13px', color: '#333' }}>
+                                    <td className="border-b" colSpan={2} style={{ padding: '1px 6px', textAlign: 'left', whiteSpace: 'nowrap', fontSize: '13px', color: '#333', height: '30px' }}>
                                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; giờ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; phút, ngày &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; tháng &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; năm .........
                                     </td>
                                 </tr>
                                 <tr style={{ height: '120px' }}>
-                                    <td className="border-r" style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
+                                    <td className="border-r" style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px', height: '120px' }}>
                                         <div style={{ fontWeight: 'bold', marginTop: '2px' }}>Người giao</div>
                                     </td>
-                                    <td style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
+                                    <td style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px', height: '120px' }}>
                                         <div style={{ fontWeight: 'bold', marginTop: '2px' }}>Người nhận</div>
                                     </td>
                                 </tr>
@@ -470,10 +470,10 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                     </td>
                     
                     {/* Cột 3: KẾT QUẢ */}
-                    <td style={{ width: '15%', border: '1px solid black' }}></td>
+                    <td style={{ width: '15%', border: '1px solid black', height: '150px' }}></td>
                     
                     {/* Cột 4: Ghi chú */}
-                    <td style={{ width: '15%', border: '1px solid black' }}></td>
+                    <td style={{ width: '15%', border: '1px solid black', height: '150px' }}></td>
                 </tr>
             );
         }
@@ -683,26 +683,6 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                         <div className="text-center mt-3 mb-4">
                             <div className="font-bold text-[18px] uppercase tracking-wide">PHIẾU KIỂM SOÁT QUÁ TRÌNH GIẢI QUYẾT HỒ SƠ</div>
                             <div className="font-bold mt-1 text-[14px]">Mã hồ sơ:&nbsp;&nbsp;&nbsp;&nbsp;{data.code || data.id || ''}</div>
-                        </div>
-
-                        {/* Details Block */}
-                        <div style={{ marginLeft: '10%', marginBottom: '15px', fontSize: '14px', lineHeight: '1.5' }}>
-                            <div className="flex">
-                                <div style={{ width: '160px' }}>Kèm theo hồ sơ của:</div>
-                                <div className="font-bold uppercase">{data.customerName || ''}</div>
-                            </div>
-                            <div className="flex">
-                                <div style={{ width: '160px' }}>Số điện thoại:</div>
-                                <div className="font-bold">{data.phoneNumber || ''}</div>
-                            </div>
-                            <div className="flex">
-                                <div style={{ width: '160px' }}>Loại thủ tục:</div>
-                                <div className="font-bold uppercase">{data.recordType || ''}</div>
-                            </div>
-                            <div className="flex">
-                                <div style={{ width: '160px' }}>Ngày nhận:</div>
-                                <div className="font-bold">{formatDateVietnamese(rDate)}</div>
-                            </div>
                         </div>
 
                         {/* Control Slip Table */}
