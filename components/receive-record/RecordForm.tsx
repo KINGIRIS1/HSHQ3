@@ -1170,11 +1170,11 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                         } else {
                                             return (
                                                 <input 
-                                                    type="text" 
-                                                    readOnly
-                                                    className={`${plainInputClass} bg-slate-50 text-slate-500 font-medium cursor-not-allowed`} 
-                                                    placeholder="Hệ thống tự tạo khi lưu..."
+                                                     type="text" 
+                                                    className={`${plainInputClass} bg-white text-blue-600 font-bold font-mono`} 
+                                                    placeholder="Nhập mã hồ sơ (hoặc để trống để tự sinh)..."
                                                     value={formData.code || ''} 
+                                                    onChange={(e) => handleChange('code', e.target.value)}
                                                 />
                                             );
                                         }

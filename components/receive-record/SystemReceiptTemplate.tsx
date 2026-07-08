@@ -193,10 +193,8 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
         } else if (isMeas) {
             // Mặc định cho 2.x nếu trống
             docs.push(
-                { name: 'Phiếu yêu cầu lập hợp đồng đo đạc dịch vụ', type: 'Bản chính' },
-                { name: 'Trích lục', type: 'Bản chính' },
-                { name: 'Cung cấp thông tin thửa đất', type: 'Bản chính' },
-                { name: 'Giấy chứng nhận đã cấp bản phô tô', type: 'Bản sao' }
+                { name: 'Phiếu yêu cầu lập hợp đồng đo đạc dịch vụ, cắm Mốc, trích lục, Cung cấp thông tin', type: 'Bản chính' },              
+                { name: 'Giấy chứng nhận đã cấp', type: 'Bản sao' }
             );
         }
 
