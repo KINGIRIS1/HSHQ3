@@ -326,7 +326,7 @@ const RecordRow: React.FC<RecordRowProps> = ({
                 </span>
             ) : (
                 <div className="transform origin-top pt-1">
-                    <StatusBadge status={displayStatus} recordType={record.recordType} />
+                    <StatusBadge status={displayStatus} recordType={record.recordType} record={record} />
                     {record.hasDefect && (
                         <span className="mt-1 block text-[10px] font-bold bg-red-50 text-red-700 px-1 py-0.5 rounded border border-red-200">
                             Có sai sót (Trả)

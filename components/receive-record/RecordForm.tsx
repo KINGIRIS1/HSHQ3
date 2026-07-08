@@ -27,34 +27,49 @@ interface RecordFormProps {
 const getDefaultDocsForProcedure = (procedure: string, hasTax: boolean = false): Array<{ name: string; type: 'Bản chính' | 'Bản sao' }> => {
     if (!procedure) return [];
     const lower = procedure.toLowerCase();
-    
     let docs: Array<{ name: string; type: 'Bản chính' | 'Bản sao' }> = [];
     
     if (lower.includes('3.1') || lower.includes('thừa kế')) {
         docs = [
+            { name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' },
+            { name: 'Giấy chứng nhận đã cấp', type: 'Bản chính' },
+            { name: 'Tờ khai thuế', type: 'Bản chính' },
             { name: 'Văn bản khai nhận di sản thừa kế hoặc Văn bản thỏa thuận phân chia di sản thừa kế', type: 'Bản chính' },
             { name: 'Giấy chứng tử', type: 'Bản sao' }
         ];
     } else if (lower.includes('3.2') || lower.includes('tặng cho')) {
         docs = [
+            { name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' },
+            { name: 'Giấy chứng nhận đã cấp', type: 'Bản chính' },
+            { name: 'Tờ khai thuế', type: 'Bản chính' },
             { name: 'Hợp đồng tặng cho quyền sử dụng đất', type: 'Bản chính' },
             { name: 'Giấy khai sinh', type: 'Bản sao' }
         ];
     } else if (lower.includes('3.3') || lower.includes('chuyển nhượng')) {
         docs = [
+            { name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' },
+            { name: 'Giấy chứng nhận đã cấp', type: 'Bản chính' },
+            { name: 'Tờ khai thuế', type: 'Bản chính' },
             { name: 'Hợp đồng chuyển nhượng', type: 'Bản chính' }
         ];
     } else if (lower.includes('3.4') || lower.includes('thỏa thuận')) {
         docs = [
-            { name: 'Văn bản thỏa thuận', type: 'Bản chính' },
-            { name: 'Đăng ký kết hôn', type: 'Bản sao' }
+            { name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' },
+            { name: 'Giấy chứng nhận đã cấp', type: 'Bản chính' },
+            { name: 'Tờ khai thuế', type: 'Bản chính' }
         ];
     } else if (lower.includes('3.5') || lower.includes('chuyển mục đích')) {
         docs = [
-            { name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' }
+            { name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' },
+            { name: 'Giấy chứng nhận đã cấp', type: 'Bản chính' },
+            { name: 'Tờ khai thuế', type: 'Bản chính' }
         ];
     } else if (lower.includes('3.6') || lower.includes('cấp đổi')) {
-        docs = [];
+        docs = [
+            { name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' },
+            { name: 'Giấy chứng nhận đã cấp', type: 'Bản chính' },
+            { name: 'Tờ khai thuế', type: 'Bản chính' }
+        ];
     } else if (lower.includes('3.7') || lower.includes('cấp lại')) {
         docs = [
             { name: 'Giấy xác nhận mất GCN', type: 'Bản chính' }
@@ -62,42 +77,19 @@ const getDefaultDocsForProcedure = (procedure: string, hasTax: boolean = false):
     } else if (lower.includes('3.8') || lower.includes('tách - hợp thửa')) {
         docs = [
             { name: 'Đơn đề nghị tách thửa, hợp thửa', type: 'Bản chính' },
+            { name: 'Giấy chứng nhận đã cấp', type: 'Bản chính' },
             { name: 'Bản vẽ trích đo địa chính', type: 'Bản chính' }
         ];
     } else if (lower.includes('3.9') || lower.includes('gia hạn')) {
         docs = [
-            { name: 'Đơn đề nghị gia hạn sử dụng đất', type: 'Bản chính' }
+            { name: 'Đơn đề nghị gia hạn sử dụng đất', type: 'Bản chính' },
+            { name: 'Giấy chứng nhận đã cấp', type: 'Bản chính' }
         ];
     } else if (lower.startsWith('2.') || lower.includes('trích đo') || lower.includes('đo đạc') || lower.includes('trích lục') || lower.includes('số thửa')) {
         return [
-            { name: 'Phiếu yêu cầu lập hợp đồng đo đạc dịch vụ', type: 'Bản chính' },
-            { name: 'Trích lục', type: 'Bản chính' },
-            { name: 'Cung cấp thông tin thửa đất', type: 'Bản chính' },
-            { name: 'Giấy chứng nhận đã cấp bản phô tô', type: 'Bản sao' }
+            { name: 'Phiếu yêu cầu lập hợp đồng đo đạc dịch vụ, cắm Mốc, trích lục, Cung cấp thông tin', type: 'Bản chính' },
+            { name: 'Giấy chứng nhận đã cấp', type: 'Bản sao' }
         ];
-    }
-
-    const isReg = lower.startsWith('3.') || lower.includes('đăng ký') || lower.includes('cấp giấy') || lower.includes('cấp đổi') || lower.includes('cấp lại') || REGISTRATION_PROCEDURES.some(p => lower.includes(p.toLowerCase()));
-    
-    if (isReg) {
-        // Add "Đơn đăng ký biến động đất đai" if NOT a "gia hạn" procedure
-        const isGiaHan = lower.includes('3.9') || lower.includes('gia hạn');
-        if (!isGiaHan) {
-            if (!docs.some(d => d.name === 'Đơn đăng ký biến động đất đai' || d.name === 'Đơn đăng ký biến động')) {
-                docs.push({ name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' });
-            }
-        }
-
-        // Add "Giấy chứng nhận đã cấp bản chính" if NOT a "cấp lại" procedure
-        const isCappingLai = lower.includes('3.7') || lower.includes('cấp lại') || lower.includes('bị mất') || lower.includes('mất gcn');
-        if (!isCappingLai) {
-            docs.push({ name: 'Giấy chứng nhận đã cấp bản chính', type: 'Bản chính' });
-        }
-        
-        // Add "Tờ khai thuế" if hasTax is true
-        if (hasTax) {
-            docs.push({ name: 'Tờ khai thuế', type: 'Bản chính' });
-        }
     }
 
     return docs;
@@ -1018,16 +1010,16 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                         onChange={(e) => {
                                             const val = e.target.value || null;
                                             handleChange('gcnWorkflowType', val);
-                                            if (val === 'quy_trinh_4a') {
+                                            if (val === 'quy_trinh_4') {
                                                 handleChange('hasTax', false);
                                                 handleChange('hasCheckedSMK', false);
-                                            } else if (val === 'quy_trinh_4b') {
+                                            } else if (val === 'quy_trinh_5') {
                                                 handleChange('hasTax', false);
                                                 handleChange('hasCheckedSMK', true);
-                                            } else if (val === 'quy_trinh_5a') {
+                                            } else if (val === 'quy_trinh_6') {
                                                 handleChange('hasTax', true);
                                                 handleChange('hasCheckedSMK', false);
-                                            } else if (val === 'quy_trinh_5b') {
+                                            } else if (val === 'quy_trinh_7') {
                                                 handleChange('hasTax', true);
                                                 handleChange('hasCheckedSMK', true);
                                             }
@@ -1037,10 +1029,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                         <option value="quy_trinh_1">Quy trình 1: DNLIS</option>
                                         <option value="quy_trinh_2">Quy trình 2: Phiếu chuyển thuế</option>
                                         <option value="quy_trinh_3">Quy trình 3: In GCN</option>
-                                        <option value="quy_trinh_4a">Quy trình 4A: Cấp lại không thuế (Có đối chiếu SMK)</option>
-                                        <option value="quy_trinh_4b">Quy trình 4B: Cấp lại không thuế (Đã đối chiếu SMK)</option>
-                                        <option value="quy_trinh_5a">Quy trình 5A: Cấp lại có thuế (Có đối chiếu SMK)</option>
-                                        <option value="quy_trinh_5b">Quy trình 5B: Cấp lại có thuế (Đã đối chiếu SMK)</option>
+                                        <option value="quy_trinh_4">Quy trình 4: Cấp lại không thuế (Có đối chiếu SMK)</option>
+                                        <option value="quy_trinh_5">Quy trình 5: Cấp lại không thuế (Đã đối chiếu SMK)</option>
+                                        <option value="quy_trinh_6">Quy trình 6: Cấp lại có thuế (Có đối chiếu SMK)</option>
+                                        <option value="quy_trinh_7">Quy trình 7: Cấp lại có thuế (Đã đối chiếu SMK)</option>
                                     </select>
                                 </div>
                             </div>

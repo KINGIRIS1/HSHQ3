@@ -462,9 +462,9 @@ function App() {
 
               if (rType.includes('cấp lại') || rType.includes('3.7')) {
                   if (r.hasTax) {
-                      updates.gcnWorkflowType = r.hasCheckedSMK ? 'quy_trinh_5b' : 'quy_trinh_5a';
+                      updates.gcnWorkflowType = r.hasCheckedSMK ? 'quy_trinh_7' : 'quy_trinh_6';
                   } else {
-                      updates.gcnWorkflowType = r.hasCheckedSMK ? 'quy_trinh_4b' : 'quy_trinh_4a';
+                      updates.gcnWorkflowType = r.hasCheckedSMK ? 'quy_trinh_5' : 'quy_trinh_4';
                   }
               } else if (!r.hasTax && !isDefaultTaxProcedure(r.recordType)) {
                   updates.gcnWorkflowType = 'quy_trinh_3';

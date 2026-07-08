@@ -1406,7 +1406,7 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                     )}
 
                                     <td className="p-3 text-center align-middle">
-                                        <StatusBadge status={r.status} recordType={r.recordType} />
+                                        <StatusBadge status={r.status} recordType={r.recordType} record={r} />
                                         {r.status === RecordStatus.REJECTED && (
                                             <span className="mt-1 block text-[10px] font-bold bg-red-100 text-red-800 px-1 py-0.5 rounded border border-red-200 text-center mx-auto max-w-[100px]">
                                                 Hồ sơ bị trả

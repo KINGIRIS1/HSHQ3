@@ -378,7 +378,48 @@ export const useRecordFilter = (
             });
         }
         if (filterStatus !== 'all' && currentView !== 'handover_list' && currentView !== 'other_handover_list') {
-            result = result.filter(r => r.status === filterStatus);
+            const isRegView = [
+                'registration_records', 'registration_assign_tasks', 'registration_completed_list', 
+                'registration_pending_check_list', 'registration_check_list', 'registration_handover_list', 
+                'registration_director_completed', 'registration_vao_so',
+                'registration_phieu_chuyen_thue', 'registration_trinh_ky_thue',
+                'registration_tbt', 'registration_in_gcn', 'registration_tham_tra'
+            ].includes(currentView);
+
+            if (isRegView) {
+                const getActiveStepLabel = (rec: RecordFile) => {
+                    try {
+                        const helper = getGcnWorkflowStepsHelper(rec, []);
+                        if (helper && helper.steps) {
+                            const currentStep = helper.steps.find(s => s.status === 'current');
+                            if (currentStep) {
+                                return currentStep.label.toLowerCase();
+                            }
+                        }
+                    } catch (e) {}
+                    return '';
+                };
+                
+                result = result.filter(r => {
+                    const label = getActiveStepLabel(r);
+                    if (filterStatus === 'dnlis') return label.includes('dnlis');
+                    if (filterStatus === 'phieu_chuyen_thue') return label.includes('phiếu chuyển');
+                    if (filterStatus === 'trinh_ky_thue') return label.includes('trình ký thuế');
+                    if (filterStatus === 'tbt') return r.status === RecordStatus.TBT || label === 'tbt' || label.includes('thông báo thuế');
+                    if (filterStatus === 'in_gcn') return label.includes('in gcn') || label.includes('in giấy chứng nhận') || label.includes('in giấy');
+                    if (filterStatus === 'tham_tra') return r.status === RecordStatus.PENDING_CHECK || label.includes('thẩm tra');
+                    if (filterStatus === 'trinh_ky_gcn') return label.includes('trình ký gcn') || label.includes('trình ký giấy') || (label.includes('trình ký') && !label.includes('thuế'));
+                    if (filterStatus === 'vo_so_gcn') return label.includes('vô số');
+                    if (filterStatus === 'giao_1_cua') return label.includes('cửa') || label.includes('trả kết quả');
+                    if (filterStatus === 'pending_supplement') return r.status === RecordStatus.PENDING_SUPPLEMENT;
+                    if (filterStatus === 'withdrawn') return r.status === RecordStatus.WITHDRAWN;
+                    if (filterStatus === 'rejected') return r.status === RecordStatus.REJECTED;
+                    if (filterStatus === 'returned') return r.status === RecordStatus.RETURNED;
+                    return r.status === filterStatus;
+                });
+            } else {
+                result = result.filter(r => r.status === filterStatus);
+            }
         }
         if (filterEmployee !== 'all' && currentView !== 'assign_tasks') {
             if (filterEmployee === 'unassigned') result = result.filter(r => !r.assignedTo);

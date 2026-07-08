@@ -625,10 +625,10 @@ const AssignModal: React.FC<AssignModalProps> = ({
                       <option value="quy_trinh_1">Quy trình 1: DNLIS</option>
                       <option value="quy_trinh_2">Quy trình 2: Phiếu chuyển thuế</option>
                       <option value="quy_trinh_3">Quy trình 3: In GCN</option>
-                      <option value="quy_trinh_4a">Quy trình 4A: Cấp lại không thuế (Có đối chiếu SMK)</option>
-                      <option value="quy_trinh_4b">Quy trình 4B: Cấp lại không thuế (Đã đối chiếu SMK)</option>
-                      <option value="quy_trinh_5a">Quy trình 5A: Cấp lại có thuế (Có đối chiếu SMK)</option>
-                      <option value="quy_trinh_5b">Quy trình 5B: Cấp lại có thuế (Đã đối chiếu SMK)</option>
+                      <option value="quy_trinh_4">Quy trình 4: Cấp lại không thuế (Có đối chiếu SMK)</option>
+                      <option value="quy_trinh_5">Quy trình 5: Cấp lại không thuế (Đã đối chiếu SMK)</option>
+                      <option value="quy_trinh_6">Quy trình 6: Cấp lại có thuế (Có đối chiếu SMK)</option>
+                      <option value="quy_trinh_7">Quy trình 7: Cấp lại có thuế (Đã đối chiếu SMK)</option>
                     </select>
                   </div>
                 </div>

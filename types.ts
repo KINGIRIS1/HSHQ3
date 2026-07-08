@@ -198,7 +198,7 @@ export interface RecordFile {
   hasCheckedSMK?: boolean;      // Đã đối chiếu sổ mục kê
 
   // Các trường mới cho Luồng Quy Trình Cấp Giấy (Chi nhánh Hớn Quản)
-  gcnWorkflowType?: string | null;             // 'quy_trinh_1' | 'quy_trinh_2' | 'quy_trinh_3' | 'quy_trinh_4a' | 'quy_trinh_4b' | 'quy_trinh_5a' | 'quy_trinh_5b'
+  gcnWorkflowType?: string | null;             // 'quy_trinh_1' | 'quy_trinh_2' | 'quy_trinh_3' | 'quy_trinh_4' | 'quy_trinh_5' | 'quy_trinh_6' | 'quy_trinh_7'
   hasConcurrentTransfer?: boolean | null;       // Có chuyển nhượng đồng thời? (Có/Không)
   preSupplementStatus?: RecordStatus | null;     // Lưu trạng thái trước khi bị trả chờ bổ sung
   preSupplementStepIndex?: number | null;       // Lưu bước chi tiết trước khi bị trả

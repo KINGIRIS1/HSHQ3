@@ -150,7 +150,21 @@ export function addWorkingTime(startDate: Date | string, durationStr: string, ho
     return currentDate;
 }
 
-export function getStatusLabel(status: RecordStatus, recordType?: string | null): string {
+export function getStatusLabel(status: RecordStatus, recordType?: string | null, record?: RecordFile): string {
+    if (record && isRegType(record.recordType || recordType)) {
+        const terminalStatuses = [RecordStatus.RETURNED, RecordStatus.WITHDRAWN, RecordStatus.REJECTED];
+        if (!terminalStatuses.includes(status)) {
+            try {
+                const helper = getGcnWorkflowStepsHelper(record, []);
+                if (helper && helper.steps) {
+                    const currentStep = helper.steps.find(s => s.status === 'current');
+                    if (currentStep) {
+                        return currentStep.label;
+                    }
+                }
+            } catch (e) {}
+        }
+    }
     return STATUS_LABELS[status] || status;
 }
 
@@ -238,11 +252,11 @@ export function isStepHiddenForWorkflow(stepLabel: string, workflowType: string)
     }
     
     // For the new Cấp lại workflows, we do NOT hide any steps!
-    if (['quy_trinh_4a', 'quy_trinh_4b', 'quy_trinh_5a', 'quy_trinh_5b'].includes(workflowType)) {
+    if (['quy_trinh_4', 'quy_trinh_5', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
         return false;
     }
 
-    const isTaxWorkflow = ['quy_trinh_1', 'quy_trinh_2', 'quy_trinh_5a', 'quy_trinh_5b'].includes(workflowType);
+    const isTaxWorkflow = ['quy_trinh_1', 'quy_trinh_2', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType);
 
     if (label.includes("dnlis")) {
         return workflowType !== 'quy_trinh_1';
@@ -274,9 +288,9 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
         const rType = (record.recordType || '').toLowerCase();
         if (rType.includes('cấp lại') || rType.includes('3.7')) {
             if (record.hasTax) {
-                workflowType = record.hasCheckedSMK ? 'quy_trinh_5b' : 'quy_trinh_5a';
+                workflowType = record.hasCheckedSMK ? 'quy_trinh_7' : 'quy_trinh_6';
             } else {
-                workflowType = record.hasCheckedSMK ? 'quy_trinh_4b' : 'quy_trinh_4a';
+                workflowType = record.hasCheckedSMK ? 'quy_trinh_5' : 'quy_trinh_4';
             }
         } else if (!record.hasTax && !isDefaultTaxProcedure(record.recordType)) {
             workflowType = 'quy_trinh_3';
@@ -326,8 +340,8 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
             { label: "Vô số GCN", duration: "4 giờ", overallStatus: RecordStatus.SIGNED },
             { label: "Giao 1 cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER }
         ];
-    } else if (workflowType === 'quy_trinh_4a') {
-        title = 'Quy trình 4A: Cấp lại không thuế (Có đối chiếu SMK)';
+    } else if (workflowType === 'quy_trinh_4') {
+        title = 'Quy trình 4: Cấp lại không thuế (Có đối chiếu SMK)';
         stepConfigs = [
             { label: "Đối chiếu Sổ mục kê, hồ sơ lưu, GCN, CSDL đất đai", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
@@ -342,8 +356,8 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
             { label: "Chuyển Một cửa", duration: "1 ngày", overallStatus: RecordStatus.HANDOVER },
             { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
         ];
-    } else if (workflowType === 'quy_trinh_4b') {
-        title = 'Quy trình 4B: Cấp lại không thuế (Đã đối chiếu SMK)';
+    } else if (workflowType === 'quy_trinh_5') {
+        title = 'Quy trình 5: Cấp lại không thuế (Đã đối chiếu SMK)';
         stepConfigs = [
             { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
@@ -357,8 +371,8 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
             { label: "Chuyển Một cửa", duration: "1 ngày", overallStatus: RecordStatus.HANDOVER },
             { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
         ];
-    } else if (workflowType === 'quy_trinh_5a') {
-        title = 'Quy trình 5A: Cấp lại có thuế (Có đối chiếu SMK)';
+    } else if (workflowType === 'quy_trinh_6') {
+        title = 'Quy trình 6: Cấp lại có thuế (Có đối chiếu SMK)';
         stepConfigs = [
             { label: "Đối chiếu Sổ mục kê, hồ sơ lưu, GCN, CSDL đất đai", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
@@ -374,7 +388,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
             { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
         ];
     } else {
-        title = 'Quy trình 5B: Cấp lại có thuế (Đã đối chiếu SMK)';
+        title = 'Quy trình 7: Cấp lại có thuế (Đã đối chiếu SMK)';
         stepConfigs = [
             { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
@@ -521,8 +535,8 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
         const step = steps[index];
         if (!step) return false;
         
-        // Custom matching for quy_trinh_5a & 5b combined step "Trình ký - Vô số - Đóng dấu"
-        if (['quy_trinh_5a', 'quy_trinh_5b'].includes(workflowType)) {
+        // Custom matching for quy_trinh_6 & 7 combined step "Trình ký - Vô số - Đóng dấu"
+        if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
             if (step.label.includes("Trình ký - Vô số") && [RecordStatus.PENDING_SIGN, RecordStatus.SIGNED, RecordStatus.HANDOVER].includes(status)) {
                 return true;
             }
@@ -552,23 +566,23 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
             } else if (status === RecordStatus.CHECKED) {
                 targetLabel = "Thẩm tra";
             } else if (status === RecordStatus.PENDING_SIGN) {
-                if (['quy_trinh_5a', 'quy_trinh_5b'].includes(workflowType)) {
+                if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
                     targetLabel = "Trình ký - Vô số";
-                } else if (['quy_trinh_4a', 'quy_trinh_4b'].includes(workflowType)) {
+                } else if (['quy_trinh_4', 'quy_trinh_5'].includes(workflowType)) {
                     targetLabel = "Trình ký";
                 } else {
                     targetLabel = "Trình Ký GCN";
                 }
             } else if (status === RecordStatus.SIGNED) {
-                if (['quy_trinh_5a', 'quy_trinh_5b'].includes(workflowType)) {
+                if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
                     targetLabel = "Trình ký - Vô số";
-                } else if (['quy_trinh_4a', 'quy_trinh_4b'].includes(workflowType)) {
+                } else if (['quy_trinh_4', 'quy_trinh_5'].includes(workflowType)) {
                     targetLabel = "Vô số";
                 } else {
                     targetLabel = "Vô số GCN";
                 }
             } else if (status === RecordStatus.HANDOVER) {
-                if (['quy_trinh_5a', 'quy_trinh_5b'].includes(workflowType)) {
+                if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
                     targetLabel = "Trình ký - Vô số";
                 } else {
                     targetLabel = "cửa";
