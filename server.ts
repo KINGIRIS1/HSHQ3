@@ -7,17 +7,32 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let resolvedFilename = '';
+try {
+  resolvedFilename = __filename;
+} catch (e) {
+  if (typeof import.meta !== 'undefined' && import.meta.url) {
+    resolvedFilename = fileURLToPath(import.meta.url);
+  }
+}
+
+let resolvedDirname = '';
+try {
+  resolvedDirname = __dirname;
+} catch (e) {
+  if (resolvedFilename) {
+    resolvedDirname = path.dirname(resolvedFilename);
+  }
+}
 
 const server = jsonServer.create();
-let dbFile = process.env.DB_PATH || path.join(__dirname, 'server/db.json');
+let dbFile = process.env.DB_PATH || path.join(resolvedDirname, 'server/db.json');
 
 // In production (Cloud Run), the filesystem is read-only except for /tmp
 if (process.env.NODE_ENV === 'production') {
     dbFile = '/tmp/db.json';
     // Copy initial db.json to /tmp if it doesn't exist
-    const initialDbFile = path.join(__dirname, 'server/db.json');
+    const initialDbFile = path.join(resolvedDirname, 'server/db.json');
     if (!fs.existsSync(dbFile) && fs.existsSync(initialDbFile)) {
         fs.copyFileSync(initialDbFile, dbFile);
     }
@@ -27,10 +42,10 @@ const router = jsonServer.router(dbFile);
 const middlewares = jsonServer.defaults();
 
 // --- TỐI ƯU HÓA TỐC ĐỘ CẬP NHẬT ---
-let releaseDir = path.join(__dirname, 'release');
+let releaseDir = path.join(resolvedDirname, 'release');
 if (!fs.existsSync(releaseDir)) {
     // Thử tìm ở thư mục gốc project (khi chạy dev)
-    releaseDir = path.join(__dirname, 'release');
+    releaseDir = path.join(resolvedDirname, 'release');
 }
 console.log(`Update Server path: ${releaseDir}`);
 server.use('/updates', express.static(releaseDir));
@@ -184,7 +199,7 @@ const startServer = async () => {
         });
         server.use(vite.middlewares);
     } else {
-        const distPath = path.join(__dirname, 'dist');
+        const distPath = path.join(resolvedDirname, 'dist');
         server.use(express.static(distPath));
         
         // SPA fallback for HTML requests

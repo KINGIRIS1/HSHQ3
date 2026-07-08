@@ -85,7 +85,7 @@ const getDefaultDocsForProcedure = (procedure: string, hasTax: boolean = false):
             { name: 'Đơn đề nghị gia hạn sử dụng đất', type: 'Bản chính' },
             { name: 'Giấy chứng nhận đã cấp', type: 'Bản chính' }
         ];
-    } else if (lower.startsWith('2.') || lower.includes('trích đo') || lower.includes('đo đạc') || lower.includes('trích lục') || lower.includes('số thửa')) {
+    } else if (lower.startsWith('1.') || lower.includes('công văn') || lower.includes('sao lục') || lower.startsWith('2.') || lower.includes('trích đo') || lower.includes('đo đạc') || lower.includes('trích lục') || lower.includes('số thửa')) {
         return [
             { name: 'Phiếu yêu cầu lập hợp đồng đo đạc dịch vụ, cắm Mốc, trích lục, Cung cấp thông tin', type: 'Bản chính' },
             { name: 'Giấy chứng nhận đã cấp', type: 'Bản sao' }

@@ -377,7 +377,7 @@ function App() {
       const updatedIds = assignTargetRecords.map(r => r.id);
       
       const getDynamicUpdates = (r: RecordFile) => {
-          if (isRegType(r.recordType) && r.taxPaymentDate && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
+          if (isRegType(r.recordType) && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
               const helper = getGcnWorkflowStepsHelper(r, holidays || []);
               const currentStep = helper.steps[r.currentStepIndex];
               const stepStatus = currentStep ? currentStep.overallStatus : RecordStatus.PENDING_CHECK;
@@ -495,7 +495,7 @@ function App() {
           
           if (matchedEmp) {
               let updates: any;
-              if (isRegType(r.recordType) && r.taxPaymentDate && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
+              if (isRegType(r.recordType) && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
                   const helper = getGcnWorkflowStepsHelper(r, holidays || []);
                   const currentStep = helper.steps[r.currentStepIndex];
                   const stepStatus = currentStep ? currentStep.overallStatus : RecordStatus.PENDING_CHECK;
@@ -932,32 +932,40 @@ function App() {
                   return;
               }
 
+              const currentLabel = currentStep ? currentStep.label.toLowerCase() : '';
+              const isResetStep = currentLabel.includes("sổ mk") || currentLabel.includes("thế chấp") || currentLabel.includes("tbt");
+
               const updates: any = {
                   currentStepIndex: nextIdx,
-                  status: nextStep.overallStatus
+                  status: isResetStep ? RecordStatus.RECEIVED : nextStep.overallStatus
               };
 
-              if (nextStep.overallStatus === RecordStatus.IN_PROGRESS && !record.assignedDate) {
-                  updates.assignedDate = nowStr;
-              }
-              if (nextStep.overallStatus === RecordStatus.COMPLETED_WORK && !record.completedWorkDate) {
-                  updates.completedWorkDate = nowStr;
-              }
-              if ((nextStep.overallStatus as any) === RecordStatus.PENDING_CHECK && !record.pendingCheckDate) {
-                  updates.pendingCheckDate = nowStr;
-              }
-              if (nextStep.overallStatus === RecordStatus.CHECKED) {
-                  updates.checkedDate = nowStr;
-                  updates.checkedBy = record.checkedBy || currentUser?.employeeId || null;
-              }
-              if ((nextStep.overallStatus as any) === RecordStatus.PENDING_SIGN && !record.submissionDate) {
-                  updates.submissionDate = nowStr;
-              }
-              if (nextStep.overallStatus === RecordStatus.SIGNED && !record.approvalDate) {
-                  updates.approvalDate = nowStr;
-              }
-              if (nextStep.overallStatus === RecordStatus.HANDOVER && !record.completedDate) {
-                  updates.completedDate = nowStr;
+              if (isResetStep) {
+                  updates.assignedTo = null;
+                  updates.assignedDate = null;
+              } else {
+                  if (nextStep.overallStatus === RecordStatus.IN_PROGRESS && !record.assignedDate) {
+                      updates.assignedDate = nowStr;
+                  }
+                  if (nextStep.overallStatus === RecordStatus.COMPLETED_WORK && !record.completedWorkDate) {
+                      updates.completedWorkDate = nowStr;
+                  }
+                  if ((nextStep.overallStatus as any) === RecordStatus.PENDING_CHECK && !record.pendingCheckDate) {
+                      updates.pendingCheckDate = nowStr;
+                  }
+                  if (nextStep.overallStatus === RecordStatus.CHECKED) {
+                      updates.checkedDate = nowStr;
+                      updates.checkedBy = record.checkedBy || currentUser?.employeeId || null;
+                  }
+                  if ((nextStep.overallStatus as any) === RecordStatus.PENDING_SIGN && !record.submissionDate) {
+                      updates.submissionDate = nowStr;
+                  }
+                  if (nextStep.overallStatus === RecordStatus.SIGNED && !record.approvalDate) {
+                      updates.approvalDate = nowStr;
+                  }
+                  if (nextStep.overallStatus === RecordStatus.HANDOVER && !record.completedDate) {
+                      updates.completedDate = nowStr;
+                  }
               }
 
               setRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
