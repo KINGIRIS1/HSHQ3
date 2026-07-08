@@ -2,7 +2,7 @@
 import { supabase, isConfigured } from './supabaseClient';
 import { RecordFile } from '../types';
 import { MOCK_RECORDS, API_BASE_URL } from '../constants';
-import { logError, getFromCache, saveToCache, CACHE_KEYS, sanitizeData, normalizeCode, mapRecordFromDb } from './apiCore';
+import { logError, getFromCache, saveToCache, CACHE_KEYS, sanitizeData, normalizeCode, mapRecordFromDb, getDbColumns, mapPayloadToDb } from './apiCore';
 
 export const RECORD_DB_COLUMNS = [
     'id', 'code', 'customerName', 'phoneNumber', 'cccd', 'customerAddress', 'ward', 'landPlot', 'mapSheet', 
@@ -196,13 +196,17 @@ export const createRecordApi = async (record: RecordFile): Promise<RecordFile | 
         }
         
         const payload = sanitizeData(recordToSave, RECORD_DB_COLUMNS);
-        const { data, error } = await supabase.from('land_records').insert([payload]).select();
+        const actualDbColumns = await getDbColumns('land_records');
+        const mappedPayload = mapPayloadToDb(payload, actualDbColumns);
+        
+        const { data, error } = await supabase.from('land_records').insert([mappedPayload]).select();
         
         if (error && (error.code === 'PGRST204' || String(error.code) === '42703' || (error.message && String(error.message).includes('does not exist')))) {
             console.warn("⚠️ [Fallback] Database is missing columns. Retrying without new columns...", error);
             const fallbackPayload = { ...payload };
             OPTIONAL_NEW_COLUMNS.forEach(col => delete fallbackPayload[col]);
-            const { data: fallbackData, error: fallbackError } = await supabase.from('land_records').insert([fallbackPayload]).select();
+            const mappedFallbackPayload = mapPayloadToDb(fallbackPayload, actualDbColumns);
+            const { data: fallbackData, error: fallbackError } = await supabase.from('land_records').insert([mappedFallbackPayload]).select();
             if (fallbackError) {
                 logError("createRecordApi (Fallback)", fallbackError);
                 throw fallbackError;
@@ -222,13 +226,17 @@ export const updateRecordApi = async (record: RecordFile): Promise<RecordFile | 
     if (!isConfigured) return record;
     try {
         const payload = sanitizeData(record, RECORD_DB_COLUMNS);
-        const { data, error } = await supabase.from('land_records').update(payload).eq('id', record.id).select();
+        const actualDbColumns = await getDbColumns('land_records');
+        const mappedPayload = mapPayloadToDb(payload, actualDbColumns);
+        
+        const { data, error } = await supabase.from('land_records').update(mappedPayload).eq('id', record.id).select();
         
         if (error && (error.code === 'PGRST204' || String(error.code) === '42703' || (error.message && String(error.message).includes('does not exist')))) {
             console.warn("⚠️ [Fallback] Database is missing columns. Retrying without new columns...", error);
             const fallbackPayload = { ...payload };
             OPTIONAL_NEW_COLUMNS.forEach(col => delete fallbackPayload[col]);
-            const { data: fallbackData, error: fallbackError } = await supabase.from('land_records').update(fallbackPayload).eq('id', record.id).select();
+            const mappedFallbackPayload = mapPayloadToDb(fallbackPayload, actualDbColumns);
+            const { data: fallbackData, error: fallbackError } = await supabase.from('land_records').update(mappedFallbackPayload).eq('id', record.id).select();
             if (fallbackError) {
                 logError("updateRecordApi (Fallback)", fallbackError);
                 throw fallbackError;

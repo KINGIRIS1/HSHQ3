@@ -763,7 +763,7 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
             }
         } else if (isRegType(record.recordType)) {
             const workflow = getGcnWorkflowStepsHelper(record, holidays || []);
-            let currentIdx = record.currentStepIndex;
+            let currentIdx = workflow.currentStepIndex;
             if (currentIdx === undefined || currentIdx === null) {
                 currentIdx = 0;
             }

@@ -447,3 +447,55 @@ export const mapPriceToDb = (item: PriceItem) => ({
     "vatRate": item.vatRate,
     "vatIsPercent": item.vatIsPercent
 });
+
+// --- DYNAMIC SCHEMA MAPPINGS ---
+let dbColumnsCache: string[] | null = null;
+
+export const getDbColumns = async (tableName: string = 'land_records'): Promise<string[]> => {
+    if (dbColumnsCache) return dbColumnsCache;
+    if (!isConfigured) return [];
+    try {
+        const { data, error } = await supabase.from(tableName).select('*').limit(1);
+        if (error) throw error;
+        if (data && data.length > 0) {
+            dbColumnsCache = Object.keys(data[0]);
+            return dbColumnsCache;
+        }
+    } catch (e) {
+        console.error(`Lỗi khi lấy danh sách cột thực tế từ table ${tableName}:`, e);
+    }
+    return [];
+};
+
+export const mapPayloadToDb = (payload: any, actualKeys: string[]): any => {
+    if (!actualKeys || actualKeys.length === 0) return payload;
+    const mapped: any = {};
+    const lowerActualKeys = actualKeys.map(k => k.toLowerCase());
+    
+    Object.keys(payload).forEach(key => {
+        const val = payload[key];
+        
+        // 1. Khớp chính xác
+        if (actualKeys.includes(key)) {
+            mapped[key] = val;
+            return;
+        }
+        
+        // 2. Khớp chữ thường
+        const keyLower = key.toLowerCase();
+        const idxLower = lowerActualKeys.indexOf(keyLower);
+        if (idxLower !== -1) {
+            mapped[actualKeys[idxLower]] = val;
+            return;
+        }
+        
+        // 3. Khớp snake_case
+        const keySnake = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+        const idxSnake = lowerActualKeys.indexOf(keySnake);
+        if (idxSnake !== -1) {
+            mapped[actualKeys[idxSnake]] = val;
+            return;
+        }
+    });
+    return mapped;
+};

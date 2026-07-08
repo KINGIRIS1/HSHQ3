@@ -274,6 +274,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     type: string;
     title: string;
     steps: GcnStepConfig[];
+    currentStepIndex: number;
 } {
     const isPreJuly2025 = (() => {
         const dateStr = record.issueDate || record.receivedDate || record.assignedDate;
@@ -307,6 +308,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     if (workflowType === 'quy_trinh_1') {
         title = 'Quy trình 1: DNLIS';
         stepConfigs = [
+            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "DNLIS", duration: "8 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Phiếu chuyển Thuế", duration: "16 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Trình ký Thuế", duration: "0 giờ", overallStatus: RecordStatus.PENDING_SIGN },
@@ -320,6 +322,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_2') {
         title = 'Quy trình 2: Phiếu Chuyển Thuế';
         stepConfigs = [
+            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "DNLIS", duration: "0 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Phiếu chuyển Thuế", duration: "24 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Trình ký Thuế", duration: "0 giờ", overallStatus: RecordStatus.PENDING_SIGN },
@@ -333,6 +336,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_3') {
         title = 'Quy trình 3: In GCN';
         stepConfigs = [
+            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "DNLIS", duration: "8 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "In GCN", duration: "5 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
@@ -343,6 +347,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_4') {
         title = 'Quy trình 4: Cấp lại không thuế (Có đối chiếu SMK)';
         stepConfigs = [
+            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "Đối chiếu Sổ mục kê, hồ sơ lưu, GCN, CSDL đất đai", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
@@ -359,6 +364,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_5') {
         title = 'Quy trình 5: Cấp lại không thuế (Đã đối chiếu SMK)';
         stepConfigs = [
+            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Chuyển UBND xã niêm yết/đăng tin", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
@@ -374,6 +380,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_6') {
         title = 'Quy trình 6: Cấp lại có thuế (Có đối chiếu SMK)';
         stepConfigs = [
+            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "Đối chiếu Sổ mục kê, hồ sơ lưu, GCN, CSDL đất đai", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
@@ -390,6 +397,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else {
         title = 'Quy trình 7: Cấp lại có thuế (Đã đối chiếu SMK)';
         stepConfigs = [
+            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Chuyển UBND xã niêm yết/đăng tin", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
@@ -667,7 +675,8 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     return {
         type: workflowType,
         title,
-        steps
+        steps,
+        currentStepIndex: currentStepIndex || 0
     };
 }
 

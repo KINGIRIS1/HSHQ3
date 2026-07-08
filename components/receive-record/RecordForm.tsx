@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RecordFile, Holiday, RecordStatus, User, Employee, UserRole } from '../../types';
 import { RECORD_TYPES, REGISTRATION_PROCEDURES, STATUS_LABELS } from '../../constants';
-import { getStatusLabel, isMeasurementType, isArchiveType, removeVietnameseTones, groupEmployeesByDepartment } from '../../utils/appHelpers';
+import { getStatusLabel, isMeasurementType, isArchiveType, removeVietnameseTones, groupEmployeesByDepartment, getGcnWorkflowStepsHelper, isRegType } from '../../utils/appHelpers';
 import { Save, User as UserIcon, Calendar, MapPin, FileCheck, Loader2, Printer, RotateCcw, XCircle, CheckCircle, AlertCircle, X, Phone, FileText, BookOpen, Clock, Hash, Map, Camera, Trash2, Upload, Lock } from 'lucide-react';
 import SimpleRecordForm from './SimpleRecordForm';
 
@@ -359,7 +359,14 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
 
   useEffect(() => {
       if (initialData) {
-          setFormData(initialData);
+          let updatedData = { ...initialData };
+          if (isRegType(initialData.recordType) || isRegistration(initialData.recordType)) {
+              if (updatedData.currentStepIndex === undefined || updatedData.currentStepIndex === null) {
+                  const helper = getGcnWorkflowStepsHelper(updatedData, holidays || []);
+                  updatedData.currentStepIndex = helper.currentStepIndex;
+              }
+          }
+          setFormData(updatedData);
           setNotification(null);
           // Parse extra fields from notes
           try {
@@ -638,12 +645,27 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
         if (field === 'assignedTo') {
             if (value) {
                 newData.status = RecordStatus.IN_PROGRESS;
-                newData.currentStepIndex = 0;
+                newData.currentStepIndex = 1;
                 newData.assignedDate = new Date().toISOString();
             } else {
                 newData.status = RecordStatus.RECEIVED;
-                newData.currentStepIndex = null;
+                newData.currentStepIndex = 0;
                 newData.assignedDate = null;
+            }
+        }
+        if (field === 'status') {
+            if (isRegType(newData.recordType) || isRegistration(newData.recordType)) {
+                if (String(value).startsWith('step_')) {
+                    const idx = parseInt(String(value).replace('step_', ''), 10);
+                    const helper = getGcnWorkflowStepsHelper(newData as RecordFile, holidays || []);
+                    if (helper && helper.steps && helper.steps[idx]) {
+                        newData.currentStepIndex = idx;
+                        newData.status = helper.steps[idx].overallStatus;
+                    }
+                } else {
+                    newData.status = value;
+                    newData.currentStepIndex = null;
+                }
             }
         }
         if (field === 'recordType' || field === 'receivedDate' || field === 'hasTax' || field === 'transferToDNLis') {
@@ -1056,24 +1078,63 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 <label className={labelClass}>Trạng thái</label>
                                 <select 
                                     className={selectClass} 
-                                    value={formData.status || ''} 
+                                    value={(() => {
+                                        if (isRegType(formData.recordType) || isRegistration(formData.recordType)) {
+                                            const helper = getGcnWorkflowStepsHelper(formData as RecordFile, holidays || []);
+                                            if (helper && helper.currentStepIndex !== undefined && helper.currentStepIndex !== null) {
+                                                return `step_${helper.currentStepIndex}`;
+                                            }
+                                        }
+                                        return formData.status || '';
+                                    })()} 
                                     onChange={(e) => handleChange('status', e.target.value)}
                                 >
-                                    {Object.entries(STATUS_LABELS)
-                                        .filter(([key]) => {
-                                            const isArchive = isArchiveType(formData.recordType);
-                                            if (isArchive) {
-                                                return key !== RecordStatus.PENDING_CHECK && key !== RecordStatus.CHECKED;
-                                            }
-                                            if (!isRegistration(formData.recordType)) {
-                                                return key !== RecordStatus.TBT && key !== RecordStatus.PENDING_SUPPLEMENT;
-                                            }
-                                            return true;
-                                        })
-                                        .map(([key, label]) => {
-                                            const customLabel = getStatusLabel(key as RecordStatus, formData.recordType);
-                                            return <option key={key} value={key}>{customLabel}</option>;
-                                        })}
+                                    {(() => {
+                                        if (isRegType(formData.recordType) || isRegistration(formData.recordType)) {
+                                            const helper = getGcnWorkflowStepsHelper(formData as RecordFile, holidays || []);
+                                            const stepOptions = helper.steps.map((step, idx) => (
+                                                <option key={`step_${idx}`} value={`step_${idx}`}>
+                                                    {step.label}
+                                                </option>
+                                            ));
+                                            
+                                            const otherStatuses = [
+                                                { status: RecordStatus.PENDING_SUPPLEMENT, label: 'Chờ bổ sung (Người dân)' },
+                                                { status: RecordStatus.WITHDRAWN, label: 'CSD rút hồ sơ' },
+                                                { status: RecordStatus.REJECTED, label: 'Hồ sơ trả' },
+                                                { status: RecordStatus.RETURNED, label: 'Đã trả kết quả' }
+                                            ];
+                                            
+                                            const filteredOthers = otherStatuses.filter(item => {
+                                                return !helper.steps.some(s => s.overallStatus === item.status);
+                                            });
+
+                                            return [
+                                                ...stepOptions,
+                                                ...filteredOthers.map(item => (
+                                                    <option key={item.status} value={item.status}>
+                                                        {item.label}
+                                                    </option>
+                                                ))
+                                            ];
+                                        } else {
+                                            return Object.entries(STATUS_LABELS)
+                                                .filter(([key]) => {
+                                                    const isArchive = isArchiveType(formData.recordType);
+                                                    if (isArchive) {
+                                                        return key !== RecordStatus.PENDING_CHECK && key !== RecordStatus.CHECKED;
+                                                    }
+                                                    if (!isRegistration(formData.recordType)) {
+                                                        return key !== RecordStatus.TBT && key !== RecordStatus.PENDING_SUPPLEMENT;
+                                                    }
+                                                    return true;
+                                                })
+                                                .map(([key, label]) => {
+                                                    const customLabel = getStatusLabel(key as RecordStatus, formData.recordType);
+                                                    return <option key={key} value={key}>{customLabel}</option>;
+                                                });
+                                        }
+                                    })()}
                                 </select>
                             </div>
                         </div>
