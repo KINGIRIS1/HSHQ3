@@ -78,7 +78,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
         const receiptHtml = receiptRef.current.innerHTML;
         const controlSlipHtml = controlSlipRef.current.innerHTML;
         
-        // In 2 bản Biên nhận và 1 bản Phiếu Kiểm Soát
+        // In 2 bản Biên nhận và 1 bản Phiếu kiểm soát
         const printContent = receiptHtml + 
             '<div style="page-break-before: always; margin-top: 20px;" class="print-page-break"></div>' + 
             receiptHtml + 
@@ -127,7 +127,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
             const parts = item.split('|');
             return { name: parts[0], type: (parts[1] || 'Bản chính') as 'Bản chính' | 'Bản sao' };
         })
-        : null;
+        : [];
 
     const isMeas = (() => {
         const type = (data.recordType || '').toLowerCase();
@@ -186,48 +186,13 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
             }
         }
 
-        // 2. Các giấy tờ khác (nếu đã lưu trong cơ sở dữ liệu)
-        if (parsedOtherDocs !== null) {
-            // Đã lưu/chỉnh sửa trong cơ sở dữ liệu (kể cả danh sách rỗng), sử dụng chính xác những gì người dùng đã chọn
-            docs.push(...parsedOtherDocs);
-        } else {
-            // Chưa từng lưu (rỗng trong CSDL / chưa khởi tạo), dùng các giấy tờ mặc định cho từng nhóm thủ tục
-            if (isMeas || (data.recordType || '').toLowerCase().startsWith('1.')) {
-                // Mặc định cho 1.x và 2.x
-                docs.push(
-                    { name: 'Phiếu yêu cầu lập hợp đồng đo đạc dịch vụ, cắm Mốc, trích lục, Cung cấp thông tin', type: 'Bản chính' },
-                    { name: 'Giấy chứng nhận đã cấp', type: 'Bản sao' }
-                );
-            } else {
-                // Mặc định cho 3.x (cấp giấy)
-                const rType = (data.recordType || '').toLowerCase();
-                const isReg = rType.startsWith('3.') || rType === 'đăng ký' || rType === 'cấp giấy' || rType === 'cấp đổi' || rType === 'cấp lại' || REGISTRATION_PROCEDURES.some(p => rType.includes(p.toLowerCase()));
-                
-                if (isReg) {
-                    const isCappingLai = rType.includes('3.7') || rType.includes('cấp lại') || rType.includes('bị mất') || rType.includes('mất gcn');
-                    if (!isCappingLai) {
-                        docs.push({ name: 'Giấy chứng nhận đã cấp bản chính', type: 'Bản chính' });
-                    }
-                    
-                    // Thêm "Đơn đăng ký biến động đất đai" nếu không phải quy trình "gia hạn"
-                    const isGiaHan = rType.includes('3.9') || rType.includes('gia hạn');
-                    if (!isGiaHan) {
-                        docs.push({ name: 'Đơn đăng ký biến động đất đai', type: 'Bản chính' });
-                    }
-
-                    if (data.hasTax) {
-                        docs.push({ name: 'Tờ khai thuế', type: 'Bản chính' });
-                    }
-                } else {
-                    // Mặc định cho loại khác nếu có
-                }
-            }
-        }
+        // 2. Các giấy tờ khác (lấy chính xác từ danh sách người dùng đã chọn/chỉnh sửa)
+        docs.push(...parsedOtherDocs);
 
         return docs;
     })();
 
-    // Đặt giờ nhận/hẹn trả trùng khớp với thời gian lưu thực tế
+    // Đặt giờ chính xác cho biên nhận
     if (!isNaN(rDate.getTime())) {
         rDate.setHours(now.getHours(), now.getMinutes());
     }
@@ -298,7 +263,6 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
 
     const rTypeStr = (data.recordType || '').toLowerCase();
     
-    // Nút lập hợp đồng đo đạc dịch vụ
     const isTrichDoCamMoc = rTypeStr.includes('cắm mốc') || rTypeStr.includes('2.4');
     const isTrichDo = (rTypeStr.includes('trích đo') || rTypeStr.includes('2.3')) && 
                       !rTypeStr.includes('tách') && 
@@ -337,7 +301,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                     <div>
                         <div ref={receiptRef} className="bg-white p-10 shadow-sm border border-gray-200 mx-auto text-black relative" style={{ maxWidth: '210mm', minHeight: '297mm', fontFamily: "'Times New Roman', Times, serif", fontSize: '14px', lineHeight: '1.3' }}>
                             
-                            {/* Header Biên nhận */}
+                            {/* Header */}
                             <div className="flex justify-between mb-4">
                                 <div className="text-center" style={{ width: '45%' }}>
                                     <div className="font-bold text-[15px]">SỞ NÔNG NGHIỆP VÀ MÔI TRƯỜNG</div>
@@ -364,7 +328,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                                 <div className="font-bold text-[18px]">GIẤY TIẾP NHẬN HỒ SƠ VÀ HẸN TRẢ KẾT QUẢ</div>
                             </div>
 
-                            {/* Nội dung Biên nhận */}
+                            {/* Content */}
                             <div className="space-y-[6px]">
                                 <div>Bộ phận tiếp nhận và trả kết quả: <span className="font-bold">Sở Nông nghiệp và Môi trường</span></div>
                                 <div>Tiếp nhận hồ sơ của: <span className="font-bold">{data.customerName}</span></div>
@@ -412,7 +376,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                                 <div>7. Phí, lệ phí (nếu có): <span className="font-bold">Chưa thanh toán</span></div>
                             </div>
 
-                            {/* Chữ ký */}
+                            {/* Signatures */}
                             <div className="flex justify-between mt-8 text-center">
                                 <div className="w-1/2">
                                     <div className="font-bold">NGƯỜI NỘP HỒ SƠ</div>
@@ -430,9 +394,10 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                                 </div>
                             </div>
 
+                            {/* Spacer for signatures to ensure it shows in print */}
                             <div style={{ height: '40px' }}></div>
 
-                            {/* Lưu ý chân trang */}
+                            {/* Footer */}
                             <div className="pt-4 border-t border-gray-400">
                                 <div><span className="font-bold">Chú ý:</span> Công dân đến nhận kết quả mang theo phiếu hẹn, CMTND/CCCD, lệ phí và giấy ủy quyền</div>
                                 <div className="mt-1">(Trong trường hợp không phải chính chủ đến nhận)</div>
@@ -448,7 +413,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                         <div style={{ pageBreakBefore: 'always', marginTop: '20px' }} className="print-page-break"></div>
                         
                         <div ref={controlSlipRef} className="bg-white p-8 shadow-sm border border-gray-200 mx-auto text-black mt-8" style={{ maxWidth: '210mm', minHeight: '270mm', fontFamily: "'Times New Roman', Times, serif", fontSize: '14px', lineHeight: '1.3' }}>
-                            {/* Header Phiếu Kiểm Soát */}
+                            {/* Control Slip Header */}
                             <div className="flex justify-between mb-2">
                                 <div className="text-center" style={{ width: '45%' }}>
                                     <div className="font-bold text-[14px]">VĂN PHÒNG ĐKĐĐ TP ĐỒNG NAI</div>
@@ -460,13 +425,13 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                                 </div>
                             </div>
 
-                            {/* Title Phiếu Kiểm Soát */}
+                            {/* Control Slip Title */}
                             <div className="text-center mt-3 mb-4">
                                 <div className="font-bold text-[18px] uppercase tracking-wide">PHIẾU KIỂM SOÁT QUÁ TRÌNH GIẢI QUYẾT HỒ SƠ</div>
                                 <div className="font-bold mt-1 text-[14px]">Mã hồ sơ:&nbsp;&nbsp;&nbsp;&nbsp;{data.code || data.id || ''}</div>
                             </div>
 
-                            {/* Thông tin hồ sơ */}
+                            {/* Details Block */}
                             <div style={{ marginLeft: '10%', marginBottom: '15px', fontSize: '14px', lineHeight: '1.5' }}>
                                 <div className="flex">
                                     <div style={{ width: '160px' }}>Kèm theo hồ sơ của:</div>
@@ -486,7 +451,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                                 </div>
                             </div>
 
-                            {/* Bảng quy trình kiểm soát */}
+                            {/* Control Slip Table */}
                             <table className="w-full border-collapse border border-black mt-4">
                                 <thead>
                                     <tr>
