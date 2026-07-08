@@ -25,38 +25,144 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                 <head>
                     <title>${title}</title>
                     <style>
-                        @page { margin: 15mm; }
+                        @page { 
+                            size: A4; 
+                            margin: 15mm; 
+                        }
+                        html, body {
+                            margin: 0;
+                            padding: 0;
+                            width: 100%;
+                            height: 100%;
+                            background: #fff;
+                        }
                         body { 
                             font-family: 'Times New Roman', Times, serif; 
                             font-size: 14px;
                             line-height: 1.3;
                             color: #000;
                             -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
                         }
-                        .flex { display: flex; }
-                        .flex-col { flex-direction: column; }
-                        .justify-between { justify-content: space-between; }
-                        .items-center { align-items: center; }
-                        .items-end { align-items: flex-end; }
-                        .text-center { text-align: center; }
-                        .font-bold { font-weight: bold; }
-                        .italic { font-style: italic; }
-                        .underline { text-decoration: underline; }
-                        .uppercase { text-transform: uppercase; }
-                        .mb-1 { margin-bottom: 4px; }
-                        .mb-2 { margin-bottom: 8px; }
-                        .mb-4 { margin-bottom: 16px; }
-                        .mt-4 { margin-top: 16px; }
-                        .mt-8 { margin-top: 32px; }
-                        .text-lg { font-size: 16px; }
-                        .text-xl { font-size: 18px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 8px; }
-                        th, td { border: 1px solid #000; padding: 4px 8px; text-align: left; }
-                        th { text-align: center; font-weight: bold; }
-                        .text-gray { color: #666; }
-                        .footer-line { border-top: 1px solid #000; margin-top: 40px; padding-top: 10px; }
-                        .print-page-break { page-break-before: always; }
-                        .avoid-break { page-break-inside: avoid; }
+                        .flex { display: flex !important; }
+                        .flex-col { flex-direction: column !important; }
+                        .justify-between { justify-content: space-between !important; }
+                        .items-center { align-items: center !important; }
+                        .items-end { align-items: flex-end !important; }
+                        .text-center { text-align: center !important; }
+                        .font-bold { font-weight: bold !important; }
+                        .italic { font-style: italic !important; }
+                        .underline { text-decoration: underline !important; }
+                        .uppercase { text-transform: uppercase !important; }
+                        
+                        /* Width Utilities */
+                        .w-full { width: 100% !important; }
+                        .w-1\\/2 { width: 50% !important; }
+                        .w-12 { width: 48px !important; }
+                        .w-20 { width: 80px !important; }
+                        .w-24 { width: 96px !important; }
+                        
+                        /* Spacing Utilities */
+                        .space-y-\\[6px\\] > :not([hidden]) ~ :not([hidden]) {
+                            margin-top: 6px !important;
+                        }
+                        .space-y-1 > :not([hidden]) ~ :not([hidden]) {
+                            margin-top: 4px !important;
+                        }
+                        .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+                            margin-top: 8px !important;
+                        }
+                        
+                        /* Margins */
+                        .mb-1 { margin-bottom: 4px !important; }
+                        .mb-2 { margin-bottom: 8px !important; }
+                        .mb-4 { margin-bottom: 16px !important; }
+                        .mb-6 { margin-bottom: 24px !important; }
+                        .mt-1 { margin-top: 4px !important; }
+                        .mt-2 { margin-top: 8px !important; }
+                        .mt-3 { margin-top: 12px !important; }
+                        .mt-4 { margin-top: 16px !important; }
+                        .mt-6 { margin-top: 24px !important; }
+                        .mt-8 { margin-top: 32px !important; }
+                        .mt-12 { margin-top: 48px !important; }
+                        .my-6 { margin-top: 24px !important; margin-bottom: 24px !important; }
+                        .my-8 { margin-top: 32px !important; margin-bottom: 32px !important; }
+                        
+                        /* Paddings */
+                        .pt-4 { padding-top: 16px !important; }
+                        .p-1 { padding: 4px !important; }
+                        
+                        /* Borders */
+                        .border { border: 1px solid #000 !important; }
+                        .border-black { border-color: #000 !important; }
+                        .border-t { border-top: 1px solid #000 !important; }
+                        .border-gray-400 { border-color: #000 !important; }
+                        .border-collapse { border-collapse: collapse !important; }
+                        
+                        table { 
+                            width: 100% !important; 
+                            border-collapse: collapse !important; 
+                            margin-top: 8px !important; 
+                            margin-bottom: 8px !important; 
+                        }
+                        th, td { 
+                            border: 1px solid #000 !important; 
+                            padding: 4px 8px !important; 
+                            text-align: left !important; 
+                            font-size: 14px !important;
+                        }
+                        th { 
+                            text-align: center !important; 
+                            font-weight: bold !important; 
+                            background-color: #f2f2f2 !important; 
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        .text-xs { font-size: 11px !important; }
+                        .text-sm { font-size: 12px !important; }
+                        .text-base { font-size: 14px !important; }
+                        .text-lg { font-size: 16px !important; }
+                        .text-xl { font-size: 18px !important; }
+                        .text-\\[14px\\] { font-size: 14px !important; }
+                        .text-\\[15px\\] { font-size: 15px !important; }
+                        .text-\\[16px\\] { font-size: 16px !important; }
+                        .text-\\[18px\\] { font-size: 18px !important; }
+                        
+                        .tracking-wide { letter-spacing: 0.05em !important; }
+                        .text-gray-500 { color: #666 !important; }
+                        .print-page-break { page-break-before: always !important; break-before: page !important; }
+                        .avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
+                        
+                        /* Custom styling for control table and nested tables to avoid border doubling and bad padding */
+                        .control-table {
+                            width: 100% !important;
+                            border-collapse: collapse !important;
+                        }
+                        .control-table > thead > tr > th {
+                            border: 1px solid #000 !important;
+                            padding: 8px 4px !important;
+                        }
+                        .control-table > tbody > tr > td {
+                            border: 1px solid #000 !important;
+                            padding: 0 !important;
+                        }
+                        .nested-table {
+                            width: 100% !important;
+                            height: 100% !important;
+                            border-collapse: collapse !important;
+                            margin: 0 !important;
+                            border: none !important;
+                        }
+                        .nested-table td {
+                            border: none !important;
+                            padding: 4px 8px !important;
+                        }
+                        .nested-table td.border-b {
+                            border-bottom: 1px solid #000 !important;
+                        }
+                        .nested-table td.border-r {
+                            border-right: 1px solid #000 !important;
+                        }
                     </style>
                 </head>
                 <body>
@@ -78,7 +184,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
         const receiptHtml = receiptRef.current.innerHTML;
         const controlSlipHtml = controlSlipRef.current.innerHTML;
         
-        // In 2 bản Biên nhận và 1 bản Phiếu kiểm soát
+        // Print 2 copies of the Receipt and 1 copy of the Control Slip
         const printContent = receiptHtml + 
             '<div style="page-break-before: always; margin-top: 20px;" class="print-page-break"></div>' + 
             receiptHtml + 
@@ -90,6 +196,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
 
     const handlePrintReceipt = () => {
         if (!receiptRef.current) return;
+        // Print exactly 1 single copy of the receipt as requested
         printHtml(receiptRef.current.innerHTML, 'In Biên Nhận');
     };
 
@@ -122,12 +229,43 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
 
     const receiverName = getReceiverName();
 
-    const parsedOtherDocs = data.otherDocs !== undefined && data.otherDocs !== null
-        ? data.otherDocs.split(';').map(item => item.trim()).filter(Boolean).map(item => {
-            const parts = item.split('|');
-            return { name: parts[0], type: (parts[1] || 'Bản chính') as 'Bản chính' | 'Bản sao' };
-        })
-        : [];
+    const parsedOtherDocs = (() => {
+        let docs: Array<{ name: string; type: 'Bản chính' | 'Bản sao' }> = [];
+        
+        // 1. Phân tích từ chuỗi otherDocs
+        if (typeof data.otherDocs === 'string' && data.otherDocs.trim() !== '') {
+            data.otherDocs.split(';').map(item => item.trim()).filter(Boolean).forEach(item => {
+                const parts = item.split('|');
+                if (parts[0] && parts[0].trim() !== '') {
+                    docs.push({
+                        name: parts[0].trim(),
+                        type: (parts[1] && parts[1].trim() === 'Bản sao' ? 'Bản sao' : 'Bản chính') as 'Bản chính' | 'Bản sao'
+                    });
+                }
+            });
+        }
+        
+        // 2. Nếu trống, cố gắng phân tích từ cấu trúc JSON trong trường notes (otherDocRows)
+        if (docs.length === 0 && typeof data.notes === 'string' && data.notes.trim() !== '') {
+            try {
+                const parsed = JSON.parse(data.notes);
+                if (parsed && Array.isArray(parsed.otherDocRows)) {
+                    parsed.otherDocRows.forEach((r: any) => {
+                        if (r && r.name && r.name.trim() !== '') {
+                            docs.push({
+                                name: r.name.trim(),
+                                type: (r.type === 'Bản sao' ? 'Bản sao' : 'Bản chính') as 'Bản chính' | 'Bản sao'
+                            });
+                        }
+                    });
+                }
+            } catch (e) {
+                // Bỏ qua lỗi parse JSON nếu có
+            }
+        }
+        
+        return docs;
+    })();
 
     const isMeas = (() => {
         const type = (data.recordType || '').toLowerCase();
@@ -186,13 +324,13 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
             }
         }
 
-        // 2. Các giấy tờ khác (lấy chính xác từ danh sách người dùng đã chọn/chỉnh sửa)
+        // 2. Các giấy tờ kèm theo (lấy chính xác từ danh sách người dùng đã chọn/chỉnh sửa hoặc lưu trữ)
         docs.push(...parsedOtherDocs);
 
         return docs;
     })();
 
-    // Đặt giờ chính xác cho biên nhận
+    // Set time to current time for exact receipt time
     if (!isNaN(rDate.getTime())) {
         rDate.setHours(now.getHours(), now.getMinutes());
     }
@@ -234,35 +372,120 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
         return `Ngày ${day} tháng ${month} năm ${year}`;
     };
 
-    const emptyRows = Array(6).fill(0).map((_, i) => (
-        <tr key={i} className="avoid-break" style={{ height: '80px' }}>
-            <td style={{ width: '70%', border: '1px solid black', padding: 0 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', height: '80px', margin: 0 }}>
-                    <tbody>
-                        <tr style={{ height: '25px' }}>
-                            <td colSpan={2} style={{ borderBottom: '1px solid black', padding: '1px 6px', textAlign: 'left', whiteSpace: 'nowrap', fontSize: '13px' }}>
-                                1.Giao &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ..... giờ ..... phút, ngày ..... tháng ..... năm .........
-                            </td>
-                        </tr>
-                        <tr style={{ height: '55px' }}>
-                            <td style={{ width: '50%', borderRight: '1px solid black', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px', position: 'relative' }}>
-                                <div style={{ position: 'absolute', left: '6px', top: '2px', fontWeight: 'bold', fontSize: '13px' }}>2.Nhận</div>
-                                <div style={{ fontWeight: 'bold', marginTop: '6px' }}>Người giao</div>
-                            </td>
-                            <td style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
-                                <div style={{ fontWeight: 'bold', marginTop: '6px' }}>Người nhận</div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </td>
-            <td style={{ width: '15%', border: '1px solid black' }}></td>
-            <td style={{ width: '15%', border: '1px solid black' }}></td>
-        </tr>
-    ));
+    const renderControlSlipRows = () => {
+        const rows = [];
+        
+        // Hàng 1: Thừa hưởng thông tin từ phiếu tiếp nhận (rDate và receiverName)
+        rows.push(
+            <tr key={0} className="avoid-break" style={{ height: '150px' }}>
+                {/* Cột 1: TÊN CƠ QUAN (Chứa nhãn 1.Giao và 2.Nhận) */}
+                <td style={{ width: '15%', border: '1px solid black', padding: 0 }}>
+                    <table className="nested-table" style={{ width: '100%', borderCollapse: 'collapse', height: '150px', margin: 0 }}>
+                        <tbody>
+                            <tr style={{ height: '30px' }}>
+                                <td className="border-b" style={{ padding: '1px 6px', textAlign: 'left', fontSize: '13px', fontWeight: 'normal' }}>
+                                    1.Giao
+                                </td>
+                            </tr>
+                            <tr style={{ height: '120px' }}>
+                                <td style={{ padding: '2px 6px', textAlign: 'left', verticalAlign: 'top', fontSize: '13px', fontWeight: 'normal' }}>
+                                    2.Nhận
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+                
+                {/* Cột 2: THỜI GIAN GIAO, NHẬN HỒ SƠ */}
+                <td style={{ width: '55%', border: '1px solid black', padding: 0 }}>
+                    <table className="nested-table" style={{ width: '100%', borderCollapse: 'collapse', height: '150px', margin: 0 }}>
+                        <tbody>
+                            <tr style={{ height: '30px' }}>
+                                <td className="border-b" colSpan={2} style={{ padding: '1px 6px', textAlign: 'left', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                                    {formatDateTime(rDate)}
+                                </td>
+                            </tr>
+                            <tr style={{ height: '120px' }}>
+                                <td className="border-r" style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
+                                    <div style={{ fontWeight: 'bold', marginTop: '2px' }}>Người giao</div>
+                                    <div style={{ marginTop: '80px', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '12px' }}>{receiverName || ''}</div>
+                                </td>
+                                <td style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
+                                    <div style={{ fontWeight: 'bold', marginTop: '2px' }}>Người nhận</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+                
+                {/* Cột 3: KẾT QUẢ */}
+                <td style={{ width: '15%', border: '1px solid black' }}></td>
+                
+                {/* Cột 4: Ghi chú */}
+                <td style={{ width: '15%', border: '1px solid black' }}></td>
+            </tr>
+        );
+        
+        // Hàng 2 đến 6: Trống hoàn toàn
+        for (let i = 1; i < 5; i++) {
+            rows.push(
+                <tr key={i} className="avoid-break" style={{ height: '150px' }}>
+                    {/* Cột 1: TÊN CƠ QUAN */}
+                    <td style={{ width: '15%', border: '1px solid black', padding: 0 }}>
+                        <table className="nested-table" style={{ width: '100%', borderCollapse: 'collapse', height: '150px', margin: 0 }}>
+                            <tbody>
+                                <tr style={{ height: '30px' }}>
+                                    <td className="border-b" style={{ padding: '1px 6px', textAlign: 'left', fontSize: '13px', fontWeight: 'normal' }}>
+                                        1.Giao
+                                    </td>
+                                </tr>
+                                <tr style={{ height: '120px' }}>
+                                    <td style={{ padding: '2px 6px', textAlign: 'left', verticalAlign: 'top', fontSize: '13px', fontWeight: 'normal' }}>
+                                        2.Nhận
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                    
+                    {/* Cột 2: THỜI GIAN GIAO, NHẬN HỒ SƠ */}
+                    <td style={{ width: '55%', border: '1px solid black', padding: 0 }}>
+                        <table className="nested-table" style={{ width: '100%', borderCollapse: 'collapse', height: '150px', margin: 0 }}>
+                            <tbody>
+                                <tr style={{ height: '30px' }}>
+                                    <td className="border-b" colSpan={2} style={{ padding: '1px 6px', textAlign: 'left', whiteSpace: 'nowrap', fontSize: '13px', color: '#333' }}>
+                                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; giờ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; phút, ngày &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; tháng &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; năm .........
+                                    </td>
+                                </tr>
+                                <tr style={{ height: '120px' }}>
+                                    <td className="border-r" style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
+                                        <div style={{ fontWeight: 'bold', marginTop: '2px' }}>Người giao</div>
+                                    </td>
+                                    <td style={{ width: '50%', padding: '2px 6px', textAlign: 'center', verticalAlign: 'top', fontSize: '12px' }}>
+                                        <div style={{ fontWeight: 'bold', marginTop: '2px' }}>Người nhận</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                    
+                    {/* Cột 3: KẾT QUẢ */}
+                    <td style={{ width: '15%', border: '1px solid black' }}></td>
+                    
+                    {/* Cột 4: Ghi chú */}
+                    <td style={{ width: '15%', border: '1px solid black' }}></td>
+                </tr>
+            );
+        }
+        
+        return rows;
+    };
 
     const rTypeStr = (data.recordType || '').toLowerCase();
     
+    // Chỉ hiển thị nút lập hợp đồng cho 2 trường hợp:
+    // 1. Trích đo cắm mốc (hoặc chứa 'cắm mốc' / '2.4')
+    // 2. Trích đo (hoặc chứa '2.3' / 'trích đo' nhưng loại trừ 'tách', 'hợp', 'lục')
     const isTrichDoCamMoc = rTypeStr.includes('cắm mốc') || rTypeStr.includes('2.4');
     const isTrichDo = (rTypeStr.includes('trích đo') || rTypeStr.includes('2.3')) && 
                       !rTypeStr.includes('tách') && 
@@ -273,6 +496,35 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <style dangerouslySetInnerHTML={{ __html: `
+                .control-table {
+                    width: 100% !important;
+                    border-collapse: collapse !important;
+                }
+                .control-table th, .control-table td {
+                    padding: 0 !important;
+                }
+                .control-table th {
+                    padding: 8px 4px !important;
+                }
+                .nested-table {
+                    width: 100% !important;
+                    height: 100% !important;
+                    border-collapse: collapse !important;
+                    margin: 0 !important;
+                    border: none !important;
+                }
+                .nested-table td {
+                    border: none !important;
+                    padding: 4px 8px !important;
+                }
+                .nested-table td.border-b {
+                    border-bottom: 1px solid #000 !important;
+                }
+                .nested-table td.border-r {
+                    border-right: 1px solid #000 !important;
+                }
+            ` }} />
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center p-4 border-b">
                     <h2 className="text-xl font-bold">In Biên Nhận & Phiếu Kiểm Soát</h2>
@@ -297,174 +549,177 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                     </div>
                 </div>
                 
-                <div className="p-8 overflow-y-auto flex-1 bg-gray-50">
-                    <div>
-                        <div ref={receiptRef} className="bg-white p-10 shadow-sm border border-gray-200 mx-auto text-black relative" style={{ maxWidth: '210mm', minHeight: '297mm', fontFamily: "'Times New Roman', Times, serif", fontSize: '14px', lineHeight: '1.3' }}>
+                <div className="p-8 overflow-auto flex-1 bg-gray-50 flex flex-col items-center">
+                    <div className="space-y-8 w-full flex flex-col items-center">
+                        <div ref={receiptRef} className="bg-white shadow-lg border border-gray-200 text-black relative" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', boxSizing: 'border-box', fontFamily: "'Times New Roman', Times, serif", fontSize: '14px', lineHeight: '1.3' }}>
                             
                             {/* Header */}
-                            <div className="flex justify-between mb-4">
-                                <div className="text-center" style={{ width: '45%' }}>
-                                    <div className="font-bold text-[15px]">SỞ NÔNG NGHIỆP VÀ MÔI TRƯỜNG</div>
-                                    <div className="font-bold text-[16px]">BỘ PHẬN TIẾP NHẬN VÀ TRẢ KẾT QUẢ</div>
-                                    
-                                    {data.code && (
-                                        <div className="mt-2 text-center" style={{ display: 'block' }}>
-                                            <div className="font-bold text-[15px]" style={{ display: 'block', whiteSpace: 'nowrap' }}>{data.code}</div>
-                                            <div style={{ transform: 'scale(0.8)', transformOrigin: 'top center', marginTop: '-4px', display: 'inline-block' }}>
-                                                <Barcode value={data.code} height={30} displayValue={false} margin={0} width={1.5} />
-                                            </div>
+                        <div className="flex justify-between mb-4">
+                            <div className="text-center" style={{ width: '45%' }}>
+                                <div className="font-bold text-[15px]">SỞ NÔNG NGHIỆP VÀ MÔI TRƯỜNG</div>
+                                <div className="font-bold text-[16px]">BỘ PHẬN TIẾP NHẬN VÀ TRẢ KẾT QUẢ</div>
+                                
+                                {data.code && (
+                                    <div className="mt-2 text-center" style={{ display: 'block' }}>
+                                        <div className="font-bold text-[15px]" style={{ display: 'block', whiteSpace: 'nowrap' }}>{data.code}</div>
+                                        <div style={{ transform: 'scale(0.8)', transformOrigin: 'top center', marginTop: '-4px', display: 'inline-block' }}>
+                                            <Barcode value={data.code} height={30} displayValue={false} margin={0} width={1.5} />
                                         </div>
-                                    )}
-                                </div>
-                                <div className="text-center" style={{ width: '50%' }}>
-                                    <div className="font-bold text-[15px]">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-                                    <div className="font-bold underline mb-2">Độc lập - Tự do - Hạnh phúc</div>
-                                    <div className="italic mt-4">{getNormalizedWard(receivingWard)}, {formatDateOnly(new Date())}</div>
-                                </div>
-                            </div>
-
-                            {/* Title */}
-                            <div className="text-center mt-6 mb-4">
-                                <div className="font-bold text-[18px]">GIẤY TIẾP NHẬN HỒ SƠ VÀ HẸN TRẢ KẾT QUẢ</div>
-                            </div>
-
-                            {/* Content */}
-                            <div className="space-y-[6px]">
-                                <div>Bộ phận tiếp nhận và trả kết quả: <span className="font-bold">Sở Nông nghiệp và Môi trường</span></div>
-                                <div>Tiếp nhận hồ sơ của: <span className="font-bold">{data.customerName}</span></div>
-                                <div>CCCD/MST: <span className="font-bold">{data.cccd || ''}</span></div>
-                                <div>Số điện thoại: {data.phoneNumber}</div>
-                                <div className="flex">
-                                    <div style={{ marginRight: '2cm' }}>Tờ: {data.mapSheet}</div>
-                                    <div>Thửa: {data.landPlot}</div>
-                                </div>
-                                <div>Địa chỉ thửa đất: <span className="font-bold uppercase">XÃ {getNormalizedWard(data.ward || '').toUpperCase()}</span></div>
-                                <div>Thủ tục hành chính cần giải quyết: <span className="font-bold">{data.recordType}</span></div>
-                                
-                                <div>1. Thành phần hồ sơ, yêu cầu và số lượng mỗi loại giấy tờ gồm:</div>
-                                <table className="w-full border-collapse border border-black mt-1 mb-2">
-                                    <thead>
-                                        <tr>
-                                            <th className="border border-black p-1 text-center w-12">STT</th>
-                                            <th className="border border-black p-1 text-center">Tên giấy tờ</th>
-                                            <th className="border border-black p-1 text-center w-24">Loại giấy tờ</th>
-                                            <th className="border border-black p-1 text-center w-20">Số lượng</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {printDocs.map((doc, idx) => (
-                                            <tr key={idx}>
-                                                <td className="border border-black p-1 text-center">{idx + 1}</td>
-                                                <td className="border border-black p-1">{doc.name}</td>
-                                                <td className="border border-black p-1 text-center">{doc.type}</td>
-                                                <td className="border border-black p-1 text-center">1</td>
-                                            </tr>
-                                        ))}
-                                        {printDocs.length === 0 && (
-                                            <tr>
-                                                <td colSpan={4} className="border border-black p-2 text-center italic text-gray-500">Không có thành phần hồ sơ nộp kèm</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-
-                                <div>2. Số lượng hồ sơ: 01 (bộ)</div>
-                                <div>3. Thời gian giải quyết hồ sơ theo quy định là: <span className="font-bold">{getRegulatoryText(data.recordType || '', !!data.hasTax)}</span></div>
-                                <div>4. Thời gian nhận hồ sơ: <span className="font-bold">{formatDateTime(rDate)}</span></div>
-                                <div>5. Thời gian trả kết quả giải quyết hồ sơ: <span className="font-bold">{formatDateTime(dDate)}</span></div>
-                                <div>6. Đăng ký trả kết quả tại: Trung tâm phục vụ hành chính công xã {getNormalizedWard(receivingWard)}</div>
-                                <div>7. Phí, lệ phí (nếu có): <span className="font-bold">Chưa thanh toán</span></div>
-                            </div>
-
-                            {/* Signatures */}
-                            <div className="flex justify-between mt-8 text-center">
-                                <div className="w-1/2">
-                                    <div className="font-bold">NGƯỜI NỘP HỒ SƠ</div>
-                                    <div className="italic">(Ký và ghi rõ họ tên)</div>
-                                    <div style={{ height: '80px' }}></div>
-                                    <div className="font-bold uppercase text-[14px]"></div>
-                                </div>
-                                <div className="w-1/2">
-                                    <div className="font-bold">NGƯỜI TIẾP NHẬN HỒ SƠ</div>
-                                    <div className="italic">(Ký và ghi rõ họ tên)</div>
-                                    <div style={{ height: '80px' }}></div>
-                                    <div className="font-bold uppercase text-[14px]">
-                                        {receiverName || ''}
                                     </div>
-                                </div>
+                                )}
                             </div>
-
-                            {/* Spacer for signatures to ensure it shows in print */}
-                            <div style={{ height: '40px' }}></div>
-
-                            {/* Footer */}
-                            <div className="pt-4 border-t border-gray-400">
-                                <div><span className="font-bold">Chú ý:</span> Công dân đến nhận kết quả mang theo phiếu hẹn, CMTND/CCCD, lệ phí và giấy ủy quyền</div>
-                                <div className="mt-1">(Trong trường hợp không phải chính chủ đến nhận)</div>
-                                
-                                <div className="flex justify-between items-end mt-4">
-                                    <div className="text-gray-500 text-sm">Phiên bản mẫu phiếu: TNTKQ-V5.1</div>
-                                    <div className="font-bold">TỔNG ĐÀI 0271.3636.836</div>
-                                </div>
+                            <div className="text-center" style={{ width: '50%' }}>
+                                <div className="font-bold text-[15px]">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                                <div className="font-bold underline mb-2">Độc lập - Tự do - Hạnh phúc</div>
+                                <div className="italic mt-4">{getNormalizedWard(receivingWard)}, {formatDateOnly(new Date())}</div>
                             </div>
-
                         </div>
 
-                        <div style={{ pageBreakBefore: 'always', marginTop: '20px' }} className="print-page-break"></div>
-                        
-                        <div ref={controlSlipRef} className="bg-white p-8 shadow-sm border border-gray-200 mx-auto text-black mt-8" style={{ maxWidth: '210mm', minHeight: '270mm', fontFamily: "'Times New Roman', Times, serif", fontSize: '14px', lineHeight: '1.3' }}>
-                            {/* Control Slip Header */}
-                            <div className="flex justify-between mb-2">
-                                <div className="text-center" style={{ width: '45%' }}>
-                                    <div className="font-bold text-[14px]">VĂN PHÒNG ĐKĐĐ TP ĐỒNG NAI</div>
-                                    <div className="font-bold text-[15px]">CHI NHÁNH HỚN QUẢN</div>
-                                </div>
-                                <div className="text-center" style={{ width: '50%' }}>
-                                    <div className="font-bold text-[14px]">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-                                    <div className="font-bold underline mb-1 text-[15px]">Độc lập - Tự do - Hạnh phúc</div>
-                                </div>
-                            </div>
+                        {/* Title */}
+                        <div className="text-center mt-6 mb-4">
+                            <div className="font-bold text-[18px]">GIẤY TIẾP NHẬN HỒ SƠ VÀ HẸN TRẢ KẾT QUẢ</div>
+                        </div>
 
-                            {/* Control Slip Title */}
-                            <div className="text-center mt-3 mb-4">
-                                <div className="font-bold text-[18px] uppercase tracking-wide">PHIẾU KIỂM SOÁT QUÁ TRÌNH GIẢI QUYẾT HỒ SƠ</div>
-                                <div className="font-bold mt-1 text-[14px]">Mã hồ sơ:&nbsp;&nbsp;&nbsp;&nbsp;{data.code || data.id || ''}</div>
+                        {/* Content */}
+                        <div className="space-y-[6px]">
+                            <div>Bộ phận tiếp nhận và trả kết quả: <span className="font-bold">Sở Nông nghiệp và Môi trường</span></div>
+                            <div>Tiếp nhận hồ sơ của: <span className="font-bold">{data.customerName}</span></div>
+                            <div>CCCD/MST: <span className="font-bold">{data.cccd || ''}</span></div>
+                            <div>Số điện thoại: {data.phoneNumber}</div>
+                            <div className="flex">
+                                <div style={{ marginRight: '2cm' }}>Tờ: {data.mapSheet}</div>
+                                <div>Thửa: {data.landPlot}</div>
                             </div>
-
-                            {/* Details Block */}
-                            <div style={{ marginLeft: '10%', marginBottom: '15px', fontSize: '14px', lineHeight: '1.5' }}>
-                                <div className="flex">
-                                    <div style={{ width: '160px' }}>Kèm theo hồ sơ của:</div>
-                                    <div className="font-bold uppercase">{data.customerName || ''}</div>
-                                </div>
-                                <div className="flex">
-                                    <div style={{ width: '160px' }}>Số điện thoại:</div>
-                                    <div className="font-bold">{data.phoneNumber || ''}</div>
-                                </div>
-                                <div className="flex">
-                                    <div style={{ width: '160px' }}>Loại thủ tục:</div>
-                                    <div className="font-bold uppercase">{data.recordType || ''}</div>
-                                </div>
-                                <div className="flex">
-                                    <div style={{ width: '160px' }}>Ngày nhận:</div>
-                                    <div className="font-bold">{formatDateVietnamese(rDate)}</div>
-                                </div>
-                            </div>
-
-                            {/* Control Slip Table */}
-                            <table className="w-full border-collapse border border-black mt-4">
+                            <div>Địa chỉ thửa đất: <span className="font-bold uppercase">XÃ {getNormalizedWard(data.ward || '').toUpperCase()}</span></div>
+                            <div>Thủ tục hành chính cần giải quyết: <span className="font-bold">{data.recordType}</span></div>
+                            
+                            <div>1. Thành phần hồ sơ, yêu cầu và số lượng mỗi loại giấy tờ gồm:</div>
+                            <table className="w-full border-collapse border border-black mt-1 mb-2">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: '70%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>THỜI GIAN GIAO, NHẬN HỒ SƠ</th>
-                                        <th style={{ width: '15%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>KẾT QUẢ</th>
-                                        <th style={{ width: '15%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>Ghi chú</th>
+                                        <th className="border border-black p-1 text-center w-12">STT</th>
+                                        <th className="border border-black p-1 text-center">Tên giấy tờ</th>
+                                        <th className="border border-black p-1 text-center w-24">Loại giấy tờ</th>
+                                        <th className="border border-black p-1 text-center w-20">Số lượng</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {emptyRows}
+                                    {printDocs.map((doc, idx) => (
+                                        <tr key={idx}>
+                                            <td className="border border-black p-1 text-center">{idx + 1}</td>
+                                            <td className="border border-black p-1">{doc.name}</td>
+                                            <td className="border border-black p-1 text-center">{doc.type}</td>
+                                            <td className="border border-black p-1 text-center">1</td>
+                                        </tr>
+                                    ))}
+                                    {printDocs.length === 0 && (
+                                        <tr>
+                                            <td colSpan={4} className="border border-black p-2 text-center italic text-gray-500">Không có thành phần hồ sơ nộp kèm</td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
+
+                            <div>2. Số lượng hồ sơ: 01 (bộ)</div>
+                            <div>3. Thời gian giải quyết hồ sơ theo quy định là: <span className="font-bold">{getRegulatoryText(data.recordType || '', !!data.hasTax)}</span></div>
+                            <div>4. Thời gian nhận hồ sơ: <span className="font-bold">{formatDateTime(rDate)}</span></div>
+                            <div>5. Thời gian trả kết quả giải quyết hồ sơ: <span className="font-bold">{formatDateTime(dDate)}</span></div>
+                            <div>6. Đăng ký trả kết quả tại: Trung tâm phục vụ hành chính công xã {getNormalizedWard(receivingWard)}</div>
+                            <div>7. Phí, lệ phí (nếu có): <span className="font-bold">Chưa thanh toán</span></div>
                         </div>
+
+                        {/* Signatures */}
+                        <div className="flex justify-between mt-8 text-center">
+                            <div className="w-1/2">
+                                <div className="font-bold">NGƯỜI NỘP HỒ SƠ</div>
+                                <div className="italic">(Ký và ghi rõ họ tên)</div>
+                                <div style={{ height: '80px' }}></div>
+                                <div className="font-bold uppercase text-[14px]">
+                                    
+                                </div>
+                            </div>
+                            <div className="w-1/2">
+                                <div className="font-bold">NGƯỜI TIẾP NHẬN HỒ SƠ</div>
+                                <div className="italic">(Ký và ghi rõ họ tên)</div>
+                                <div style={{ height: '80px' }}></div>
+                                <div className="font-bold uppercase text-[14px]">
+                                    {receiverName || ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Spacer for signatures to ensure it shows in print */}
+                        <div style={{ height: '40px' }}></div>
+
+                        {/* Footer */}
+                        <div className="pt-4 border-t border-gray-400">
+                            <div><span className="font-bold">Chú ý:</span> Công dân đến nhận kết quả mang theo phiếu hẹn, CMTND/CCCD, lệ phí và giấy ủy quyền</div>
+                            <div className="mt-1">(Trong trường hợp không phải chính chủ đến nhận)</div>
+                            
+                            <div className="flex justify-between items-end mt-4">
+                                <div className="text-gray-500 text-sm">Phiên bản mẫu phiếu: TNTKQ-V5.1</div>
+                                <div className="font-bold">TỔNG ĐÀI 0271.3636.836</div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div style={{ pageBreakBefore: 'always', marginTop: '20px' }} className="print-page-break"></div>
+                    
+                    <div ref={controlSlipRef} className="bg-white shadow-lg border border-gray-200 text-black mt-8" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', boxSizing: 'border-box', fontFamily: "'Times New Roman', Times, serif", fontSize: '14px', lineHeight: '1.3' }}>
+                        {/* Control Slip Header */}
+                        <div className="flex justify-between mb-2">
+                            <div className="text-center" style={{ width: '45%' }}>
+                                <div className="font-bold text-[14px]">VĂN PHÒNG ĐKĐĐ TP ĐỒNG NAI</div>
+                                <div className="font-bold text-[15px]">CHI NHÁNH HỚN QUẢN</div>
+                            </div>
+                            <div className="text-center" style={{ width: '50%' }}>
+                                <div className="font-bold text-[14px]">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                                <div className="font-bold underline mb-1 text-[15px]">Độc lập - Tự do - Hạnh phúc</div>
+                            </div>
+                        </div>
+
+                        {/* Control Slip Title */}
+                        <div className="text-center mt-3 mb-4">
+                            <div className="font-bold text-[18px] uppercase tracking-wide">PHIẾU KIỂM SOÁT QUÁ TRÌNH GIẢI QUYẾT HỒ SƠ</div>
+                            <div className="font-bold mt-1 text-[14px]">Mã hồ sơ:&nbsp;&nbsp;&nbsp;&nbsp;{data.code || data.id || ''}</div>
+                        </div>
+
+                        {/* Details Block */}
+                        <div style={{ marginLeft: '10%', marginBottom: '15px', fontSize: '14px', lineHeight: '1.5' }}>
+                            <div className="flex">
+                                <div style={{ width: '160px' }}>Kèm theo hồ sơ của:</div>
+                                <div className="font-bold uppercase">{data.customerName || ''}</div>
+                            </div>
+                            <div className="flex">
+                                <div style={{ width: '160px' }}>Số điện thoại:</div>
+                                <div className="font-bold">{data.phoneNumber || ''}</div>
+                            </div>
+                            <div className="flex">
+                                <div style={{ width: '160px' }}>Loại thủ tục:</div>
+                                <div className="font-bold uppercase">{data.recordType || ''}</div>
+                            </div>
+                            <div className="flex">
+                                <div style={{ width: '160px' }}>Ngày nhận:</div>
+                                <div className="font-bold">{formatDateVietnamese(rDate)}</div>
+                            </div>
+                        </div>
+
+                        {/* Control Slip Table */}
+                        <table className="control-table w-full border-collapse border border-black mt-4">
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '15%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>TÊN CƠ QUAN</th>
+                                    <th style={{ width: '55%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>THỜI GIAN GIAO, NHẬN HỒ SƠ</th>
+                                    <th style={{ width: '15%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>KẾT QUẢ</th>
+                                    <th style={{ width: '15%', border: '1px solid black', padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold' }}>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {renderControlSlipRows()}
+                            </tbody>
+                        </table>
+                    </div>
                     </div>
                 </div>
             </div>

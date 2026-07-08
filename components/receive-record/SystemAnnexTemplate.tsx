@@ -781,8 +781,8 @@ const SystemAnnexTemplate: React.FC<SystemAnnexTemplateProps> = ({ data, employe
 
                     {/* Right: Preview Paper A4 */}
                     <div className="flex-1 bg-slate-200/60 p-6 overflow-y-auto flex justify-center shadow-inner">
-                        <div className="w-[210mm] min-h-[297mm] bg-white p-16 shadow-lg border border-slate-300 self-start text-black flex flex-col justify-between"
-                             style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                        <div className="bg-white shadow-lg border border-slate-300 self-start text-black flex flex-col justify-between"
+                             style={{ width: '210mm', minHeight: '297mm', padding: '20mm 15mm 15mm 15mm', boxSizing: 'border-box', fontFamily: "'Times New Roman', Times, serif" }}>
                             
                             {/* Nội dung để In */}
                             <div ref={annexRef} className="w-full text-black select-text" style={{ fontSize: '13pt', lineHeight: '1.45', fontFamily: "'Times New Roman', Times, serif" }}>
