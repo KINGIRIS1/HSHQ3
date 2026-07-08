@@ -360,6 +360,33 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
         return `ngày ${day} tháng ${month} năm ${year}`;
     };
 
+    const actualReceivingWard = (() => {
+        // Tìm nhân viên tiếp nhận hồ sơ (data.receivedBy)
+        if (data.receivedBy && employees) {
+            const emp = employees.find(e => e.id === data.receivedBy);
+            if (emp && emp.managedWards && emp.managedWards.length > 0) {
+                return emp.managedWards[0];
+            }
+        }
+        // Dự phòng cho nhân viên hiện tại đăng nhập
+        if (currentUser && employees) {
+            const emp = employees.find(e => e.id === currentUser.employeeId);
+            if (emp && emp.managedWards && emp.managedWards.length > 0) {
+                return emp.managedWards[0];
+            }
+        }
+        // Dự phòng từ prop receivingWard
+        return receivingWard || 'Tân Khai';
+    })();
+
+    const getWardPrefix = (ward: string) => {
+        const norm = getNormalizedWard(ward).toLowerCase();
+        if (norm === 'tân khai' || norm === 'tk') {
+            return 'phường';
+        }
+        return 'xã';
+    };
+
     const wardName = getNormalizedWard(data.ward || '');
 
     const formatDateVietnamese = (d: Date) => {
@@ -571,7 +598,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                             <div className="text-center" style={{ width: '50%' }}>
                                 <div className="font-bold text-[15px]">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
                                 <div className="font-bold underline mb-2">Độc lập - Tự do - Hạnh phúc</div>
-                                <div className="italic mt-4">{getNormalizedWard(receivingWard)}, {formatDateOnly(new Date())}</div>
+                                <div className="italic mt-4">{getNormalizedWard(actualReceivingWard)}, {formatDateOnly(new Date())}</div>
                             </div>
                         </div>
 
@@ -590,7 +617,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                                 <div style={{ marginRight: '2cm' }}>Tờ: {data.mapSheet}</div>
                                 <div>Thửa: {data.landPlot}</div>
                             </div>
-                            <div>Địa chỉ thửa đất: <span className="font-bold uppercase">XÃ {getNormalizedWard(data.ward || '').toUpperCase()}</span></div>
+                            <div>Địa chỉ thửa đất: <span className="font-bold uppercase">{getWardPrefix(data.ward || '').toUpperCase()} {getNormalizedWard(data.ward || '').toUpperCase()}</span></div>
                             <div>Thủ tục hành chính cần giải quyết: <span className="font-bold">{data.recordType}</span></div>
                             
                             <div>1. Thành phần hồ sơ, yêu cầu và số lượng mỗi loại giấy tờ gồm:</div>
@@ -624,7 +651,7 @@ const SystemReceiptTemplate: React.FC<SystemReceiptTemplateProps> = ({ data, rec
                             <div>3. Thời gian giải quyết hồ sơ theo quy định là: <span className="font-bold">{getRegulatoryText(data.recordType || '', !!data.hasTax)}</span></div>
                             <div>4. Thời gian nhận hồ sơ: <span className="font-bold">{formatDateTime(rDate)}</span></div>
                             <div>5. Thời gian trả kết quả giải quyết hồ sơ: <span className="font-bold">{formatDateTime(dDate)}</span></div>
-                            <div>6. Đăng ký trả kết quả tại: Trung tâm phục vụ hành chính công xã {getNormalizedWard(receivingWard)}</div>
+                            <div>6. Đăng ký trả kết quả tại: Trung tâm phục vụ hành chính công {getWardPrefix(actualReceivingWard)} {getNormalizedWard(actualReceivingWard)}</div>
                             <div>7. Phí, lệ phí (nếu có): <span className="font-bold">Chưa thanh toán</span></div>
                         </div>
 

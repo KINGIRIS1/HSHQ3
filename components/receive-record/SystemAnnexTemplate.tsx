@@ -64,8 +64,16 @@ const SystemAnnexTemplate: React.FC<SystemAnnexTemplateProps> = ({ data, employe
     const { day: dayHD, month: monthHD, year: yearHD } = getSplitDate(annexRawDate);
     const { day: dayContract, month: monthContract, year: yearContract } = getSplitDate(contractRawDate);
 
+    const getWardPrefix = (ward: string) => {
+        const norm = getNormalizedWard(ward).toLowerCase();
+        if (norm === 'tân khai' || norm === 'tk') {
+            return 'Phường';
+        }
+        return 'Xã';
+    };
+
     const [customerName, setCustomerName] = useState<string>((data.customerName || '').toUpperCase());
-    const [address, setAddress] = useState<string>(data.address || data.customerAddress || (data.ward ? `Xã ${getNormalizedWard(data.ward)}` : ''));
+    const [address, setAddress] = useState<string>(data.address || data.customerAddress || (data.ward ? `${getWardPrefix(data.ward)} ${getNormalizedWard(data.ward)}` : ''));
     const [phone, setPhone] = useState<string>(data.phoneNumber || '');
     const [contractCode, setContractCode] = useState<string>(data.code || '');
 
