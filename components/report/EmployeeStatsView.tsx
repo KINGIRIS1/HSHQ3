@@ -165,6 +165,7 @@ const EmployeeStatsView: React.FC<EmployeeStatsViewProps> = ({
         const dataToExport = targetRecords.map((r, idx) => ({
             'STT': idx + 1,
             'Mã hồ sơ': r.code,
+            'Loại thủ tục': r.recordType || '',
             'Tên khách hàng': r.customerName,
             'Địa chỉ': r.address,
             'Xã/Phường': r.ward,
@@ -181,6 +182,7 @@ const EmployeeStatsView: React.FC<EmployeeStatsViewProps> = ({
         const wscols = [
             { wch: 5 }, // STT
             { wch: 15 }, // Ma HS
+            { wch: 25 }, // Loai thu tuc
             { wch: 25 }, // Ten KH
             { wch: 30 }, // Dia chi
             { wch: 15 }, // Xa
@@ -410,8 +412,8 @@ const EmployeeStatsView: React.FC<EmployeeStatsViewProps> = ({
                                     <tr>
                                         <th className="p-3 text-center w-12">STT</th>
                                         <th className="p-3">Mã hồ sơ</th>
+                                        <th className="p-3">Loại thủ tục</th>
                                         <th className="p-3">Chủ sử dụng</th>
-                                        <th className="p-3">Loại hồ sơ</th>
                                         <th className="p-3">Hạn trả</th>
                                         <th className="p-3">Cán bộ xử lý</th>
                                         <th className="p-3 text-center">Trạng thái</th>
@@ -450,8 +452,8 @@ const EmployeeStatsView: React.FC<EmployeeStatsViewProps> = ({
                                                 <tr key={r.id} className={`hover:bg-slate-50 text-xs transition-colors ${isOverdue ? 'bg-red-50/20' : ''}`}>
                                                     <td className="p-3 text-center text-gray-400 font-mono font-medium">{globalIdx}</td>
                                                     <td className={`p-3 font-bold ${isOverdue ? 'text-red-600' : 'text-blue-600'}`}>{r.code}</td>
+                                                    <td className="p-3 text-gray-500 truncate max-w-[150px]" title={r.recordType || undefined}>{getShortRecordType(r.recordType)}</td>
                                                     <td className="p-3 font-medium text-gray-800 truncate max-w-[120px]" title={r.customerName || undefined}>{r.customerName}</td>
-                                                    <td className="p-3 text-gray-500 truncate max-w-[70px]" title={r.recordType || undefined}>{getShortRecordType(r.recordType)}</td>
                                                     <td className={`p-3 font-bold ${isOverdue ? 'text-red-600' : 'text-gray-700'}`}>{formatDate(r.deadline)}</td>
                                                     <td className="p-3 text-gray-600 font-medium truncate max-w-[100px]" title={emp?.name || undefined}>{emp ? emp.name : '-'}</td>
                                                     <td className="p-3 text-center">

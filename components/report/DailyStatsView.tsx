@@ -11,7 +11,7 @@ import {
     CheckCircle2, 
     ArrowRight 
 } from 'lucide-react';
-import { getNormalizedWard, STATUS_LABELS } from '../../constants';
+import { getNormalizedWard, STATUS_LABELS, getShortRecordType } from '../../constants';
 import { exportDailyStatsToExcel } from '../../utils/excelExport';
 
 interface DailyStatsViewProps {
@@ -420,6 +420,7 @@ const DailyStatsView: React.FC<DailyStatsViewProps> = ({ records, employees, war
                                 <tr>
                                     <th className="p-3 w-12 text-center">STT</th>
                                     <th className="p-3 w-32">Mã biên nhận</th>
+                                    <th className="p-3 w-32">Loại thủ tục</th>
                                     <th className="p-3 w-48">Chủ sử dụng đất</th>
                                     <th className="p-3 w-36">Xã / Phường</th>
                                     <th className="p-3 w-28">Ngày nhận</th>
@@ -437,6 +438,7 @@ const DailyStatsView: React.FC<DailyStatsViewProps> = ({ records, employees, war
                                         <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
                                             <td className="p-3 text-center text-gray-400 font-mono font-bold">{rowIndex}</td>
                                             <td className="p-3 font-semibold text-blue-700">{r.code}</td>
+                                            <td className="p-3 text-gray-600 font-semibold" title={r.recordType || ''}>{getShortRecordType(r.recordType)}</td>
                                             <td className="p-3 font-bold text-gray-800">{r.customerName}</td>
                                             <td className="p-3 text-gray-600 font-medium">{getNormalizedWard(r.ward)}</td>
                                             <td className="p-3 text-gray-500 font-medium">{formatDate(r.receivedDate)}</td>

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { BarChart3, FileSpreadsheet, Loader2, Sparkles, Download, CalendarDays, Printer, Layout, FileText, ListFilter, CheckCircle2, Clock, AlertTriangle, Settings, Key, X, Save, MapPin, UserCheck, ChevronLeft, ChevronRight, PieChart, CheckCircle, Ruler, FolderArchive, CalendarRange, Coins } from 'lucide-react';
 import { RecordFile, RecordStatus, Employee, User, UserRole } from '../types';
-import { getNormalizedWard, STATUS_LABELS, REGISTRATION_PROCEDURES } from '../constants';
+import { getNormalizedWard, STATUS_LABELS, REGISTRATION_PROCEDURES, getShortRecordType } from '../constants';
 import { isRecordOverdue, removeVietnameseTones, isRecordApproaching, isArchiveType } from '../utils/appHelpers';
 import { saveGeminiKey, getGeminiKey } from '../services/geminiService';
 import { fetchArchiveRecords } from '../services/apiArchive';
@@ -808,6 +808,7 @@ const ReportSection: React.FC<ReportSectionProps> = ({
                                         <th className="p-3 w-10 text-center">#</th>
                                         <th className="p-3 w-32">Mã HS</th>
                                         <th className="p-3 w-48">Chủ sử dụng</th>
+                                        <th className="p-3 w-36">Loại thủ tục</th>
                                         <th className="p-3 w-32">Xã/Phường</th>
                                         <th className="p-3 w-16 text-center">Tờ</th>
                                         <th className="p-3 w-16 text-center">Thửa</th>
@@ -839,6 +840,7 @@ const ReportSection: React.FC<ReportSectionProps> = ({
                                             <td className="p-3 text-center text-gray-400">{rowIndex}</td>
                                             <td className="p-3 font-medium text-blue-600">{r.code}</td>
                                             <td className="p-3 font-medium">{r.customerName}</td>
+                                            <td className="p-3 text-gray-600 font-semibold" title={r.recordType || ''}>{getShortRecordType(r.recordType)}</td>
                                             <td className="p-3 text-gray-600">{getNormalizedWard(r.ward)}</td>
                                             <td className="p-3 text-center text-gray-600">{r.mapSheet || '-'}</td>
                                             <td className="p-3 text-center text-gray-600">{r.landPlot || '-'}</td>

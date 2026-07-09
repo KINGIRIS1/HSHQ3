@@ -118,7 +118,7 @@ export const exportReportToExcel = async (
         "Địa Chỉ (Xã)", 
         "Tờ",
         "Thửa",
-        "Loại Hồ Sơ", 
+        "Loại Thủ Tục", 
         "Loại HĐ/TL", // Yêu cầu 2: Loại hồ sơ thanh lý (Trích lục, đo đạc...)
         "NV Xử Lý",
         "Số Biên Lai", 
@@ -141,7 +141,7 @@ export const exportReportToExcel = async (
             getNormalizedWard(r.ward || undefined),
             r.mapSheet || '',
             r.landPlot || '',
-            getShortRecordType(r.recordType || undefined),
+            r.recordType || '',
             contractInfo.type, // Loại HĐ/TL
             getEmployeeName(r.assignedTo || undefined),
             r.receiptNumber || '',
@@ -216,7 +216,7 @@ export const exportReportToExcel = async (
         { wch: 18 }, // Địa Chỉ
         { wch: 7 },  // Tờ
         { wch: 7 },  // Thửa
-        { wch: 15 }, // Loại HS
+        { wch: 25 }, // Loại Thủ Tục
         { wch: 15 }, // Loại HĐ/TL (New)
         { wch: 20 }, // NV Xử Lý
         { wch: 12 }, // Số BL
@@ -304,8 +304,8 @@ export const exportDailyStatsToExcel = (records: RecordFile[], employees: Employ
     const tableHeader = [
         "STT", 
         "Mã Hồ Sơ", 
+        "Loại Thủ Tục",
         "Chủ Sử Dụng", 
-        "Loại Hồ Sơ", 
         "Xã/Phường", 
         "Ngày Nhận", 
         "Ngày Hẹn Trả", 
@@ -320,8 +320,8 @@ export const exportDailyStatsToExcel = (records: RecordFile[], employees: Employ
         return [
             i + 1,
             r.code,
+            r.recordType || '',
             r.customerName,
-            getShortRecordType(r.recordType || undefined),
             getNormalizedWard(r.ward || undefined),
             formatDate(r.receivedDate),
             formatDate(r.deadline),
@@ -397,7 +397,7 @@ export const exportDailyStatsToExcel = (records: RecordFile[], employees: Employ
             const cellRef = XLSX.utils.encode_cell({ r, c });
             if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" };
             
-            if ([0, 4, 5, 6, 7, 9].includes(c)) ws[cellRef].s = centerStyle;
+            if ([0, 5, 6, 7, 8, 10].includes(c)) ws[cellRef].s = centerStyle;
             else ws[cellRef].s = cellStyle;
         }
     }
@@ -406,6 +406,7 @@ export const exportDailyStatsToExcel = (records: RecordFile[], employees: Employ
     ws['!cols'] = [
         { wch: 5 },  // STT
         { wch: 15 }, // Mã HS
+        { wch: 30 }, // Loại Thủ Tục
         { wch: 30 }, // Chủ sử dụng
         { wch: 20 }, // Xã
         { wch: 15 }, // Ngày nhận
@@ -596,8 +597,8 @@ export const exportOverdueStatsToExcel = (records: any[], employees: Employee[],
     const tableHeader = [
         "STT", 
         "Mã Hồ Sơ", 
+        "Loại Thủ Tục",
         "Chủ Sử Dụng", 
-        "Loại Hồ Sơ", 
         "Xã/Phường", 
         "Loại Trễ", 
         "Ngày Nhận", 
@@ -613,8 +614,8 @@ export const exportOverdueStatsToExcel = (records: any[], employees: Employee[],
         return [
             i + 1,
             r.code,
+            r.recordType || '',
             r.customerName,
-            getShortRecordType(r.recordType || undefined),
             getNormalizedWard(r.ward || undefined),
             isPendingOverdue ? 'Chưa có kết quả' : 'Đã có kết quả',
             formatDate(r.receivedDate),
@@ -680,7 +681,7 @@ export const exportOverdueStatsToExcel = (records: any[], employees: Employee[],
             const cellRef = XLSX.utils.encode_cell({ r, c });
             if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" };
             
-            if ([0, 4, 5, 6, 7, 9].includes(c)) ws[cellRef].s = centerStyle;
+            if ([0, 5, 6, 7, 8, 10].includes(c)) ws[cellRef].s = centerStyle;
             else ws[cellRef].s = cellStyle;
         }
     }
@@ -688,6 +689,7 @@ export const exportOverdueStatsToExcel = (records: any[], employees: Employee[],
     ws['!cols'] = [
         { wch: 5 },  // STT
         { wch: 15 }, // Mã HS
+        { wch: 30 }, // Loại Thủ Tục
         { wch: 30 }, // Chủ sử dụng
         { wch: 20 }, // Xã
         { wch: 15 }, // Loại trễ

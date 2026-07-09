@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { RecordFile, RecordStatus, Employee } from '../../types';
-import { getNormalizedWard, STATUS_LABELS } from '../../constants';
+import { getNormalizedWard, STATUS_LABELS, getShortRecordType } from '../../constants';
 import { isRecordOverdue } from '../../utils/appHelpers';
 import { exportOverdueStatsToExcel } from '../../utils/excelExport';
 import { AlertTriangle, CheckCircle2, Clock, MapPin, ChevronLeft, ChevronRight, Download, ListFilter } from 'lucide-react';
@@ -253,6 +253,7 @@ const OverdueStatsView: React.FC<OverdueStatsViewProps> = ({ records, employees 
                             <tr>
                                 <th className="p-3 w-10 text-center">#</th>
                                 <th className="p-3">Mã HS</th>
+                                <th className="p-3">Loại thủ tục</th>
                                 <th className="p-3">Chủ sử dụng</th>
                                 <th className="p-3">Xã/Phường</th>
                                 <th className="p-3">Loại trễ</th>
@@ -273,6 +274,7 @@ const OverdueStatsView: React.FC<OverdueStatsViewProps> = ({ records, employees 
                                 <tr key={r.id} className="hover:bg-red-50/30 transition-colors">
                                     <td className="p-3 text-center text-gray-400">{rowIndex}</td>
                                     <td className="p-3 font-medium text-red-600">{r.code}</td>
+                                    <td className="p-3 text-gray-600 font-semibold" title={r.recordType || ''}>{getShortRecordType(r.recordType)}</td>
                                     <td className="p-3 font-medium">{r.customerName}</td>
                                     <td className="p-3 text-gray-600 flex items-center gap-1"><MapPin size={12}/>{getNormalizedWard(r.ward)}</td>
                                     <td className="p-3">
@@ -292,7 +294,7 @@ const OverdueStatsView: React.FC<OverdueStatsViewProps> = ({ records, employees 
                                     </td>
                                 </tr>
                             )}) : (
-                                <tr><td colSpan={10} className="p-8 text-center text-gray-400">Không có dữ liệu trễ hạn trong khoảng thời gian này.</td></tr>
+                                <tr><td colSpan={11} className="p-8 text-center text-gray-400">Không có dữ liệu trễ hạn trong khoảng thời gian này.</td></tr>
                             )}
                         </tbody>
                     </table>
