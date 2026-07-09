@@ -304,8 +304,8 @@ export const exportDailyStatsToExcel = (records: RecordFile[], employees: Employ
     const tableHeader = [
         "STT", 
         "Mã Hồ Sơ", 
-        "Loại Thủ Tục",
         "Chủ Sử Dụng", 
+        "Loại Thủ Tục",
         "Xã/Phường", 
         "Ngày Nhận", 
         "Ngày Hẹn Trả", 
@@ -320,8 +320,8 @@ export const exportDailyStatsToExcel = (records: RecordFile[], employees: Employ
         return [
             i + 1,
             r.code,
-            r.recordType || '',
             r.customerName,
+            r.recordType || '',
             getNormalizedWard(r.ward || undefined),
             formatDate(r.receivedDate),
             formatDate(r.deadline),
@@ -406,8 +406,8 @@ export const exportDailyStatsToExcel = (records: RecordFile[], employees: Employ
     ws['!cols'] = [
         { wch: 5 },  // STT
         { wch: 15 }, // Mã HS
-        { wch: 30 }, // Loại Thủ Tục
         { wch: 30 }, // Chủ sử dụng
+        { wch: 30 }, // Loại Thủ Tục
         { wch: 20 }, // Xã
         { wch: 15 }, // Ngày nhận
         { wch: 15 }, // Ngày hẹn trả
@@ -597,8 +597,8 @@ export const exportOverdueStatsToExcel = (records: any[], employees: Employee[],
     const tableHeader = [
         "STT", 
         "Mã Hồ Sơ", 
-        "Loại Thủ Tục",
         "Chủ Sử Dụng", 
+        "Loại Thủ Tục",
         "Xã/Phường", 
         "Loại Trễ", 
         "Ngày Nhận", 
@@ -614,8 +614,8 @@ export const exportOverdueStatsToExcel = (records: any[], employees: Employee[],
         return [
             i + 1,
             r.code,
-            r.recordType || '',
             r.customerName,
+            r.recordType || '',
             getNormalizedWard(r.ward || undefined),
             isPendingOverdue ? 'Chưa có kết quả' : 'Đã có kết quả',
             formatDate(r.receivedDate),
@@ -689,8 +689,8 @@ export const exportOverdueStatsToExcel = (records: any[], employees: Employee[],
     ws['!cols'] = [
         { wch: 5 },  // STT
         { wch: 15 }, // Mã HS
-        { wch: 30 }, // Loại Thủ Tục
         { wch: 30 }, // Chủ sử dụng
+        { wch: 30 }, // Loại Thủ Tục
         { wch: 20 }, // Xã
         { wch: 15 }, // Loại trễ
         { wch: 12 }, // Ngày nhận

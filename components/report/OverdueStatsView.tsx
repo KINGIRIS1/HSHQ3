@@ -253,8 +253,8 @@ const OverdueStatsView: React.FC<OverdueStatsViewProps> = ({ records, employees 
                             <tr>
                                 <th className="p-3 w-10 text-center">#</th>
                                 <th className="p-3">Mã HS</th>
-                                <th className="p-3">Loại thủ tục</th>
                                 <th className="p-3">Chủ sử dụng</th>
+                                <th className="p-3">Loại thủ tục</th>
                                 <th className="p-3">Xã/Phường</th>
                                 <th className="p-3">Loại trễ</th>
                                 <th className="p-3">Ngày nhận</th>
@@ -274,8 +274,8 @@ const OverdueStatsView: React.FC<OverdueStatsViewProps> = ({ records, employees 
                                 <tr key={r.id} className="hover:bg-red-50/30 transition-colors">
                                     <td className="p-3 text-center text-gray-400">{rowIndex}</td>
                                     <td className="p-3 font-medium text-red-600">{r.code}</td>
-                                    <td className="p-3 text-gray-600 font-semibold" title={r.recordType || ''}>{getShortRecordType(r.recordType)}</td>
                                     <td className="p-3 font-medium">{r.customerName}</td>
+                                    <td className="p-3 text-gray-600 font-semibold" title={r.recordType || ''}>{getShortRecordType(r.recordType)}</td>
                                     <td className="p-3 text-gray-600 flex items-center gap-1"><MapPin size={12}/>{getNormalizedWard(r.ward)}</td>
                                     <td className="p-3">
                                         <span className={`px-2 py-1 flex w-fit items-center gap-1 rounded text-xs font-bold ${isPendingOverdue ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}`}>
