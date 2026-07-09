@@ -2,7 +2,7 @@
 import { supabase, isConfigured } from './supabaseClient';
 import { RecordFile } from '../types';
 import { MOCK_RECORDS, API_BASE_URL } from '../constants';
-import { logError, getFromCache, saveToCache, CACHE_KEYS, sanitizeData, normalizeCode, mapRecordFromDb, getDbColumns, mapPayloadToDb } from './apiCore';
+import { logError, getFromCache, saveToCache, CACHE_KEYS, sanitizeData, normalizeCode, mapRecordFromDb } from './apiCore';
 
 export const RECORD_DB_COLUMNS = [
     'id', 'code', 'customerName', 'phoneNumber', 'cccd', 'customerAddress', 'ward', 'landPlot', 'mapSheet', 
@@ -128,8 +128,8 @@ export const getNextGlobalRecordCode = async (dateStr: string, wardName?: string
         return `${prefix}-${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`;
     }
 
-    const year = d.getFullYear().toString();
-    const key = `record_counter_${year}`;
+    // Dùng key theo ngày để số thứ tự reset về 0001 mỗi ngày và tăng tuần tự một cách đồng bộ
+    const key = `record_counter_${datePrefix}`;
     let nextSeq = 1;
     let success = false;
     let attempts = 0;
@@ -184,10 +184,42 @@ export const getNextGlobalRecordCode = async (dateStr: string, wardName?: string
 export const createRecordApi = async (record: RecordFile): Promise<RecordFile | null> => {
     if (!isConfigured) return record;
     try {
-        let finalCode = record.code;
+        let finalCode = record.code?.trim() || '';
         
-        if (!finalCode || finalCode.includes('?') || finalCode.trim() === '') {
+        // 1. Kiểm tra xem mã này đã tồn tại trong cơ sở dữ liệu chưa (để tránh trùng lặp)
+        let isDuplicate = false;
+        if (finalCode && !finalCode.includes('?')) {
+            const { data: existing, error: checkError } = await supabase
+                .from('land_records')
+                .select('id')
+                .eq('code', finalCode)
+                .limit(1);
+            if (!checkError && existing && existing.length > 0) {
+                isDuplicate = true;
+            }
+        }
+
+        // 2. Nếu mã trống, nháp (chứa '?') hoặc bị trùng lặp, tự động tạo mã mới duy nhất
+        if (!finalCode || finalCode.includes('?') || isDuplicate) {
             finalCode = await getNextGlobalRecordCode(record.receivedDate || new Date().toISOString(), record.ward || undefined);
+            
+            // Chạy kiểm tra sanity check tăng cường để đảm bảo mã mới sinh ra không trùng lặp
+            let isUnique = false;
+            let checkAttempts = 0;
+            while (!isUnique && checkAttempts < 5) {
+                const { data: checkExist } = await supabase
+                    .from('land_records')
+                    .select('id')
+                    .eq('code', finalCode)
+                    .limit(1);
+                
+                if (checkExist && checkExist.length > 0) {
+                    checkAttempts++;
+                    finalCode = await getNextGlobalRecordCode(record.receivedDate || new Date().toISOString(), record.ward || undefined);
+                } else {
+                    isUnique = true;
+                }
+            }
         }
         
         const recordToSave = { ...record, code: finalCode };
@@ -196,17 +228,13 @@ export const createRecordApi = async (record: RecordFile): Promise<RecordFile | 
         }
         
         const payload = sanitizeData(recordToSave, RECORD_DB_COLUMNS);
-        const actualDbColumns = await getDbColumns('land_records');
-        const mappedPayload = mapPayloadToDb(payload, actualDbColumns);
-        
-        const { data, error } = await supabase.from('land_records').insert([mappedPayload]).select();
+        const { data, error } = await supabase.from('land_records').insert([payload]).select();
         
         if (error && (error.code === 'PGRST204' || String(error.code) === '42703' || (error.message && String(error.message).includes('does not exist')))) {
             console.warn("⚠️ [Fallback] Database is missing columns. Retrying without new columns...", error);
             const fallbackPayload = { ...payload };
             OPTIONAL_NEW_COLUMNS.forEach(col => delete fallbackPayload[col]);
-            const mappedFallbackPayload = mapPayloadToDb(fallbackPayload, actualDbColumns);
-            const { data: fallbackData, error: fallbackError } = await supabase.from('land_records').insert([mappedFallbackPayload]).select();
+            const { data: fallbackData, error: fallbackError } = await supabase.from('land_records').insert([fallbackPayload]).select();
             if (fallbackError) {
                 logError("createRecordApi (Fallback)", fallbackError);
                 throw fallbackError;
@@ -226,17 +254,13 @@ export const updateRecordApi = async (record: RecordFile): Promise<RecordFile | 
     if (!isConfigured) return record;
     try {
         const payload = sanitizeData(record, RECORD_DB_COLUMNS);
-        const actualDbColumns = await getDbColumns('land_records');
-        const mappedPayload = mapPayloadToDb(payload, actualDbColumns);
-        
-        const { data, error } = await supabase.from('land_records').update(mappedPayload).eq('id', record.id).select();
+        const { data, error } = await supabase.from('land_records').update(payload).eq('id', record.id).select();
         
         if (error && (error.code === 'PGRST204' || String(error.code) === '42703' || (error.message && String(error.message).includes('does not exist')))) {
             console.warn("⚠️ [Fallback] Database is missing columns. Retrying without new columns...", error);
             const fallbackPayload = { ...payload };
             OPTIONAL_NEW_COLUMNS.forEach(col => delete fallbackPayload[col]);
-            const mappedFallbackPayload = mapPayloadToDb(fallbackPayload, actualDbColumns);
-            const { data: fallbackData, error: fallbackError } = await supabase.from('land_records').update(mappedFallbackPayload).eq('id', record.id).select();
+            const { data: fallbackData, error: fallbackError } = await supabase.from('land_records').update(fallbackPayload).eq('id', record.id).select();
             if (fallbackError) {
                 logError("updateRecordApi (Fallback)", fallbackError);
                 throw fallbackError;
