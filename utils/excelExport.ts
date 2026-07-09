@@ -110,15 +110,15 @@ export const exportReportToExcel = async (
         }
     });
 
-    // Table Header (Cập nhật cột theo yêu cầu)
+    // Table Header (Cập nhật cột theo yêu cầu: Loại Thủ Tục đặt sau Chủ Sử Dụng)
     const tableHeader = [
         "STT", 
         "Mã Hồ Sơ", 
         "Chủ Sử Dụng", 
+        "Loại Thủ Tục", 
         "Địa Chỉ (Xã)", 
         "Tờ",
         "Thửa",
-        "Loại Thủ Tục", 
         "Loại HĐ/TL", // Yêu cầu 2: Loại hồ sơ thanh lý (Trích lục, đo đạc...)
         "NV Xử Lý",
         "Số Biên Lai", 
@@ -131,17 +131,29 @@ export const exportReportToExcel = async (
         "Trạng Thái", 
         "Ghi Chú"
     ];
+
+    // Sắp xếp danh sách hồ sơ: Chủ sử dụng (customerName), sau đó đến Loại thủ tục (recordType)
+    const sortedFiltered = [...filtered].sort((a, b) => {
+        const nameA = (a.customerName || '').trim().toLowerCase();
+        const nameB = (b.customerName || '').trim().toLowerCase();
+        const compName = nameA.localeCompare(nameB, 'vi');
+        if (compName !== 0) return compName;
+
+        const typeA = (a.recordType || '').trim().toLowerCase();
+        const typeB = (b.recordType || '').trim().toLowerCase();
+        return typeA.localeCompare(typeB, 'vi');
+    });
     
-    const dataRows = filtered.map((r, i) => {
+    const dataRows = sortedFiltered.map((r, i) => {
         const contractInfo = getContractInfo(r.code);
         return [
             i + 1,
             r.code,
             r.customerName,
+            r.recordType || '',
             getNormalizedWard(r.ward || undefined),
             r.mapSheet || '',
             r.landPlot || '',
-            r.recordType || '',
             contractInfo.type, // Loại HĐ/TL
             getEmployeeName(r.assignedTo || undefined),
             r.receiptNumber || '',
@@ -315,7 +327,18 @@ export const exportDailyStatsToExcel = (records: RecordFile[], employees: Employ
         "Trạng Thái"
     ];
 
-    const dataRows = records.map((r, i) => {
+    const sortedRecords = [...records].sort((a, b) => {
+        const nameA = (a.customerName || '').trim().toLowerCase();
+        const nameB = (b.customerName || '').trim().toLowerCase();
+        const compName = nameA.localeCompare(nameB, 'vi');
+        if (compName !== 0) return compName;
+
+        const typeA = (a.recordType || '').trim().toLowerCase();
+        const typeB = (b.recordType || '').trim().toLowerCase();
+        return typeA.localeCompare(typeB, 'vi');
+    });
+
+    const dataRows = sortedRecords.map((r, i) => {
         const emp = employees.find(e => e.id === r.assignedTo);
         return [
             i + 1,
@@ -442,10 +465,10 @@ export const exportReturnedListToExcel = (records: RecordFile[], fromDateStr?: s
         "STT", 
         "Mã Hồ Sơ", 
         "Chủ Sử Dụng", 
+        "Loại Hồ Sơ", 
         "Địa Chỉ", 
         "Tờ", 
         "Thửa", 
-        "Loại Hồ Sơ", 
         "Số Biên Lai", 
         "Ngày Hẹn", 
         "Ngày Trả Kết Quả", 
@@ -453,14 +476,25 @@ export const exportReturnedListToExcel = (records: RecordFile[], fromDateStr?: s
         "Ghi Chú"
     ];
 
-    const dataRows = records.map((r, i) => [
+    const sortedRecords = [...records].sort((a, b) => {
+        const nameA = (a.customerName || '').trim().toLowerCase();
+        const nameB = (b.customerName || '').trim().toLowerCase();
+        const compName = nameA.localeCompare(nameB, 'vi');
+        if (compName !== 0) return compName;
+
+        const typeA = (a.recordType || '').trim().toLowerCase();
+        const typeB = (b.recordType || '').trim().toLowerCase();
+        return typeA.localeCompare(typeB, 'vi');
+    });
+
+    const dataRows = sortedRecords.map((r, i) => [
         i + 1,
         r.code,
         r.customerName,
+        getShortRecordType(r.recordType || undefined),
         getNormalizedWard(r.ward || undefined),
         r.mapSheet || '', 
         r.landPlot || '', 
-        getShortRecordType(r.recordType || undefined),
         r.receiptNumber || '',
         formatDate(r.deadline),
         formatDate(r.resultReturnedDate),
@@ -608,7 +642,18 @@ export const exportOverdueStatsToExcel = (records: any[], employees: Employee[],
         "Trạng Thái"
     ];
 
-    const dataRows = records.map((r, i) => {
+    const sortedRecords = [...records].sort((a, b) => {
+        const nameA = (a.customerName || '').trim().toLowerCase();
+        const nameB = (b.customerName || '').trim().toLowerCase();
+        const compName = nameA.localeCompare(nameB, 'vi');
+        if (compName !== 0) return compName;
+
+        const typeA = (a.recordType || '').trim().toLowerCase();
+        const typeB = (b.recordType || '').trim().toLowerCase();
+        return typeA.localeCompare(typeB, 'vi');
+    });
+
+    const dataRows = sortedRecords.map((r, i) => {
         const emp = employees.find(e => e.id === r.assignedTo);
         const isPendingOverdue = r._overdueType === 'pending';
         return [

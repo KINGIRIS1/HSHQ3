@@ -1966,6 +1966,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             label: "NHẬN HỒ SƠ",
                                             date: record.receivedDate,
                                             icon: UserIcon,
+                                            forceActive: true,
                                             subText: record.receivedBy ? (() => {
                                                 const receiver = users.find(u => u.employeeId === record.receivedBy);
                                                 if (!receiver) return undefined;
@@ -1982,6 +1983,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             label: "GIAO NHÂN VIÊN",
                                             date: record.assignedDate,
                                             icon: UserIcon,
+                                            forceActive: record.status !== RecordStatus.RECEIVED || !!record.assignedTo || !!record.assignedDate,
                                             subText: record.assignedTo ? (() => {
                                                 const assigned = employees.find(e => e.id === record.assignedTo);
                                                 if (!assigned) return undefined;
@@ -1997,6 +1999,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             label: "ĐÃ THỰC HIỆN",
                                             date: record.completedWorkDate,
                                             icon: CheckSquare,
+                                            forceActive: isWorkDone,
                                             subText: record.completedWorkDate && record.assignedTo ? (() => {
                                                 const assigned = employees.find(e => e.id === record.assignedTo);
                                                 if (!assigned) return undefined;
@@ -2013,6 +2016,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                 label: "TRÌNH KIỂM TRA",
                                                 date: record.pendingCheckDate,
                                                 icon: Send,
+                                                forceActive: isPendingCheckActive,
                                                 subText: record.pendingCheckDate ? (() => {
                                                     const checker = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
                                                     if (checker) return `${checker.name}`;
@@ -2028,11 +2032,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                 label: "ĐÃ KIỂM TRA",
                                                 date: record.checkedDate,
                                                 icon: CheckSquare,
+                                                forceActive: isCheckedActive,
                                                 subText: record.checkedDate && record.checkedBy ? (() => {
                                                     const checker = employees.find(e => e.id === record.checkedBy);
                                                     if (!checker) return undefined;
                                                     return `${checker.name}`;
-                                                })() : undefined,
+                                                 })() : undefined,
                                                 colorClass: {
                                                     border: "border-orange-500 text-orange-600",
                                                     bg: "bg-orange-500",
@@ -2044,6 +2049,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             label: "TRÌNH KÝ",
                                             date: record.submissionDate,
                                             icon: Send,
+                                            forceActive: isPendingSignActive,
                                             subText: record.submissionDate && record.submittedTo ? (() => {
                                                 const director = users.find(u => u.employeeId === record.submittedTo) || employees.find(e => e.id === record.submittedTo);
                                                 if (!director) return undefined;
@@ -2059,6 +2065,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             label: "KÝ DUYỆT",
                                             date: record.approvalDate,
                                             icon: FileSignature,
+                                            forceActive: isSignedActive,
                                             subText: record.approvalDate && record.submittedTo ? (() => {
                                                 const director = users.find(u => u.employeeId === record.submittedTo) || employees.find(e => e.id === record.submittedTo);
                                                 if (!director) return undefined;
@@ -2074,6 +2081,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             label: record.status === RecordStatus.WITHDRAWN ? "RÚT HỒ SƠ" : "HOÀN THÀNH",
                                             date: record.completedDate,
                                             icon: CheckSquare,
+                                            forceActive: isCompletedActive,
                                             subText: record.exportBatch ? `Đợt ${record.exportBatch}` : undefined,
                                             colorClass: {
                                                 border: "border-green-500 text-green-600",
@@ -2085,6 +2093,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             label: "TRẢ KẾT QUẢ",
                                             date: record.resultReturnedDate,
                                             icon: FileCheck,
+                                            forceActive: record.status === RecordStatus.RETURNED || !!record.resultReturnedDate,
                                             subText: record.resultReturnedDate ? (() => {
                                                 let details = '';
                                                 if (record.receiverName) details += `${record.receiverName}`;
@@ -2108,6 +2117,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                 icon={step.icon}
                                                 isLast={idx === chronologicalSteps.length - 1}
                                                 colorClass={step.colorClass}
+                                                forceActive={step.forceActive}
                                                 subText={step.subText}
                                             />
                                         );

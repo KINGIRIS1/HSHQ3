@@ -376,7 +376,7 @@ const ReportSection: React.FC<ReportSectionProps> = ({
     }, [filteredData]);
 
     const listFilteredRecords = useMemo(() => {
-        return filteredData.filter(r => {
+        const filtered = filteredData.filter(r => {
             if (listFilterType === 'all') return true;
             if (listFilterType === 'completed') {
                 return r.status === RecordStatus.HANDOVER || 
@@ -412,6 +412,18 @@ const ReportSection: React.FC<ReportSectionProps> = ({
                 return c > d;
             }
             return true;
+        });
+
+        // Sắp xếp theo Chủ sử dụng (customerName) tăng dần, sau đó theo Loại thủ tục (recordType) tăng dần
+        return filtered.sort((a, b) => {
+            const nameA = (a.customerName || '').trim().toLowerCase();
+            const nameB = (b.customerName || '').trim().toLowerCase();
+            const compName = nameA.localeCompare(nameB, 'vi');
+            if (compName !== 0) return compName;
+
+            const typeA = (a.recordType || '').trim().toLowerCase();
+            const typeB = (b.recordType || '').trim().toLowerCase();
+            return typeA.localeCompare(typeB, 'vi');
         });
     }, [filteredData, listFilterType]);
 
