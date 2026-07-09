@@ -33,7 +33,7 @@ export const useRecordFilter = (
     const [filterToDate, setFilterToDate] = useState('');
     const [showAdvancedDateFilter, setShowAdvancedDateFilter] = useState(false);
     
-    const [filterWard, setFilterWard] = useState('all');
+    const [filterProcedure, setFilterProcedure] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterEmployee, setFilterEmployee] = useState('all');
     const [warningFilter, setWarningFilter] = useState<'none' | 'overdue' | 'approaching'>('none');
@@ -41,7 +41,7 @@ export const useRecordFilter = (
     // Tự động xóa dữ liệu tìm kiếm và các bộ lọc khi chuyển view/tab (theo yêu cầu)
     useEffect(() => {
         setSearchStates({});
-        setFilterWard('all');
+        setFilterProcedure('all');
         setFilterStatus('all');
         setFilterEmployee('all');
         setFilterDate('');
@@ -66,7 +66,7 @@ export const useRecordFilter = (
     // Reset pagination when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [currentView, sortConfig, warningFilter, filterWard, filterStatus, filterEmployee, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, handoverTab, searchTerm]);
+    }, [currentView, sortConfig, warningFilter, filterProcedure, filterStatus, filterEmployee, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, handoverTab, searchTerm]);
 
     // --- WARNING CHECK LOGIC ---
     const checkWarningPermission = (r: RecordFile) => {
@@ -244,10 +244,10 @@ export const useRecordFilter = (
                 );
             }
         } else if (isAssignView) {
-            result = result.filter(r => r.status === RecordStatus.RECEIVED && !r.assignedTo);
+            result = result.filter(r => r.status === RecordStatus.RECEIVED);
         } else if ([
             'registration_phieu_chuyen_thue',
-            'registration_dnlis',
+            'registration_trinh_ky_thue',
             'registration_tbt',
             'registration_in_gcn',
             'registration_tham_tra'
@@ -269,8 +269,15 @@ export const useRecordFilter = (
 
             if (currentView === 'registration_phieu_chuyen_thue') {
                 result = result.filter(r => getActiveStepLabel(r).includes('phiếu chuyển'));
-            } else if (currentView === 'registration_dnlis') {
-                result = result.filter(r => getActiveStepLabel(r).includes('dnlis'));
+            } else if (currentView === 'registration_trinh_ky_thue') {
+                result = result.filter(r => {
+                    const label = getActiveStepLabel(r);
+                    if (!label.includes('trình ký thuế')) return false;
+                    if (isDirector) {
+                        return r.status === RecordStatus.PENDING_SIGN && r.submittedTo === currentUser?.employeeId;
+                    }
+                    return r.status === RecordStatus.PENDING_SIGN;
+                });
             } else if (currentView === 'registration_tbt') {
                 result = result.filter(r => r.status === RecordStatus.TBT || getActiveStepLabel(r) === 'tbt');
             } else if (currentView === 'registration_in_gcn') {
@@ -300,7 +307,7 @@ export const useRecordFilter = (
             'registration_records', 'registration_assign_tasks', 'registration_completed_list', 
             'registration_pending_check_list', 'registration_check_list', 'registration_handover_list', 
             'registration_director_completed', 'registration_vao_so',
-            'registration_phieu_chuyen_thue', 'registration_dnlis',
+            'registration_phieu_chuyen_thue', 'registration_trinh_ky_thue',
             'registration_tbt', 'registration_in_gcn', 'registration_tham_tra'
         ].includes(currentView);
 
@@ -362,20 +369,16 @@ export const useRecordFilter = (
             });
         }
 
-        // Ward, Status, Employee Filters
-        if (filterWard !== 'all') {
-            const wardSearch = removeVietnameseTones(filterWard);
-            result = result.filter(r => {
-                const targetWard = (currentView === 'handover_list' || currentView === 'other_handover_list') ? (r.handoverWard || r.ward) : r.ward;
-                return removeVietnameseTones(targetWard || '').includes(wardSearch);
-            });
+        // Procedure, Status, Employee Filters
+        if (filterProcedure !== 'all') {
+            result = result.filter(r => r.recordType === filterProcedure);
         }
         if (filterStatus !== 'all' && currentView !== 'handover_list' && currentView !== 'other_handover_list') {
             const isRegView = [
                 'registration_records', 'registration_assign_tasks', 'registration_completed_list', 
                 'registration_pending_check_list', 'registration_check_list', 'registration_handover_list', 
                 'registration_director_completed', 'registration_vao_so',
-                'registration_phieu_chuyen_thue', 'registration_dnlis',
+                'registration_phieu_chuyen_thue', 'registration_trinh_ky_thue',
                 'registration_tbt', 'registration_in_gcn', 'registration_tham_tra'
             ].includes(currentView);
 
@@ -483,7 +486,7 @@ export const useRecordFilter = (
         });
 
         return result;
-    }, [activeTabRecords, searchTerm, filterWard, filterStatus, filterEmployee, filterDate, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, showAdvancedDateFilter, warningFilter, currentView, sortConfig, handoverTab, currentUser]);
+    }, [activeTabRecords, searchTerm, filterProcedure, filterStatus, filterEmployee, filterDate, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, showAdvancedDateFilter, warningFilter, currentView, sortConfig, handoverTab, currentUser]);
 
     const paginatedRecords = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
@@ -507,6 +510,16 @@ export const useRecordFilter = (
         return { overdue, approaching };
     }, [activeTabRecords, currentUser, employees]);
 
+    const uniqueProcedures = useMemo(() => {
+        const types = new Set<string>();
+        activeTabRecords.forEach(r => {
+            if (r.recordType) {
+                types.add(r.recordType);
+            }
+        });
+        return Array.from(types).sort();
+    }, [activeTabRecords]);
+
     return {
         filteredRecords, paginatedRecords, totalPages, warningCount,
         searchTerm, setSearchTerm,
@@ -516,7 +529,8 @@ export const useRecordFilter = (
         filterFromDate, setFilterFromDate,
         filterToDate, setFilterToDate,
         showAdvancedDateFilter, setShowAdvancedDateFilter,
-        filterWard, setFilterWard,
+        filterProcedure, setFilterProcedure,
+        uniqueProcedures,
         filterStatus, setFilterStatus,
         filterEmployee, setFilterEmployee,
         warningFilter, setWarningFilter,

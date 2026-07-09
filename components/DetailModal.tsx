@@ -6,8 +6,8 @@ import StatusBadge from './StatusBadge';
 import { X, MapPin, FileText, User as UserIcon, Receipt, DollarSign, CheckCircle2, Circle, Send, FileSignature, CheckSquare, CalendarClock, Clock, FileCheck, Calculator, Loader2, StickyNote, Save, Bell, Printer, Pencil, Trash2, Info, FileDown, AlertTriangle, Activity, ArrowRight, RotateCcw, Lock, Gavel } from 'lucide-react';
 import { generateDocxBlobAsync, hasTemplate, STORAGE_KEYS } from '../services/docxService';
 import DocxPreviewModal from './DocxPreviewModal';
-import { updateRecordApi, fetchContracts } from '../services/api';
-import { calculateDeadline, isDefaultTaxProcedure, isRegType, getGcnWorkflowStepsHelper, isArchiveType, isMeasurementType, groupEmployeesByDepartment, isStepHiddenForWorkflow } from '../utils/appHelpers';
+import { updateRecordApi as rawUpdateRecordApi, fetchContracts } from '../services/api';
+import { calculateDeadline, isDefaultTaxProcedure, isRegType, getGcnWorkflowStepsHelper, isArchiveType, isMeasurementType, groupEmployeesByDepartment, isStepHiddenForWorkflow, recordStepAssigneeHistory } from '../utils/appHelpers';
 import { getEmployeeTeam } from './AssignModal';
 import SystemReceiptTemplate from './receive-record/SystemReceiptTemplate';
 import SystemAnnexTemplate from './receive-record/SystemAnnexTemplate';
@@ -31,6 +31,11 @@ interface DetailModalProps {
 
 export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, record: initialRecord, employees, users, currentUser, holidays, onEdit, onDelete, onCreateLiquidation, onDraftMinutes, onRefreshData }) => {
   const [localRecord, setLocalRecord] = useState<RecordFile | null>(null);
+
+  const updateRecordApi = async (r: RecordFile) => {
+    const withHistory = recordStepAssigneeHistory(r, holidays || []);
+    return rawUpdateRecordApi(withHistory);
+  };
   const [isDefectDialogOpen, setIsDefectDialogOpen] = useState(false);
   const [defectReasonInput, setDefectReasonInput] = useState('');
   const [isSavingDefect, setIsSavingDefect] = useState(false);
@@ -88,15 +93,29 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
   const getStepAssigneeName = (stepLabel: string, stepStatus?: 'completed' | 'current' | 'upcoming') => {
       if (!record) return "";
       if (stepStatus === 'upcoming') return "";
-      const label = stepLabel.toLowerCase();
+      const label = stepLabel.toLowerCase().trim();
       
-      const assignedEmp = record.assignedTo ? employees.find(e => e.id === record.assignedTo) : null;
+      const savedAssigneeId = record.stepAssignees?.[label];
+      
+      let assignedEmp = record.assignedTo ? employees.find(e => e.id === record.assignedTo) : null;
+      let checkerEmp = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
+      let submittedToId = record.submittedTo;
+
+      if (savedAssigneeId) {
+          if (label.includes("thẩm tra")) {
+              const matched = employees.find(e => e.id === savedAssigneeId) || users.find(u => u.employeeId === savedAssigneeId);
+              if (matched) checkerEmp = matched as any;
+          } else if (label.includes("trình ký") || label.includes("ký duyệt")) {
+              submittedToId = savedAssigneeId;
+          } else {
+              const matched = employees.find(e => e.id === savedAssigneeId) || users.find(u => u.employeeId === savedAssigneeId);
+              if (matched) assignedEmp = matched as any;
+          }
+      }
+
       const assignedName = assignedEmp ? assignedEmp.name : "";
-      
-      const checkerEmp = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
       const checkerName = checkerEmp ? checkerEmp.name : "";
       
-      const submittedToId = record.submittedTo;
       const directorUser = submittedToId ? (users.find(u => u.employeeId === submittedToId) || employees.find(e => e.id === submittedToId)) : null;
       const directorName = directorUser ? directorUser.name : "";
 

@@ -827,15 +827,29 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
               const getStepAssigneeName = (stepLabel: string, stepStatus?: 'completed' | 'current' | 'upcoming') => {
                   if (!record) return "";
                   if (stepStatus === 'upcoming') return "";
-                  const label = stepLabel.toLowerCase();
+                  const label = stepLabel.toLowerCase().trim();
                   
-                  const assignedEmp = record.assignedTo ? employees.find(e => e.id === record.assignedTo) : null;
+                  const savedAssigneeId = record.stepAssignees?.[label];
+                  
+                  let assignedEmp = record.assignedTo ? employees.find(e => e.id === record.assignedTo) : null;
+                  let checkerEmp = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
+                  let submittedToId = record.submittedTo;
+
+                  if (savedAssigneeId) {
+                      if (label.includes("thẩm tra")) {
+                          const matched = employees.find(e => e.id === savedAssigneeId) || users.find(u => u.employeeId === savedAssigneeId);
+                          if (matched) checkerEmp = matched as any;
+                      } else if (label.includes("trình ký") || label.includes("ký duyệt")) {
+                          submittedToId = savedAssigneeId;
+                      } else {
+                          const matched = employees.find(e => e.id === savedAssigneeId) || users.find(u => u.employeeId === savedAssigneeId);
+                          if (matched) assignedEmp = matched as any;
+                      }
+                  }
+
                   const assignedName = assignedEmp ? assignedEmp.name : "";
-                  
-                  const checkerEmp = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
                   const checkerName = checkerEmp ? checkerEmp.name : "";
                   
-                  const submittedToId = record.submittedTo;
                   const directorUser = submittedToId ? (users.find(u => u.employeeId === submittedToId) || employees.find(e => e.id === submittedToId)) : null;
                   const directorName = directorUser ? directorUser.name : "";
 

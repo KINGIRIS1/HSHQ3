@@ -149,8 +149,46 @@ export function sanitizeFileName(fileName: string): string {
     return str;
 }
 
+export const parsePrivateNotesAndAssignees = (privateNotesStr: string | null | undefined): {
+    notes: string;
+    stepAssignees: Record<string, string>;
+} => {
+    if (!privateNotesStr) {
+        return { notes: '', stepAssignees: {} };
+    }
+    const marker = "\n\n===STEP_ASSIGNEES===:\n";
+    const idx = privateNotesStr.indexOf(marker);
+    if (idx !== -1) {
+        const notes = privateNotesStr.substring(0, idx);
+        const jsonStr = privateNotesStr.substring(idx + marker.length);
+        try {
+            const stepAssignees = JSON.parse(jsonStr);
+            return { notes, stepAssignees: stepAssignees || {} };
+        } catch (e) {
+            console.error("Lỗi parse stepAssignees:", e);
+            return { notes: privateNotesStr, stepAssignees: {} };
+        }
+    }
+    return { notes: privateNotesStr, stepAssignees: {} };
+};
+
+export const serializePrivateNotesAndAssignees = (notes: string | null | undefined, stepAssignees: Record<string, string> | null | undefined): string => {
+    const cleanNotes = (notes || '').trim();
+    if (!stepAssignees || Object.keys(stepAssignees).length === 0) {
+        return cleanNotes;
+    }
+    const marker = "\n\n===STEP_ASSIGNEES===:\n";
+    return `${cleanNotes}${marker}${JSON.stringify(stepAssignees)}`;
+};
+
 export const sanitizeData = (data: any, allowedColumns: string[]) => {
     const clean: any = { ...data };
+    
+    // Tự động đóng gói stepAssignees vào privateNotes trước khi lưu
+    if (clean.stepAssignees !== undefined) {
+        clean.privateNotes = serializePrivateNotesAndAssignees(clean.privateNotes, clean.stepAssignees);
+    }
+
     const numberFields = [
         'area', 'exportBatch', 'unitPrice', 'vatRate', 'vatAmount', 'totalAmount', 
         'deposit', 'quantity', 'excerptNumber', 'plotCount', 'markerCount', 
@@ -273,6 +311,12 @@ export const mapRecordFromDb = (item: any): any => {
     if (r.lastRemindedAt === undefined && (r.lastremindedat !== undefined || r.last_reminded_at !== undefined)) r.lastRemindedAt = r.lastremindedat || r.last_reminded_at;
     
     if (r.privateNotes === undefined && (r.privatenotes !== undefined || r.private_notes !== undefined)) r.privateNotes = r.privatenotes || r.private_notes;
+    
+    // Tách stepAssignees từ privateNotes
+    const parsedNotesObj = parsePrivateNotesAndAssignees(r.privateNotes);
+    r.privateNotes = parsedNotesObj.notes || null;
+    r.stepAssignees = parsedNotesObj.stepAssignees || {};
+
     if (r.personalNotes === undefined && (r.personalnotes !== undefined || r.personal_notes !== undefined)) r.personalNotes = r.personalnotes || r.personal_notes;
     
     if (r.isDeptSynced === true) {

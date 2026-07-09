@@ -276,6 +276,33 @@ export function isStepHiddenForWorkflow(stepLabel: string, workflowType: string)
     return false;
 }
 
+export function recordStepAssigneeHistory(record: RecordFile, holidays: Holiday[] = []): RecordFile {
+    if (!record || !isRegType(record.recordType)) return record;
+    
+    const stepAssignees = { ...(record.stepAssignees || {}) };
+    const workflow = getGcnWorkflowStepsHelper(record, holidays);
+    
+    const currentIdx = record.currentStepIndex ?? 0;
+    const currentStep = workflow.steps[currentIdx];
+    
+    if (currentStep) {
+        const key = currentStep.label.toLowerCase().trim();
+        
+        if (key.includes("thẩm tra") && record.checkedBy) {
+            stepAssignees[key] = record.checkedBy;
+        } else if ((key.includes("trình ký") || key.includes("ký duyệt")) && record.submittedTo) {
+            stepAssignees[key] = record.submittedTo;
+        } else if (record.assignedTo) {
+            stepAssignees[key] = record.assignedTo;
+        }
+    }
+    
+    return {
+        ...record,
+        stepAssignees
+    };
+}
+
 export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[] = []): {
     type: string;
     title: string;

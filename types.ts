@@ -209,6 +209,9 @@ export interface RecordFile {
   price?: number | null;
   advancePayment?: number | null;
 
+  // Lịch sử người thực hiện từng bước của quy trình
+  stepAssignees?: Record<string, string> | null;
+
   // Diện tích đất chi tiết đóng vai trò phụ
   clnArea?: number | null;
   bhkArea?: number | null;

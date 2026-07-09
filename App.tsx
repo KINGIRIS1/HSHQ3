@@ -101,10 +101,6 @@ function App() {
   const [foilTargetRecord, setFoilTargetRecord] = useState<RecordFile | null>(null);
   const [foilNumber, setFoilNumber] = useState('');
 
-  const [taxPaymentDateModalOpen, setTaxPaymentDateModalOpen] = useState(false);
-  const [taxPaymentTargetRecord, setTaxPaymentTargetRecord] = useState<RecordFile | null>(null);
-  const [taxPaymentDateInput, setTaxPaymentDateInput] = useState('');
-
   // Helper to calculate the next sequence number for Vào sổ GCN (Sổ vô số cấp giấy)
   const calculateNextVaoSoNumber = async (): Promise<string> => {
       try {
@@ -219,6 +215,53 @@ function App() {
   useEffect(() => {
       setSelectedRecordIds(new Set());
   }, [currentView, recordFilterProps.handoverTab]);
+
+  // CHẾ ĐỘ TỰ ĐỘNG CHUYỂN CHUYÊN MÔN SAU 18:00 HẰNG NGÀY
+  useEffect(() => {
+      if (!currentUser || !records || records.length === 0) return;
+
+      const autoTransferAfter18 = async () => {
+          const today = new Date();
+          const currentHours = today.getHours();
+          
+          if (currentHours >= 18) {
+              const todayEnd = new Date();
+              todayEnd.setHours(23, 59, 59, 999);
+
+              const unsyncedTodayRecords = records.filter(r => {
+                  if (r.isDeptSynced === true) return false;
+                  if (!r.receivedDate) return false;
+                  const recDate = new Date(r.receivedDate);
+                  return recDate <= todayEnd;
+              });
+
+              if (unsyncedTodayRecords.length > 0) {
+                  console.log(`Auto-transfer active: It is after 18:00. Automatically syncing ${unsyncedTodayRecords.length} unsynced records...`);
+                  const updates = unsyncedTodayRecords.map(r => ({
+                      ...r,
+                      isDeptSynced: true
+                  }));
+                  try {
+                      await updateRecordsBatchById(updates);
+                      setToast({ 
+                          type: 'success', 
+                          message: `Hệ thống tự động đồng bộ ${updates.length} hồ sơ tiếp nhận hôm nay về các phòng chuyên môn (Sau 18h00).` 
+                      });
+                      loadData();
+                  } catch (err) {
+                      console.error("Lỗi tự động chuyển hồ sơ sau 18h:", err);
+                  }
+              }
+          }
+      };
+
+      // Run initially on load
+      autoTransferAfter18();
+
+      // Check every 5 minutes
+      const interval = setInterval(autoTransferAfter18, 5 * 60 * 1000);
+      return () => clearInterval(interval);
+  }, [records, currentUser, loadData]);
 
   // Chat Listener
   useGlobalChatListener(currentUser, currentView, notificationEnabled, setUnreadMessages);
@@ -377,7 +420,7 @@ function App() {
       const updatedIds = assignTargetRecords.map(r => r.id);
       
       const getDynamicUpdates = (r: RecordFile) => {
-          if (isRegType(r.recordType) && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
+          if (isRegType(r.recordType) && r.taxPaymentDate && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
               const helper = getGcnWorkflowStepsHelper(r, holidays || []);
               const currentStep = helper.steps[r.currentStepIndex];
               const stepStatus = currentStep ? currentStep.overallStatus : RecordStatus.PENDING_CHECK;
@@ -395,7 +438,7 @@ function App() {
           const updates: any = {
               assignedTo: employeeId,
               status: RecordStatus.IN_PROGRESS,
-              currentStepIndex: 1,
+              currentStepIndex: 0,
               assignedDate: nowStr,
               submissionDate: null,
               approvalDate: null,
@@ -495,7 +538,7 @@ function App() {
           
           if (matchedEmp) {
               let updates: any;
-              if (isRegType(r.recordType) && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
+              if (isRegType(r.recordType) && r.taxPaymentDate && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
                   const helper = getGcnWorkflowStepsHelper(r, holidays || []);
                   const currentStep = helper.steps[r.currentStepIndex];
                   const stepStatus = currentStep ? currentStep.overallStatus : RecordStatus.PENDING_CHECK;
@@ -878,9 +921,8 @@ function App() {
 
       const nowStr = new Date().toISOString();
       if (isRegType(record.recordType)) {
-          const workflowData = getGcnWorkflowStepsHelper(record, holidays);
-          const stepConfigs = workflowData.steps;
-          let currentIdx = workflowData.currentStepIndex;
+          const stepConfigs = getGcnWorkflowSteps(record, holidays);
+          let currentIdx = record.currentStepIndex;
           if (currentIdx === undefined || currentIdx === null) {
               currentIdx = 0;
           }
@@ -888,10 +930,7 @@ function App() {
           const currentStep = stepConfigs[currentIdx];
           if (currentStep && (currentStep.label.toLowerCase() === 'tbt' || currentStep.label.includes('TBT'))) {
               if (!record.taxPaymentDate) {
-                  setTaxPaymentTargetRecord(record);
-                  const todayStr = new Date().toISOString().split('T')[0];
-                  setTaxPaymentDateInput(todayStr);
-                  setTaxPaymentDateModalOpen(true);
+                  setToast({ type: 'error', message: 'Hồ sơ đang chờ người dân nộp tiền thuế. Vui lòng xác nhận đóng thuế trong chi tiết hồ sơ.' });
                   return;
               }
           }
@@ -932,40 +971,32 @@ function App() {
                   return;
               }
 
-              const currentLabel = currentStep ? currentStep.label.toLowerCase() : '';
-              const isResetStep = currentLabel.includes("sổ mk") || currentLabel.includes("thế chấp") || currentLabel.includes("tbt");
-
               const updates: any = {
                   currentStepIndex: nextIdx,
-                  status: isResetStep ? RecordStatus.RECEIVED : nextStep.overallStatus
+                  status: nextStep.overallStatus
               };
 
-              if (isResetStep) {
-                  updates.assignedTo = null;
-                  updates.assignedDate = null;
-              } else {
-                  if (nextStep.overallStatus === RecordStatus.IN_PROGRESS && !record.assignedDate) {
-                      updates.assignedDate = nowStr;
-                  }
-                  if (nextStep.overallStatus === RecordStatus.COMPLETED_WORK && !record.completedWorkDate) {
-                      updates.completedWorkDate = nowStr;
-                  }
-                  if ((nextStep.overallStatus as any) === RecordStatus.PENDING_CHECK && !record.pendingCheckDate) {
-                      updates.pendingCheckDate = nowStr;
-                  }
-                  if (nextStep.overallStatus === RecordStatus.CHECKED) {
-                      updates.checkedDate = nowStr;
-                      updates.checkedBy = record.checkedBy || currentUser?.employeeId || null;
-                  }
-                  if ((nextStep.overallStatus as any) === RecordStatus.PENDING_SIGN && !record.submissionDate) {
-                      updates.submissionDate = nowStr;
-                  }
-                  if (nextStep.overallStatus === RecordStatus.SIGNED && !record.approvalDate) {
-                      updates.approvalDate = nowStr;
-                  }
-                  if (nextStep.overallStatus === RecordStatus.HANDOVER && !record.completedDate) {
-                      updates.completedDate = nowStr;
-                  }
+              if (nextStep.overallStatus === RecordStatus.IN_PROGRESS && !record.assignedDate) {
+                  updates.assignedDate = nowStr;
+              }
+              if (nextStep.overallStatus === RecordStatus.COMPLETED_WORK && !record.completedWorkDate) {
+                  updates.completedWorkDate = nowStr;
+              }
+              if ((nextStep.overallStatus as any) === RecordStatus.PENDING_CHECK && !record.pendingCheckDate) {
+                  updates.pendingCheckDate = nowStr;
+              }
+              if (nextStep.overallStatus === RecordStatus.CHECKED) {
+                  updates.checkedDate = nowStr;
+                  updates.checkedBy = record.checkedBy || currentUser?.employeeId || null;
+              }
+              if ((nextStep.overallStatus as any) === RecordStatus.PENDING_SIGN && !record.submissionDate) {
+                  updates.submissionDate = nowStr;
+              }
+              if (nextStep.overallStatus === RecordStatus.SIGNED && !record.approvalDate) {
+                  updates.approvalDate = nowStr;
+              }
+              if (nextStep.overallStatus === RecordStatus.HANDOVER && !record.completedDate) {
+                  updates.completedDate = nowStr;
               }
 
               setRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
@@ -1032,27 +1063,6 @@ function App() {
       }
   }, [records, currentUser, holidays]);
 
-  const handleConfirmTaxPaymentDate = useCallback(async () => {
-      if (!taxPaymentTargetRecord || !taxPaymentDateInput) return;
-      
-      const formattedDate = new Date(taxPaymentDateInput).toISOString();
-      const updatedRecord = { ...taxPaymentTargetRecord, taxPaymentDate: formattedDate };
-      
-      setRecords(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
-      
-      try {
-          await updateRecordApi(updatedRecord);
-          setToast({ type: 'success', message: 'Đã cập nhật ngày nộp nghĩa vụ tài chính thành công!' });
-          setTaxPaymentDateModalOpen(false);
-          setTaxPaymentTargetRecord(null);
-          
-          await advanceStatus(updatedRecord);
-      } catch (e) {
-          console.error("Lỗi khi cập nhật ngày nộp thuế:", e);
-          setToast({ type: 'error', message: 'Lỗi khi cập nhật ngày nộp nghĩa vụ tài chính.' });
-      }
-  }, [taxPaymentTargetRecord, taxPaymentDateInput, advanceStatus, records]);
-
   const executeBatchExport = useCallback(async (batch: number, date: string, handoverWard?: string, updatedRecords?: RecordFile[]) => {
       try {
           const targets = (updatedRecords && updatedRecords.length > 0) 
@@ -1110,7 +1120,7 @@ function App() {
           setToast({ type: 'error', message: 'Không có hồ sơ nào trong danh sách để xuất!' });
           return;
       }
-      exportReturnedListToExcel(targets, recordFilterProps.filterFromDate, recordFilterProps.filterToDate, recordFilterProps.filterWard);
+      exportReturnedListToExcel(targets, recordFilterProps.filterFromDate, recordFilterProps.filterToDate, recordFilterProps.filterProcedure);
   }, [recordFilterProps, setToast]);
 
   const handleConfirmSignBatch = useCallback(async () => {
@@ -1183,12 +1193,13 @@ function App() {
       return (
           <>
               {taxModalOpen && taxTargetRecord && (() => {
-                  const boardOfDirectorsNames = ['huỳnh duy', 'ngô thị hồng', 'nguyễn viết tính'];
                   const directors = users.filter((u: any) => {
                       const emp = u.employeeId ? employees.find(e => e.id === u.employeeId) : null;
                       if (!emp) return false;
-                      const nameLower = (emp.name || '').toLowerCase().trim();
-                      return boardOfDirectorsNames.some(name => nameLower.includes(name));
+                      const teamName = getEmployeeTeam(emp);
+                      const pos = (emp.position || '').toLowerCase();
+                      const isDirectorPos = pos.includes('giam doc') || pos.includes('giám đốc') || pos.includes('pho giam doc') || pos.includes('phó giám đốc') || pos.includes('lanh dao') || pos.includes('lãnh đạo');
+                      return teamName === 'Ban Giám đốc' || isDirectorPos;
                   });
 
                   const updateTaxCategoryAndTotal = (category: string, value: string) => {
@@ -1222,37 +1233,19 @@ function App() {
 
                                   <div>
                                       <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Chọn lãnh đạo trình ký (Ban Giám đốc) <span className="text-red-500">*</span></label>
-                                      <div className="space-y-3 mt-2">
-                                          {directors.map(dir => {
-                                              const emp = employees.find(e => e.id === dir.employeeId);
-                                              const isSelected = taxDirector === dir.employeeId;
-                                              return (
-                                                  <div
-                                                      key={dir.employeeId}
-                                                      onClick={() => setTaxDirector(dir.employeeId || '')}
-                                                      className={`flex items-center gap-4 p-3.5 border-2 rounded-xl cursor-pointer transition-all ${
-                                                          isSelected
-                                                              ? 'border-indigo-600 bg-indigo-50/20'
-                                                              : 'border-gray-200 bg-white hover:bg-gray-50'
-                                                      }`}
-                                                  >
-                                                      <div className="flex-shrink-0">
-                                                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                                              isSelected 
-                                                                  ? 'border-indigo-600 bg-white' 
-                                                                  : 'border-gray-300 bg-white'
-                                                          }`}>
-                                                              {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
-                                                          </div>
-                                                      </div>
-                                                      <div>
-                                                          <h4 className="font-bold text-gray-800 text-sm">{dir.name}</h4>
-                                                          <p className="text-xs text-gray-500 mt-0.5">{emp?.position || 'Lãnh đạo Ban Giám đốc'}</p>
-                                                      </div>
-                                                  </div>
-                                              );
-                                          })}
-                                      </div>
+                                      <select
+                                          value={taxDirector}
+                                          onChange={e => setTaxDirector(e.target.value)}
+                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                          required
+                                      >
+                                          <option value="">-- Chọn lãnh đạo trình ký --</option>
+                                          {directors.map(dir => (
+                                              <option key={dir.employeeId} value={dir.employeeId}>
+                                                  {dir.name} - {employees.find(e => e.id === dir.employeeId)?.position || 'Lãnh đạo Ban Giám đốc'}
+                                              </option>
+                                          ))}
+                                      </select>
                                       {directors.length === 0 && (
                                           <p className="text-[11px] text-red-500 mt-1">
                                               Không tìm thấy người ký thuộc Ban Giám đốc nào trong hệ thống!
@@ -1276,9 +1269,8 @@ function App() {
                                               }
 
                                               const nowStr = new Date().toISOString();
-                                              const workflowData = getGcnWorkflowStepsHelper(taxTargetRecord, holidays);
-                                              const stepConfigs = workflowData.steps;
-                                              let currentStepIndex = workflowData.currentStepIndex;
+                                              const stepConfigs = getGcnWorkflowSteps(taxTargetRecord, holidays);
+                                              let currentStepIndex = taxTargetRecord.currentStepIndex;
                                               if (currentStepIndex === undefined || currentStepIndex === null) {
                                                   const foundIdx = stepConfigs.findIndex(s => s.label.includes("Phiếu chuyển Thuế") || s.label.includes("Lập phiếu chuyển thuế") || s.label.toLowerCase().includes("trình ký thuế"));
                                                   currentStepIndex = foundIdx !== -1 ? foundIdx : 0;
@@ -1352,9 +1344,8 @@ function App() {
                                       onClick={async () => {
                                           if (!foilTargetRecord) return;
                                           const nowStr = new Date().toISOString();
-                                          const workflowData = getGcnWorkflowStepsHelper(foilTargetRecord, holidays);
-                                          const stepConfigs = workflowData.steps;
-                                          let currentStepIndex = workflowData.currentStepIndex;
+                                          const stepConfigs = getGcnWorkflowSteps(foilTargetRecord, holidays);
+                                          let currentStepIndex = foilTargetRecord.currentStepIndex;
                                           if (currentStepIndex === undefined || currentStepIndex === null) {
                                               const foundIdx = stepConfigs.findIndex(s => s.label.includes("In GCN") || s.label.includes("In Giấy chứng nhận"));
                                               currentStepIndex = foundIdx !== -1 ? foundIdx : 0;
@@ -1378,47 +1369,6 @@ function App() {
                                       className="px-4 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors"
                                   >
                                       Xác nhận
-                                  </button>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              )}
-
-              {taxPaymentDateModalOpen && taxPaymentTargetRecord && (
-                  <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
-                      <div className="bg-white rounded-xl shadow-2xl border border-emerald-100 w-full max-w-md overflow-hidden animate-fade-in-up text-left">
-                          <div className="bg-emerald-600 px-5 py-3 text-white font-bold text-sm flex items-center justify-between">
-                               <span>XÁC NHẬN NỘP NGHĨA VỤ TÀI CHÍNH</span>
-                               <button onClick={() => { setTaxPaymentDateModalOpen(false); setTaxPaymentTargetRecord(null); }} className="text-white/80 hover:text-white font-bold">✕</button>
-                          </div>
-                          <div className="p-5 space-y-4">
-                              <p className="text-xs text-gray-600 leading-relaxed">
-                                  Hồ sơ <strong>{taxPaymentTargetRecord.code}</strong> đang ở bước <strong>Thông báo thuế</strong>. Vui lòng nhập ngày người dân nộp tiền thuế (Nghĩa vụ tài chính) để tiếp tục chuyển bước:
-                              </p>
-                              <div>
-                                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ngày nộp nghĩa vụ tài chính <span className="text-red-500">*</span></label>
-                                  <input 
-                                      type="date" 
-                                      value={taxPaymentDateInput} 
-                                      onChange={e => setTaxPaymentDateInput(e.target.value)} 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white font-medium"
-                                      required
-                                  />
-                              </div>
-                              <div className="flex justify-end gap-2 pt-2">
-                                  <button
-                                      onClick={() => { setTaxPaymentDateModalOpen(false); setTaxPaymentTargetRecord(null); }}
-                                      className="px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                                  >
-                                      Hủy bỏ
-                                  </button>
-                                  <button
-                                      onClick={handleConfirmTaxPaymentDate}
-                                      disabled={!taxPaymentDateInput}
-                                      className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-1"
-                                  >
-                                      Xác nhận & Chuyển bước
                                   </button>
                               </div>
                           </div>
@@ -1710,8 +1660,7 @@ function App() {
                         
                         let extraUpdates: any = {};
                         if (isRegType(r.recordType)) {
-                            const workflowData = getGcnWorkflowStepsHelper(r, holidays);
-                            let currentStepIndex = workflowData.currentStepIndex;
+                            let currentStepIndex = r.currentStepIndex;
                             if (currentStepIndex === undefined || currentStepIndex === null) {
                                 currentStepIndex = 0;
                             }
@@ -1770,8 +1719,7 @@ function App() {
                     const updates = submitTargetRecords.map(r => {
                         let extraUpdates: any = {};
                         if (isRegType(r.recordType)) {
-                            const workflowData = getGcnWorkflowStepsHelper(r, holidays);
-                            let currentStepIndex = workflowData.currentStepIndex;
+                            let currentStepIndex = r.currentStepIndex;
                             if (currentStepIndex === undefined || currentStepIndex === null) {
                                 currentStepIndex = 0;
                             }

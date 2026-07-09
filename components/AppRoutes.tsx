@@ -15,6 +15,7 @@ export const REGISTRATION_WORKFLOW_STATUS_OPTIONS = [
   { value: "all", label: "Mọi trạng thái" },
   { value: "dnlis", label: "DNLIS" },
   { value: "phieu_chuyen_thue", label: "Phiếu chuyển Thuế" },
+  { value: "trinh_ky_thue", label: "Trình ký Thuế" },
   { value: "tbt", label: "Thông báo thuế (TBT)" },
   { value: "in_gcn", label: "In GCN" },
   { value: "tham_tra", label: "Thẩm tra" },
@@ -84,7 +85,6 @@ import {
   Globe,
   BookOpen,
   Receipt,
-  Activity,
 } from "lucide-react";
 
 interface AppRoutesProps {
@@ -169,8 +169,9 @@ interface AppRoutesProps {
   showAdvancedDateFilter: boolean;
   setShowAdvancedDateFilter: (b: boolean) => void;
 
-  filterWard: string;
-  setFilterWard: (s: string) => void;
+  filterProcedure: string;
+  setFilterProcedure: (s: string) => void;
+  uniqueProcedures?: string[];
   filterStatus: string;
   setFilterStatus: (s: string) => void;
   filterEmployee: string;
@@ -366,7 +367,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
       "registration_director_completed",
       "registration_vao_so",
       "registration_phieu_chuyen_thue",
-      "registration_dnlis",
+      "registration_trinh_ky_thue",
       "registration_tbt",
       "registration_in_gcn",
       "registration_tham_tra",
@@ -438,7 +439,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
       "archive_completed_list",
       "congvan_completed_list",
       "registration_phieu_chuyen_thue",
-      "registration_dnlis",
+      "registration_trinh_ky_thue",
       "registration_tbt"
     ].includes(currentView);
 
@@ -471,7 +472,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
       if (currentView === "registration_records") title = "Tất cả hồ sơ cấp giấy";
       else if (currentView === "registration_assign_tasks") title = "Hồ sơ chưa giao";
       else if (currentView === "registration_phieu_chuyen_thue") title = "Danh sách Phiếu chuyển Thuế";
-      else if (currentView === "registration_dnlis") title = "Danh sách DNLIS";
+      else if (currentView === "registration_trinh_ky_thue") title = "Danh sách Trình ký Thuế";
       else if (currentView === "registration_tbt") title = "Danh sách Thông báo thuế (TBT)";
       else if (currentView === "registration_in_gcn") title = "Danh sách In GCN";
       else if (currentView === "registration_tham_tra") title = "Danh sách Thẩm tra";
@@ -612,17 +613,17 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             )}
 
             <button
-              onClick={() => props.setCurrentView("registration_dnlis")}
-              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_dnlis" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-            >
-              <Activity size={16} /> DNLIS
-            </button>
-
-            <button
               onClick={() => props.setCurrentView("registration_phieu_chuyen_thue")}
               className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_phieu_chuyen_thue" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >
               <FileText size={16} /> Phiếu chuyển Thuế
+            </button>
+
+            <button
+              onClick={() => props.setCurrentView("registration_trinh_ky_thue")}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_trinh_ky_thue" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+            >
+              <FileSignature size={16} /> Trình ký Thuế
             </button>
 
             <button
@@ -1038,16 +1039,16 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
               )}
 
             <div className="flex items-center gap-2 bg-white px-2 py-1.5 border border-gray-200 rounded-md shadow-sm">
-              <MapPin size={16} className="text-gray-500" />
+              <FileText size={16} className="text-gray-500" />
               <select
-                value={props.filterWard}
-                onChange={(e) => props.setFilterWard(e.target.value)}
-                className="text-sm outline-none bg-transparent text-gray-700 font-medium cursor-pointer border-none focus:ring-0 max-w-[120px]"
+                value={props.filterProcedure}
+                onChange={(e) => props.setFilterProcedure(e.target.value)}
+                className="text-sm outline-none bg-transparent text-gray-700 font-medium cursor-pointer border-none focus:ring-0 max-w-[150px]"
               >
-                <option value="all">Tất cả Xã</option>
-                {wards.map((w) => (
-                  <option key={w} value={w}>
-                    {w}
+                <option value="all">Tất cả Thủ tục</option>
+                {props.uniqueProcedures?.map((proc) => (
+                  <option key={proc} value={proc}>
+                    {proc}
                   </option>
                 ))}
               </select>
