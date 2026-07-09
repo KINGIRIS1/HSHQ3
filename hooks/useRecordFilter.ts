@@ -247,7 +247,7 @@ export const useRecordFilter = (
             result = result.filter(r => r.status === RecordStatus.RECEIVED && !r.assignedTo);
         } else if ([
             'registration_phieu_chuyen_thue',
-            'registration_trinh_ky_thue',
+            'registration_dnlis',
             'registration_tbt',
             'registration_in_gcn',
             'registration_tham_tra'
@@ -269,15 +269,8 @@ export const useRecordFilter = (
 
             if (currentView === 'registration_phieu_chuyen_thue') {
                 result = result.filter(r => getActiveStepLabel(r).includes('phiếu chuyển'));
-            } else if (currentView === 'registration_trinh_ky_thue') {
-                result = result.filter(r => {
-                    const label = getActiveStepLabel(r);
-                    if (!label.includes('trình ký thuế')) return false;
-                    if (isDirector) {
-                        return r.status === RecordStatus.PENDING_SIGN && r.submittedTo === currentUser?.employeeId;
-                    }
-                    return r.status === RecordStatus.PENDING_SIGN;
-                });
+            } else if (currentView === 'registration_dnlis') {
+                result = result.filter(r => getActiveStepLabel(r).includes('dnlis'));
             } else if (currentView === 'registration_tbt') {
                 result = result.filter(r => r.status === RecordStatus.TBT || getActiveStepLabel(r) === 'tbt');
             } else if (currentView === 'registration_in_gcn') {
@@ -307,7 +300,7 @@ export const useRecordFilter = (
             'registration_records', 'registration_assign_tasks', 'registration_completed_list', 
             'registration_pending_check_list', 'registration_check_list', 'registration_handover_list', 
             'registration_director_completed', 'registration_vao_so',
-            'registration_phieu_chuyen_thue', 'registration_trinh_ky_thue',
+            'registration_phieu_chuyen_thue', 'registration_dnlis',
             'registration_tbt', 'registration_in_gcn', 'registration_tham_tra'
         ].includes(currentView);
 
@@ -382,7 +375,7 @@ export const useRecordFilter = (
                 'registration_records', 'registration_assign_tasks', 'registration_completed_list', 
                 'registration_pending_check_list', 'registration_check_list', 'registration_handover_list', 
                 'registration_director_completed', 'registration_vao_so',
-                'registration_phieu_chuyen_thue', 'registration_trinh_ky_thue',
+                'registration_phieu_chuyen_thue', 'registration_dnlis',
                 'registration_tbt', 'registration_in_gcn', 'registration_tham_tra'
             ].includes(currentView);
 

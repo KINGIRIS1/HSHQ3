@@ -240,18 +240,24 @@ export interface GcnStepConfig {
     isOverdue?: boolean;
     isUrgent?: boolean;
     status?: 'completed' | 'current' | 'upcoming';
+    isHidden?: boolean;
 }
 
 export function isStepHiddenForWorkflow(stepLabel: string, workflowType: string): boolean {
     const label = stepLabel.toLowerCase();
     
+    // Hide "Chưa giao" / "Chờ giao" / "Chờ phân công" step for all workflows:
+    if (label.includes("chưa giao") || label.includes("chờ giao") || label.includes("chờ phân công")) {
+        return true;
+    }
+
     // Hide "Thẩm tra" step entirely for "cấp giấy" workflows as per user's request:
     // "bỏ phần này trong trình kiểm tra ở cả đo dạc và cấp giấy"
     if (label.includes("thẩm tra")) {
         return true;
     }
     
-    // For the new Cấp lại workflows, we do NOT hide any steps!
+    // For the new Cấp lại workflows, we do NOT hide any other steps!
     if (['quy_trinh_4', 'quy_trinh_5', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
         return false;
     }
@@ -259,7 +265,7 @@ export function isStepHiddenForWorkflow(stepLabel: string, workflowType: string)
     const isTaxWorkflow = ['quy_trinh_1', 'quy_trinh_2', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType);
 
     if (label.includes("dnlis")) {
-        return workflowType !== 'quy_trinh_1';
+        return !['quy_trinh_1', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType);
     }
     if (label.includes("phiếu chuyển")) {
         return !isTaxWorkflow;
@@ -311,7 +317,6 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
             { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "DNLIS", duration: "8 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Phiếu chuyển Thuế", duration: "16 giờ", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Trình ký Thuế", duration: "0 giờ", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "TBT", duration: "0 giờ", overallStatus: RecordStatus.TBT },
             { label: "In GCN", duration: "5 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
@@ -323,9 +328,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
         title = 'Quy trình 2: Phiếu Chuyển Thuế';
         stepConfigs = [
             { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
-            { label: "DNLIS", duration: "0 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Phiếu chuyển Thuế", duration: "24 giờ", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Trình ký Thuế", duration: "0 giờ", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "TBT", duration: "0 giờ", overallStatus: RecordStatus.TBT },
             { label: "In GCN", duration: "5 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
@@ -380,6 +383,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
             { label: "KT Thế Chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Lập BB; CV gửi xã", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Niêm Yết(15+5)", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "DNLIS", duration: "0 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Phiếu chuyển Thuế", duration: "2 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "TBT", duration: "---", overallStatus: RecordStatus.TBT },
             { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
@@ -396,6 +400,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
             { label: "KT Thế Chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Lập BB; CV gửi xã", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Niêm Yết(15+5)", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "DNLIS", duration: "0 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Phiếu chuyển Thuế", duration: "2 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "TBT", duration: "---", overallStatus: RecordStatus.TBT },
             { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
@@ -484,23 +489,23 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     if (totalWeightSum > 0) {
         stepConfigs = stepsWithWeights.map(s => {
             if (s.isFixedCal) {
-                return { label: s.label, duration: s.duration, overallStatus: s.overallStatus };
+                return { label: s.label, duration: s.duration, overallStatus: s.overallStatus, isHidden: s.isHidden };
             }
             if (s.isHidden) {
-                return { label: s.label, duration: "0 giờ", overallStatus: s.overallStatus };
+                return { label: s.label, duration: "0 giờ", overallStatus: s.overallStatus, isHidden: true };
             }
             const lLower = s.label.toLowerCase();
             if (lLower.includes("tiếp nhận")) {
-                return { label: s.label, duration: "4 giờ", overallStatus: s.overallStatus };
+                return { label: s.label, duration: "4 giờ", overallStatus: s.overallStatus, isHidden: s.isHidden };
             }
             if (lLower.includes("giao 1 cửa") || lLower.includes("giao một cửa") || lLower.includes("trả kết quả")) {
-                return { label: s.label, duration: "4 giờ", overallStatus: s.overallStatus };
+                return { label: s.label, duration: "4 giờ", overallStatus: s.overallStatus, isHidden: s.isHidden };
             }
             if (s.weight === 0) {
-                return { label: s.label, duration: "0 giờ", overallStatus: s.overallStatus };
+                return { label: s.label, duration: "0 giờ", overallStatus: s.overallStatus, isHidden: s.isHidden };
             }
             const stepHours = Math.max(1, Math.round((s.weight / totalWeightSum) * daysToDistribute * 8));
-            return { label: s.label, duration: `${stepHours} giờ`, overallStatus: s.overallStatus };
+            return { label: s.label, duration: `${stepHours} giờ`, overallStatus: s.overallStatus, isHidden: s.isHidden };
         });
 
         // Apply half-day correction if procedure has .5 fraction
@@ -587,8 +592,8 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
                 if (compIdx !== -1) {
                     currentStepIndex = compIdx;
                 } else {
-                    const trinhKyIdx = stepConfigs.findIndex(s => s.label.includes("Trình ký Thuế"));
-                    currentStepIndex = trinhKyIdx !== -1 ? trinhKyIdx : 0;
+                    const phieuChuyenIdx = stepConfigs.findIndex(s => s.label.includes("Phiếu chuyển Thuế"));
+                    currentStepIndex = phieuChuyenIdx !== -1 ? phieuChuyenIdx : 0;
                 }
             }
 

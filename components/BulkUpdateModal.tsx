@@ -28,7 +28,7 @@ const BulkUpdateModal: React.FC<BulkUpdateModalProps> = ({
     'registration_records', 'registration_assign_tasks', 'registration_completed_list', 
     'registration_pending_check_list', 'registration_check_list', 'registration_handover_list', 
     'registration_director_completed', 'registration_vao_so',
-    'registration_phieu_chuyen_thue', 'registration_trinh_ky_thue',
+    'registration_phieu_chuyen_thue', 'registration_dnlis',
     'registration_tbt', 'registration_in_gcn', 'registration_tham_tra'
   ].includes(currentView || '');
 
@@ -153,7 +153,6 @@ const BulkUpdateModal: React.FC<BulkUpdateModalProps> = ({
                             options = [
                                 { value: "dnlis", label: "DNLIS" },
                                 { value: "phieu_chuyen_thue", label: "Phiếu chuyển Thuế" },
-                                { value: "trinh_ky_thue", label: "Trình ký Thuế" },
                                 { value: "tbt", label: "Thông báo thuế (TBT)" },
                                 { value: "in_gcn", label: "In GCN" },
                                 { value: "tham_tra", label: "Thẩm tra" },

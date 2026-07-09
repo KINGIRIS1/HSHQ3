@@ -1190,6 +1190,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                         ];
 
                         rawSteps.forEach(step => {
+                            if (isStepHiddenForWorkflow(step.label, workflow.type)) return;
                             const lowerLabel = step.label.toLowerCase();
                             let matched = false;
                             for (const g of groups) {

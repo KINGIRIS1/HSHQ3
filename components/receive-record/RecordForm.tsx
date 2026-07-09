@@ -716,6 +716,47 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                 setOtherDocRows(getDefaultDocsForProcedure(newData.recordType, value));
             }
         }
+
+        const workflowPropChanged = field === 'gcnWorkflowType' || field === 'recordType' || field === 'hasTax' || field === 'hasCheckedSMK';
+        if (workflowPropChanged && (isRegType(newData.recordType) || isRegistration(newData.recordType))) {
+            const oldWorkflow = getGcnWorkflowStepsHelper(prev as RecordFile, holidays || []);
+            const oldStepIdx = prev.currentStepIndex !== undefined && prev.currentStepIndex !== null ? prev.currentStepIndex : 0;
+            const oldStep = oldWorkflow.steps[oldStepIdx];
+            
+            if (oldStep) {
+                const newWorkflow = getGcnWorkflowStepsHelper(newData as RecordFile, holidays || []);
+                const oldLabel = oldStep.label.toLowerCase();
+                
+                // Find a step in the new workflow that matches the old step's label or status
+                let bestIdx = newWorkflow.steps.findIndex(s => s.label.toLowerCase() === oldLabel);
+                
+                if (bestIdx === -1) {
+                    // Try partial match
+                    bestIdx = newWorkflow.steps.findIndex(s => {
+                        const newLabel = s.label.toLowerCase();
+                        return newLabel.includes(oldLabel) || oldLabel.includes(newLabel);
+                    });
+                }
+                
+                if (bestIdx === -1) {
+                    // Fall back to matching overallStatus
+                    bestIdx = newWorkflow.steps.findIndex(s => s.overallStatus === oldStep.overallStatus);
+                }
+                
+                if (bestIdx !== -1) {
+                    newData.currentStepIndex = bestIdx;
+                    if (![RecordStatus.RETURNED, RecordStatus.WITHDRAWN, RecordStatus.REJECTED].includes(newData.status as any)) {
+                        newData.status = newWorkflow.steps[bestIdx].overallStatus;
+                    }
+                } else {
+                    newData.currentStepIndex = 0;
+                    if (![RecordStatus.RETURNED, RecordStatus.WITHDRAWN, RecordStatus.REJECTED].includes(newData.status as any)) {
+                        newData.status = newWorkflow.steps[0].overallStatus;
+                    }
+                }
+            }
+        }
+
         return newData;
     });
   };
