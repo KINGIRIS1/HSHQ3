@@ -234,7 +234,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
       if (label.includes("thẩm tra")) {
           return record.checkedDate;
       }
-      if (label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
+      if (label.includes("trình ký gcn") || label.includes("trình ký giấy") || (label.includes("trình ký") && !label.includes("thuế"))) {
           return record.submissionDate;
       }
       if (label.includes("vô số")) {
@@ -1154,7 +1154,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                     if (label.includes("thẩm tra")) {
                         return record.checkedDate;
                     }
-                    if (label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
+                    if (label.includes("trình ký gcn") || label.includes("trình ký giấy") || (label.includes("trình ký") && !label.includes("thuế"))) {
                         return record.submissionDate;
                     }
                     if (label.includes("vô số")) {
@@ -1193,7 +1193,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                             },
                             {
                                 label: "In GCN",
-                                matchKeywords: ["in gcn", "in giấy", "thẩm tra", "trình ký gcn", "trình ký giấy"],
+                                matchKeywords: ["in gcn", "in giấy", "thẩm tra", "trình ký", "trình ký gcn", "trình ký giấy"],
                                 subSteps: []
                             },
                             {
@@ -2008,7 +2008,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                 text: "text-cyan-600"
                                             }
                                         },
-                                        ...(isLuuTru ? [
+                                        ...((isLuuTru || isDoDac) ? [
                                             {
                                                 label: "TRÌNH KIỂM TRA",
                                                 date: record.pendingCheckDate,

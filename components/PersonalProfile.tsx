@@ -6,7 +6,7 @@ import StatusBadge from './StatusBadge';
 import { Briefcase, ArrowRight, CheckCircle, Clock, Send, AlertTriangle, UserCog, ChevronLeft, ChevronRight, AlertCircle, Search, ArrowUp, ArrowDown, ArrowUpDown, Bell, CalendarClock, FileCheck, Map, CheckSquare, ClipboardList, FileDown, RotateCcw, CornerUpLeft, FileSignature } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
 import { getShortRecordType } from '../constants';
-import { confirmAction, isRecordOverdue, isRecordApproaching, getGcnWorkflowStepsHelper, isArchiveType, isMeasurementType, isRegType } from '../utils/appHelpers';
+import { confirmAction, isRecordOverdue, isRecordApproaching, getGcnWorkflowStepsHelper, isArchiveType, isMeasurementType, isRegType, getDisplayNotes } from '../utils/appHelpers';
 import { updateRecordApi } from '../services/api';
 import { fetchArchiveRecords, ArchiveRecord, saveArchiveRecord } from '../services/apiArchive';
 import SubmitModal from './receive-record/SubmitModal';
@@ -454,7 +454,7 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
           'Ngày duyệt': r.approvalDate ? r.approvalDate.split('T')[0] : '',
           'Ngày hoàn thành': r.completedDate ? r.completedDate.split('T')[0] : '',
           'Ngày trả kết quả': r.resultReturnedDate ? r.resultReturnedDate.split('T')[0] : '',
-          'Ghi chú': r.notes || '',
+          'Ghi chú': getDisplayNotes(r.notes),
           'Ghi chú cá nhân': r.personalNotes || '',
           'Số trích đo': r.measurementNumber || '',
           'Số trích lục': r.excerptNumber || ''
@@ -763,7 +763,7 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
             }
         } else if (isRegType(record.recordType)) {
             const workflow = getGcnWorkflowStepsHelper(record, holidays || []);
-            let currentIdx = workflow.currentStepIndex;
+            let currentIdx = record.currentStepIndex;
             if (currentIdx === undefined || currentIdx === null) {
                 currentIdx = 0;
             }

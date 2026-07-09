@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx-js-style';
 import { RecordFile, RecordStatus, Employee } from '../types';
 import { X, FileDown, Calendar, Layers, MapPin, Printer, Eye } from 'lucide-react';
 import { REGISTRATION_PROCEDURES } from '../constants';
-import { isArchiveType, isMeasurementType } from '../utils/appHelpers';
+import { isArchiveType, isMeasurementType, getDisplayNotes } from '../utils/appHelpers';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -430,7 +430,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
 
     // 2. Data Mapping
     const dataRows = recordsToExport.map((r, index) => {
-        let noteText = r.notes || '';
+        let noteText = getDisplayNotes(r.notes);
         if (r.status === RecordStatus.WITHDRAWN) {
             noteText = noteText ? `${noteText} (CSD rút hồ sơ)` : 'CSD rút hồ sơ';
         }

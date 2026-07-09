@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { BarChart3, FileSpreadsheet, Loader2, Sparkles, Download, CalendarDays, Printer, Layout, FileText, ListFilter, CheckCircle2, Clock, AlertTriangle, Settings, Key, X, Save, MapPin, UserCheck, ChevronLeft, ChevronRight, PieChart, CheckCircle, Ruler, FolderArchive, CalendarRange, Coins } from 'lucide-react';
 import { RecordFile, RecordStatus, Employee, User, UserRole } from '../types';
 import { getNormalizedWard, STATUS_LABELS, REGISTRATION_PROCEDURES, getShortRecordType } from '../constants';
-import { isRecordOverdue, removeVietnameseTones, isRecordApproaching, isArchiveType } from '../utils/appHelpers';
+import { isRecordOverdue, removeVietnameseTones, isRecordApproaching, isArchiveType, getDisplayNotes } from '../utils/appHelpers';
 import { saveGeminiKey, getGeminiKey } from '../services/geminiService';
 import { fetchArchiveRecords } from '../services/apiArchive';
 import EmployeeStatsView from './report/EmployeeStatsView';
@@ -863,7 +863,7 @@ const ReportSection: React.FC<ReportSectionProps> = ({
                                             </td>
                                             <td className="p-3 text-gray-500 italic truncate max-w-xs">
                                                 {isCompletedLate && <span className="text-[10px] text-orange-600 font-bold mr-1">[Trễ xong]</span>}
-                                                {r.notes || r.content}
+                                                {getDisplayNotes(r.notes) || r.content || ''}
                                             </td>
                                         </tr>
                                     )}) : (

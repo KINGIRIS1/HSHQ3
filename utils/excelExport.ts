@@ -2,7 +2,7 @@
 import * as XLSX from 'xlsx-js-style';
 import { RecordFile, RecordStatus, Employee } from '../types';
 import { getNormalizedWard, getShortRecordType, STATUS_LABELS } from '../constants';
-import { isRecordOverdue, removeVietnameseTones } from './appHelpers';
+import { isRecordOverdue, removeVietnameseTones, getDisplayNotes } from './appHelpers';
 import { fetchContracts } from '../services/api';
 
 export const exportReportToExcel = async (
@@ -152,7 +152,7 @@ export const exportReportToExcel = async (
             formatDate(r.completedDate),      
             formatDate(r.resultReturnedDate),
             STATUS_LABELS[r.status],
-            r.notes || ''
+            getDisplayNotes(r.notes)
         ];
     });
 
@@ -465,7 +465,7 @@ export const exportReturnedListToExcel = (records: RecordFile[], fromDateStr?: s
         formatDate(r.deadline),
         formatDate(r.resultReturnedDate),
         r.receiverName || '',
-        r.notes || ''
+        getDisplayNotes(r.notes)
     ]);
 
     let displayDate = "";

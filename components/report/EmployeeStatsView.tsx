@@ -4,6 +4,7 @@ import { generateEmployeeEvaluation } from '../../services/geminiService';
 import { User as UserIcon, AlertOctagon, Sparkles, Loader2, ListFilter, CheckCircle2, Clock, AlertTriangle, Briefcase, FileSpreadsheet, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
 import { STATUS_LABELS, getShortRecordType } from '../../constants';
+import { getDisplayNotes } from '../../utils/appHelpers';
 
 interface EmployeeStatsViewProps {
     records: RecordFile[];
@@ -173,7 +174,7 @@ const EmployeeStatsView: React.FC<EmployeeStatsViewProps> = ({
             'Hẹn trả': r.deadline ? new Date(r.deadline).toLocaleDateString('vi-VN') : '',
             'Ngày xong': r.completedDate ? new Date(r.completedDate).toLocaleDateString('vi-VN') : '',
             'Trạng thái': STATUS_LABELS[r.status] || r.status,
-            'Ghi chú': r.notes || r.content
+            'Ghi chú': getDisplayNotes(r.notes) || r.content || ''
         }));
 
         const ws = XLSX.utils.json_to_sheet(dataToExport);

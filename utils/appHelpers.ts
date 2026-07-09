@@ -240,24 +240,12 @@ export interface GcnStepConfig {
     isOverdue?: boolean;
     isUrgent?: boolean;
     status?: 'completed' | 'current' | 'upcoming';
-    isHidden?: boolean;
 }
 
 export function isStepHiddenForWorkflow(stepLabel: string, workflowType: string): boolean {
     const label = stepLabel.toLowerCase();
     
-    // Hide "Chưa giao" / "Chờ giao" / "Chờ phân công" step for all workflows:
-    if (label.includes("chưa giao") || label.includes("chờ giao") || label.includes("chờ phân công")) {
-        return true;
-    }
-
-    // Hide "Thẩm tra" step entirely for "cấp giấy" workflows as per user's request:
-    // "bỏ phần này trong trình kiểm tra ở cả đo dạc và cấp giấy"
-    if (label.includes("thẩm tra")) {
-        return true;
-    }
-    
-    // For the new Cấp lại workflows, we do NOT hide any other steps!
+    // For the new Cấp lại workflows, we do NOT hide any steps!
     if (['quy_trinh_4', 'quy_trinh_5', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
         return false;
     }
@@ -265,7 +253,7 @@ export function isStepHiddenForWorkflow(stepLabel: string, workflowType: string)
     const isTaxWorkflow = ['quy_trinh_1', 'quy_trinh_2', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType);
 
     if (label.includes("dnlis")) {
-        return !['quy_trinh_1', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType);
+        return workflowType !== 'quy_trinh_1';
     }
     if (label.includes("phiếu chuyển")) {
         return !isTaxWorkflow;
@@ -274,33 +262,6 @@ export function isStepHiddenForWorkflow(stepLabel: string, workflowType: string)
         return !isTaxWorkflow;
     }
     return false;
-}
-
-export function recordStepAssigneeHistory(record: RecordFile, holidays: Holiday[] = []): RecordFile {
-    if (!record || !isRegType(record.recordType)) return record;
-    
-    const stepAssignees = { ...(record.stepAssignees || {}) };
-    const workflow = getGcnWorkflowStepsHelper(record, holidays);
-    
-    const currentIdx = record.currentStepIndex ?? 0;
-    const currentStep = workflow.steps[currentIdx];
-    
-    if (currentStep) {
-        const key = currentStep.label.toLowerCase().trim();
-        
-        if (key.includes("thẩm tra") && record.checkedBy) {
-            stepAssignees[key] = record.checkedBy;
-        } else if ((key.includes("trình ký") || key.includes("ký duyệt")) && record.submittedTo) {
-            stepAssignees[key] = record.submittedTo;
-        } else if (record.assignedTo) {
-            stepAssignees[key] = record.assignedTo;
-        }
-    }
-    
-    return {
-        ...record,
-        stepAssignees
-    };
 }
 
 export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[] = []): {
@@ -341,100 +302,97 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     if (workflowType === 'quy_trinh_1') {
         title = 'Quy trình 1: DNLIS';
         stepConfigs = [
-            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "DNLIS", duration: "8 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Phiếu chuyển Thuế", duration: "16 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "TBT", duration: "0 giờ", overallStatus: RecordStatus.TBT },
             { label: "In GCN", duration: "5 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
-            { label: "Trình Ký GCN", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
+            { label: "Trình ký", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "Vô số GCN", duration: "4 giờ", overallStatus: RecordStatus.SIGNED },
             { label: "Giao 1 cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER }
         ];
     } else if (workflowType === 'quy_trinh_2') {
         title = 'Quy trình 2: Phiếu Chuyển Thuế';
         stepConfigs = [
-            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
+            { label: "DNLIS", duration: "0 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Phiếu chuyển Thuế", duration: "24 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "TBT", duration: "0 giờ", overallStatus: RecordStatus.TBT },
             { label: "In GCN", duration: "5 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
-            { label: "Trình Ký GCN", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
+            { label: "Trình ký", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "Vô số GCN", duration: "4 giờ", overallStatus: RecordStatus.SIGNED },
             { label: "Giao 1 cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER }
         ];
     } else if (workflowType === 'quy_trinh_3') {
         title = 'Quy trình 3: In GCN';
         stepConfigs = [
-            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
+            { label: "DNLIS", duration: "8 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "In GCN", duration: "5 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
-            { label: "Trình Ký GCN", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
+            { label: "Trình ký", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "Vô số GCN", duration: "4 giờ", overallStatus: RecordStatus.SIGNED },
             { label: "Giao 1 cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER }
         ];
     } else if (workflowType === 'quy_trinh_4') {
         title = 'Quy trình 4: Cấp lại không thuế (Có đối chiếu SMK)';
         stepConfigs = [
-            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
-            { label: "Sổ MK", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "KT Thế Chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Lập BB; CV gửi xã", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Niêm Yết(15+5)", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Đối chiếu Sổ mục kê, hồ sơ lưu, GCN, CSDL đất đai", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Chuyển UBND xã niêm yết/đăng tin", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Tiếp nhận kết quả niêm yết", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
             { label: "Trình ký", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
-            { label: "Vô số", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
-            { label: "Giao 1 Cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER },
+            { label: "Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
+            { label: "Chuyển Một cửa", duration: "1 ngày", overallStatus: RecordStatus.HANDOVER },
             { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
         ];
     } else if (workflowType === 'quy_trinh_5') {
         title = 'Quy trình 5: Cấp lại không thuế (Đã đối chiếu SMK)';
         stepConfigs = [
-            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
-            { label: "KT Thế Chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Lập BB; CV gửi xã", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Niêm Yết(15+5)", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Chuyển UBND xã niêm yết/đăng tin", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Tiếp nhận kết quả niêm yết", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
             { label: "Trình ký", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
-            { label: "Vô số", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
-            { label: "Giao 1 Cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER },
+            { label: "Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
+            { label: "Chuyển Một cửa", duration: "1 ngày", overallStatus: RecordStatus.HANDOVER },
             { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
         ];
     } else if (workflowType === 'quy_trinh_6') {
         title = 'Quy trình 6: Cấp lại có thuế (Có đối chiếu SMK)';
         stepConfigs = [
-            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
-            { label: "Sổ MK", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "KT Thế Chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Lập BB; CV gửi xã", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Niêm Yết(15+5)", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "DNLIS", duration: "0 giờ", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Phiếu chuyển Thuế", duration: "2 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "TBT", duration: "---", overallStatus: RecordStatus.TBT },
-            { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Đối chiếu Sổ mục kê, hồ sơ lưu, GCN, CSDL đất đai", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Chuyển UBND xã niêm yết/đăng tin", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Tiếp nhận kết quả niêm yết", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Lập Phiếu chuyển thông tin nghĩa vụ tài chính", duration: "2 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Chờ Thông báo thuế (TBT)", duration: "---", overallStatus: RecordStatus.TBT },
+            { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
-            { label: "Trình ký", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
-            { label: "Vô số", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
-            { label: "Giao 1 Cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER },
+            { label: "Trình ký - Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
         ];
     } else {
         title = 'Quy trình 7: Cấp lại có thuế (Đã đối chiếu SMK)';
         stepConfigs = [
-            { label: "Chưa giao", duration: "0 giờ", overallStatus: RecordStatus.RECEIVED },
-            { label: "KT Thế Chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Lập BB; CV gửi xã", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Niêm Yết(15+5)", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "DNLIS", duration: "0 giờ", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Phiếu chuyển Thuế", duration: "2 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "TBT", duration: "---", overallStatus: RecordStatus.TBT },
-            { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Chuyển UBND xã niêm yết/đăng tin", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Tiếp nhận kết quả niêm yết", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Lập Phiếu chuyển thông tin nghĩa vụ tài chính", duration: "2 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Chờ Thông báo thuế (TBT)", duration: "---", overallStatus: RecordStatus.TBT },
+            { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
-            { label: "Trình ký", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
-            { label: "Vô số", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
-            { label: "Giao 1 Cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER },
+            { label: "Trình ký - Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
         ];
     }
@@ -485,10 +443,10 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
         if (l.includes("trình ký gcn") || l.includes("trình ký giấy") || l.includes("trình ký")) return 0.5;
         if (l.includes("vô số")) return 0.5;
         if (l.includes("giao 1 cửa") || l.includes("giao một cửa") || l.includes("trả kết quả") || l.includes("một cửa")) return 0;
-        if (l.includes("mộc kê") || l.includes("sổ mk")) return 1;
+        if (l.includes("mộc kê")) return 1;
         if (l.includes("thế chấp")) return 1;
         if (l.includes("đối chiếu")) return 1;
-        if (l.includes("biên bản") || l.includes("xác minh") || l.includes("lập bb") || l.includes("gửi xã")) return 1;
+        if (l.includes("biên bản") || l.includes("xác minh")) return 1;
         return 0;
     };
 
@@ -501,7 +459,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     if (hasGiaoMộtCửa) daysToDistribute -= 0.5;
 
     const stepsWithWeights = stepConfigs.map(s => {
-        const isFixedCal = s.label.toLowerCase().includes("chờ niêm yết") || s.label.toLowerCase().includes("niêm yết") || s.label.toLowerCase().includes("công văn") || s.label.toLowerCase().includes("tbt");
+        const isFixedCal = s.label.toLowerCase().includes("chờ niêm yết") || s.label.toLowerCase().includes("công văn") || s.label.toLowerCase().includes("tbt");
         const isHidden = isStepHiddenForWorkflow(s.label, workflowType);
         return {
             ...s,
@@ -516,23 +474,23 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     if (totalWeightSum > 0) {
         stepConfigs = stepsWithWeights.map(s => {
             if (s.isFixedCal) {
-                return { label: s.label, duration: s.duration, overallStatus: s.overallStatus, isHidden: s.isHidden };
+                return { label: s.label, duration: s.duration, overallStatus: s.overallStatus };
             }
             if (s.isHidden) {
-                return { label: s.label, duration: "0 giờ", overallStatus: s.overallStatus, isHidden: true };
+                return { label: s.label, duration: "0 giờ", overallStatus: s.overallStatus };
             }
             const lLower = s.label.toLowerCase();
             if (lLower.includes("tiếp nhận")) {
-                return { label: s.label, duration: "4 giờ", overallStatus: s.overallStatus, isHidden: s.isHidden };
+                return { label: s.label, duration: "4 giờ", overallStatus: s.overallStatus };
             }
             if (lLower.includes("giao 1 cửa") || lLower.includes("giao một cửa") || lLower.includes("trả kết quả")) {
-                return { label: s.label, duration: "4 giờ", overallStatus: s.overallStatus, isHidden: s.isHidden };
+                return { label: s.label, duration: "4 giờ", overallStatus: s.overallStatus };
             }
             if (s.weight === 0) {
-                return { label: s.label, duration: "0 giờ", overallStatus: s.overallStatus, isHidden: s.isHidden };
+                return { label: s.label, duration: "0 giờ", overallStatus: s.overallStatus };
             }
             const stepHours = Math.max(1, Math.round((s.weight / totalWeightSum) * daysToDistribute * 8));
-            return { label: s.label, duration: `${stepHours} giờ`, overallStatus: s.overallStatus, isHidden: s.isHidden };
+            return { label: s.label, duration: `${stepHours} giờ`, overallStatus: s.overallStatus };
         });
 
         // Apply half-day correction if procedure has .5 fraction
@@ -570,6 +528,13 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
         const step = steps[index];
         if (!step) return false;
         
+        // Custom matching for quy_trinh_6 & 7 combined step "Trình ký - Vô số - Đóng dấu"
+        if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
+            if (step.label.includes("Trình ký - Vô số") && [RecordStatus.PENDING_SIGN, RecordStatus.SIGNED, RecordStatus.HANDOVER].includes(status)) {
+                return true;
+            }
+        }
+        
         if (step.overallStatus === status) return true;
         if (status === RecordStatus.RECEIVED && step.label.toLowerCase().includes("tiếp nhận")) return true;
         if (status === RecordStatus.IN_PROGRESS && step.overallStatus === RecordStatus.IN_PROGRESS) return true;
@@ -594,20 +559,24 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
             } else if (status === RecordStatus.CHECKED) {
                 targetLabel = "Thẩm tra";
             } else if (status === RecordStatus.PENDING_SIGN) {
-                if (['quy_trinh_4', 'quy_trinh_5', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
+                if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
+                    targetLabel = "Trình ký - Vô số";
+                } else if (['quy_trinh_4', 'quy_trinh_5'].includes(workflowType)) {
                     targetLabel = "Trình ký";
                 } else {
-                    targetLabel = "Trình Ký GCN";
+                    targetLabel = "Trình ký";
                 }
             } else if (status === RecordStatus.SIGNED) {
-                if (['quy_trinh_4', 'quy_trinh_5', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
+                if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
+                    targetLabel = "Trình ký - Vô số";
+                } else if (['quy_trinh_4', 'quy_trinh_5'].includes(workflowType)) {
                     targetLabel = "Vô số";
                 } else {
                     targetLabel = "Vô số GCN";
                 }
             } else if (status === RecordStatus.HANDOVER) {
-                if (['quy_trinh_4', 'quy_trinh_5', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
-                    targetLabel = "Giao 1 Cửa";
+                if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
+                    targetLabel = "Trình ký - Vô số";
                 } else {
                     targetLabel = "cửa";
                 }
@@ -619,8 +588,8 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
                 if (compIdx !== -1) {
                     currentStepIndex = compIdx;
                 } else {
-                    const phieuChuyenIdx = stepConfigs.findIndex(s => s.label.includes("Phiếu chuyển Thuế"));
-                    currentStepIndex = phieuChuyenIdx !== -1 ? phieuChuyenIdx : 0;
+                    const trinhKyIdx = stepConfigs.findIndex(s => s.label.includes("Trình ký Thuế"));
+                    currentStepIndex = trinhKyIdx !== -1 ? trinhKyIdx : 0;
                 }
             }
 
@@ -692,8 +661,45 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
         type: workflowType,
         title,
         steps,
-        currentStepIndex: currentStepIndex || 0
+        currentStepIndex: currentStepIndex ?? 0
     };
+}
+
+export function recordStepAssigneeHistory(record: RecordFile, holidays: Holiday[] = []): RecordFile {
+    if (!record) return record;
+    const cloned = { ...record };
+    if (!cloned.stepAssignees) {
+        cloned.stepAssignees = {};
+    } else {
+        cloned.stepAssignees = { ...cloned.stepAssignees };
+    }
+
+    if (isRegType(cloned.recordType)) {
+        const helper = getGcnWorkflowStepsHelper(cloned, holidays);
+        const currentStepIdx = helper.currentStepIndex;
+        const currentStep = helper.steps[currentStepIdx];
+        if (currentStep) {
+            const label = currentStep.label.toLowerCase().trim();
+            if (label.includes("thẩm tra")) {
+                if (cloned.checkedBy) {
+                    cloned.stepAssignees[label] = cloned.checkedBy;
+                }
+            } else if (label.includes("trình ký") || label.includes("ký duyệt")) {
+                if (cloned.submittedTo) {
+                    cloned.stepAssignees[label] = cloned.submittedTo;
+                }
+            } else if (label.includes("nhận hồ sơ") || label.includes("tiếp nhận")) {
+                if (cloned.receivedBy) {
+                    cloned.stepAssignees[label] = cloned.receivedBy;
+                }
+            } else {
+                if (cloned.assignedTo) {
+                    cloned.stepAssignees[label] = cloned.assignedTo;
+                }
+            }
+        }
+    }
+    return cloned;
 }
 
 // Hàm chuyển đổi Title Case (Nguyễn Văn A)
@@ -960,4 +966,33 @@ export function findArchiveStaffForWard(wardName: string | null | undefined, emp
   );
   
   return matched || null;
+}
+
+export function getDisplayNotes(notes: string | null | undefined): string {
+  if (!notes) return '';
+  const trimmed = notes.trim();
+  if (!trimmed) return '';
+
+  const lines = trimmed.split('\n');
+  const resultLines: string[] = [];
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
+
+    if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmedLine);
+        if (parsed.generalNotes && parsed.generalNotes.trim()) {
+          resultLines.push(parsed.generalNotes.trim());
+        }
+      } catch (e) {
+        resultLines.push(line);
+      }
+    } else {
+      resultLines.push(line);
+    }
+  }
+
+  return resultLines.join('\n');
 }

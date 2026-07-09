@@ -684,7 +684,9 @@ function App() {
                   RecordStatus.ASSIGNED,
                   RecordStatus.IN_PROGRESS,
                   RecordStatus.PENDING_CHECK,
+                  RecordStatus.CHECKED,
                   RecordStatus.PENDING_SIGN,
+                  RecordStatus.SIGNED,
                   RecordStatus.HANDOVER
               ];
           } else if (isArchiveType(record.recordType)) {
@@ -1024,7 +1026,9 @@ function App() {
                   RecordStatus.ASSIGNED,
                   RecordStatus.IN_PROGRESS,
                   RecordStatus.PENDING_CHECK,
+                  RecordStatus.CHECKED,
                   RecordStatus.PENDING_SIGN,
+                  RecordStatus.SIGNED,
                   RecordStatus.HANDOVER,
                   RecordStatus.RETURNED
               ];
