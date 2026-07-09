@@ -432,7 +432,7 @@ export const useRecordFilter = (
                 if (filterFromDate || filterToDate) {
                     result = result.filter(r => {
                         if (!r.resultReturnedDate) return false;
-                        const returnDate = r.resultReturnedDate;
+                        const returnDate = r.resultReturnedDate.substring(0, 10);
                         if (filterFromDate && returnDate < filterFromDate) return false;
                         if (filterToDate && returnDate > filterToDate) return false;
                         return true;
@@ -448,12 +448,16 @@ export const useRecordFilter = (
             }
         } else {
             if (filterSpecificDate) {
-                result = result.filter(r => r.receivedDate === filterSpecificDate);
+                result = result.filter(r => {
+                    if (!r.receivedDate) return false;
+                    const rDate = r.receivedDate.substring(0, 10);
+                    return rDate === filterSpecificDate;
+                });
             } else if (showAdvancedDateFilter) {
                 if (filterFromDate || filterToDate) {
                     result = result.filter(r => {
                         if (!r.receivedDate) return false;
-                        const rDate = r.receivedDate;
+                        const rDate = r.receivedDate.substring(0, 10);
                         if (filterFromDate && rDate < filterFromDate) return false;
                         if (filterToDate && rDate > filterToDate) return false;
                         return true;
@@ -462,7 +466,7 @@ export const useRecordFilter = (
             }
             
             if (filterAssignedDate) {
-                result = result.filter(r => r.assignedDate && r.assignedDate.startsWith(filterAssignedDate));
+                result = result.filter(r => r.assignedDate && r.assignedDate.substring(0, 10) === filterAssignedDate);
             }
         }
 
