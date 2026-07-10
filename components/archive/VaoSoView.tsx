@@ -8,9 +8,9 @@ import {
   updateArchiveRecordsBatch,
 } from "../../services/apiArchive";
 import { useArchiveRealtime } from "../../hooks/useArchiveRealtime";
-import { User, RecordFile } from "../../types";
-import { fetchRecords } from "../../services/apiRecords";
-import { isRegType } from "../../utils/appHelpers";
+import { User, RecordFile, RecordStatus } from "../../types";
+import { fetchRecords, updateRecordApi, createRecordApi } from "../../services/apiRecords";
+import { isRegType, getDisplayNotes } from "../../utils/appHelpers";
 import {
   Loader2,
   Plus,
@@ -289,8 +289,10 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
     // But here we use activeTab directly.
 
     if (activeTab === "all") {
-      // Danh sách tổng: Hiển thị tối đa 1000 dòng mới nhất
-      filtered = records.slice(0, 1000);
+      // Danh sách tổng: Chỉ hiển thị các hồ sơ chưa chuyển bàn giao/scan (tối đa 1000 dòng)
+      filtered = records.filter(
+        (r) => !r.data?.is_pending_scan && !r.data?.is_scanned
+      ).slice(0, 1000);
     } else if (activeTab === "pending") {
       // Chờ chuyển Scan: Đã được đánh dấu chuyển scan NHƯNG chưa có đợt scan (chưa scan xong)
       filtered = records.filter(
@@ -748,34 +750,149 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
     setSelectedIds(newSet);
   };
 
-  // Chuyển sang tab "Chờ chuyển Scan"
+  // Chuyển sang tab "Chờ chuyển Scan" & đồng thời chuyển GCN sang "Chờ giao 1 cửa"
   const handleMoveToPending = async () => {
     if (selectedIds.size === 0) return;
     if (
       !(await confirmAction(
-        `Bạn có chắc muốn chuyển ${selectedIds.size} hồ sơ sang danh sách Chờ Scan?`,
+        `Bạn có chắc muốn chuyển ${selectedIds.size} hồ sơ sang "Chờ chuyển Scan" và đồng thời chuyển GCN sang "Bàn giao 1 cửa"?`,
       ))
     )
       return;
 
     setLoading(true);
-    const updates = {
-      data: { is_pending_scan: true },
-    };
-    await updateArchiveRecordsBatch(Array.from(selectedIds), updates);
-    setLoading(false);
-    setSelectedIds(new Set());
-    loadData();
+    try {
+      // 1. Lấy danh sách hồ sơ tiếp nhận hiện tại để đối chiếu
+      const allReceptionRecords = await fetchRecords();
+      const selectedRecords = records.filter(r => selectedIds.has(r.id));
+
+      for (const archiveRecord of selectedRecords) {
+        // Tìm hồ sơ tiếp nhận tương ứng (khớp theo mã hồ sơ hoặc số phát hành)
+        const archiveCode = archiveRecord.so_hieu || archiveRecord.data?.ma_ho_so;
+        const archiveIssueNumber = archiveRecord.data?.so_phat_hanh;
+
+        let matched = allReceptionRecords.find(r => 
+          (archiveCode && r.code === archiveCode) || 
+          (archiveIssueNumber && r.issueNumber === archiveIssueNumber)
+        );
+
+        if (matched) {
+          // Luồng GCN: Nếu có hồ sơ tiếp nhận khớp, chuyển trạng thái của nó sang SIGNED để vào danh sách "Chờ giao"
+          const updatedRec = {
+            ...matched,
+            status: RecordStatus.SIGNED,
+            approvalDate: matched.approvalDate || new Date().toISOString(),
+            issueNumber: matched.issueNumber || archiveIssueNumber || null,
+            entryNumber: matched.entryNumber || archiveRecord.data?.so_vao_so || null,
+            issueDate: matched.issueDate || archiveRecord.data?.ngay_ky_gcn || null,
+          };
+          await updateRecordApi(updatedRec as RecordFile);
+        } else if (archiveCode) {
+          // Luồng GCN: Nếu chưa có, tự động tạo mới hồ sơ tiếp nhận ở trạng thái SIGNED để hiển thị trong "Bàn giao 1 cửa"
+          const newRecord: Partial<RecordFile> = {
+            code: archiveCode,
+            customerName: archiveRecord.data?.ten_chu_su_dung || "Chưa có tên",
+            ward: archiveRecord.data?.dia_danh || null,
+            landPlot: archiveRecord.data?.so_thua || null,
+            mapSheet: archiveRecord.data?.so_to || null,
+            area: archiveRecord.data?.tong_dien_tich ? parseFloat(archiveRecord.data.tong_dien_tich) : null,
+            residentialArea: archiveRecord.data?.dien_tich_tho_cu ? parseFloat(archiveRecord.data.dien_tich_tho_cu) : null,
+            issueNumber: archiveIssueNumber || null,
+            issueDate: archiveRecord.data?.ngay_ky_gcn || null,
+            entryNumber: archiveRecord.data?.so_vao_so || null,
+            content: archiveRecord.trich_yeu || "Được đồng bộ từ Vào sổ GCN",
+            recordType: archiveRecord.data?.loai_bien_dong || "Cấp GCN",
+            receivedDate: archiveRecord.data?.ngay_nhan || new Date().toISOString(),
+            approvalDate: new Date().toISOString(),
+            status: RecordStatus.SIGNED,
+          };
+          await createRecordApi(newRecord as RecordFile);
+        }
+      }
+
+      // 2. Chuyển hồ sơ gốc sang trạng thái "Chờ chuyển Scan"
+      const updates = {
+        data: { is_pending_scan: true },
+      };
+      await updateArchiveRecordsBatch(Array.from(selectedIds), updates);
+      
+      setSelectedIds(new Set());
+      await loadData();
+    } catch (err) {
+      console.error("Lỗi khi chuyển hồ sơ hai luồng:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleMoveToPendingSingle = async (id: string) => {
+    if (
+      !(await confirmAction(
+        `Bạn có chắc muốn chuyển hồ sơ này sang "Chờ chuyển Scan" và đồng thời chuyển GCN sang "Bàn giao 1 cửa"?`,
+      ))
+    )
+      return;
+
     setLoading(true);
-    const updates = {
-      data: { is_pending_scan: true },
-    };
-    await updateArchiveRecordsBatch([id], updates);
-    setLoading(false);
-    loadData();
+    try {
+      // 1. Lấy danh sách hồ sơ tiếp nhận hiện tại để đối chiếu
+      const allReceptionRecords = await fetchRecords();
+      const archiveRecord = records.find(r => r.id === id);
+
+      if (archiveRecord) {
+        const archiveCode = archiveRecord.so_hieu || archiveRecord.data?.ma_ho_so;
+        const archiveIssueNumber = archiveRecord.data?.so_phat_hanh;
+
+        let matched = allReceptionRecords.find(r => 
+          (archiveCode && r.code === archiveCode) || 
+          (archiveIssueNumber && r.issueNumber === archiveIssueNumber)
+        );
+
+        if (matched) {
+          // Chuyển sang SIGNED
+          const updatedRec = {
+            ...matched,
+            status: RecordStatus.SIGNED,
+            approvalDate: matched.approvalDate || new Date().toISOString(),
+            issueNumber: matched.issueNumber || archiveIssueNumber || null,
+            entryNumber: matched.entryNumber || archiveRecord.data?.so_vao_so || null,
+            issueDate: matched.issueDate || archiveRecord.data?.ngay_ky_gcn || null,
+          };
+          await updateRecordApi(updatedRec as RecordFile);
+        } else if (archiveCode) {
+          // Tạo mới
+          const newRecord: Partial<RecordFile> = {
+            code: archiveCode,
+            customerName: archiveRecord.data?.ten_chu_su_dung || "Chưa có tên",
+            ward: archiveRecord.data?.dia_danh || null,
+            landPlot: archiveRecord.data?.so_thua || null,
+            mapSheet: archiveRecord.data?.so_to || null,
+            area: archiveRecord.data?.tong_dien_tich ? parseFloat(archiveRecord.data.tong_dien_tich) : null,
+            residentialArea: archiveRecord.data?.dien_tich_tho_cu ? parseFloat(archiveRecord.data.dien_tich_tho_cu) : null,
+            issueNumber: archiveIssueNumber || null,
+            issueDate: archiveRecord.data?.ngay_ky_gcn || null,
+            entryNumber: archiveRecord.data?.so_vao_so || null,
+            content: archiveRecord.trich_yeu || "Được đồng bộ từ Vào sổ GCN",
+            recordType: archiveRecord.data?.loai_bien_dong || "Cấp GCN",
+            receivedDate: archiveRecord.data?.ngay_nhan || new Date().toISOString(),
+            approvalDate: new Date().toISOString(),
+            status: RecordStatus.SIGNED,
+          };
+          await createRecordApi(newRecord as RecordFile);
+        }
+      }
+
+      // 2. Chuyển hồ sơ gốc sang "Chờ chuyển Scan"
+      const updates = {
+        data: { is_pending_scan: true },
+      };
+      await updateArchiveRecordsBatch([id], updates);
+      await loadData();
+    } catch (err) {
+      console.error("Lỗi khi chuyển hồ sơ:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Mở modal tạo đợt (từ tab Pending)
@@ -819,7 +936,7 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
         "Số phát hành": r.data?.so_phat_hanh,
         "Ngày ký GCN": r.data?.ngay_ky_gcn,
         "Ngày ký phiếu TK": r.data?.ngay_ky_phieu_tk,
-        "Ghi chú": r.data?.ghi_chu,
+        "Ghi chú": getDisplayNotes(r.data?.ghi_chu),
       };
       if (activeTab === "scanned") {
         row["Ngày Scan"] = r.data?.scan_date;
@@ -1168,8 +1285,9 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
                   <button
                     onClick={handleMoveToPending}
                     className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-md font-bold text-sm hover:bg-indigo-700 shadow-sm animate-pulse"
+                    title="Bàn giao GCN về 1 Cửa và đồng thời chuyển hồ sơ gốc sang Chờ chuyển Scan"
                   >
-                    <Send size={16} /> Chuyển Scan ({selectedIds.size})
+                    <Send size={16} /> Bàn giao & Chuyển Scan ({selectedIds.size})
                   </button>
                 )}
               </>
@@ -1554,7 +1672,7 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
                             >
                               {isReadOnly ? (
                                 <div className="w-full h-full px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap min-h-[40px] flex items-center">
-                                  {r.data?.[col.key] || ""}
+                                  {col.key === "ghi_chu" ? getDisplayNotes(r.data?.[col.key] || "") : (r.data?.[col.key] || "")}
                                 </div>
                               ) : col.key === "so_vao_so" ? (
                                 <div className="p-1 flex items-center gap-1">
@@ -1700,6 +1818,24 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
                                     <Plus size={12} /> Thêm số
                                   </button>
                                 </div>
+                              ) : col.key === "ghi_chu" ? (
+                                <div className="p-1">
+                                  <textarea
+                                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none shadow-sm resize-none whitespace-pre-wrap font-medium"
+                                    value={getDisplayNotes(r.data?.[col.key] || "")}
+                                    onChange={(e) =>
+                                      handleCellChange(
+                                        r.id,
+                                        col.key,
+                                        e.target.value,
+                                      )
+                                    }
+                                    onBlur={() => handleBlur(r)}
+                                    readOnly={activeTab === "scanned"}
+                                    rows={2}
+                                    style={{ minHeight: "40px" }}
+                                  />
+                                </div>
                               ) : (
                                 <div className="p-1">
                                   <input
@@ -1748,7 +1884,7 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
                                     handleMoveToPendingSingle(r.id)
                                   }
                                   className="p-2 text-indigo-600 bg-white border border-gray-200 hover:bg-indigo-50 hover:border-indigo-300 rounded-lg transition-colors shadow-sm"
-                                  title="Chuyển Scan"
+                                  title="Bàn giao GCN về 1 Cửa & Chuyển hồ sơ gốc sang Chờ chuyển Scan"
                                 >
                                   <Send size={16} />
                                 </button>
@@ -2955,7 +3091,7 @@ const ExportHandoverModal: React.FC<ExportHandoverModalProps> = ({
         r.data?.loai_bien_dong || "",
         "", // Ngày chủ SD nhận GCN
         "", // Người nhận GCN ký
-        r.data?.ghi_chu || "",
+        getDisplayNotes(r.data?.ghi_chu || ""),
       ]);
     } else {
       // GCN mới
@@ -2995,7 +3131,7 @@ const ExportHandoverModal: React.FC<ExportHandoverModalProps> = ({
         r.data?.dia_danh || "",
         "", // Ngày nhận GCN
         "", // Người nhận GCN ký
-        r.data?.ghi_chu || "",
+        getDisplayNotes(r.data?.ghi_chu || ""),
       ]);
     }
 

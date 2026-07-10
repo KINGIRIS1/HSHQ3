@@ -13,7 +13,7 @@ import { exportReportToExcel, exportReturnedListToExcel } from './utils/excelExp
 import { generateReport } from './services/geminiService';
 import { syncTemplatesFromCloud } from './services/docxService'; 
 import { updateRecordApi, saveEmployeeApi, saveUserApi, forceUpdateRecordsBatchApi, updateRecordsBatchById } from './services/api';
-import { migrateCungCapTaiLieu, migrateCongVanToLandRecords, saveArchiveRecord, fetchArchiveRecords, syncRecordToVaoSo } from './services/apiArchive';
+import { migrateCungCapTaiLieu, migrateCongVanToLandRecords, saveArchiveRecord, fetchArchiveRecords } from './services/apiArchive';
 import * as XLSX from 'xlsx-js-style';
 import { CheckCircle, AlertTriangle, X } from 'lucide-react';
 
@@ -216,53 +216,6 @@ function App() {
   useEffect(() => {
       setSelectedRecordIds(new Set());
   }, [currentView, recordFilterProps.handoverTab]);
-
-  // CHẾ ĐỘ TỰ ĐỘNG CHUYỂN CHUYÊN MÔN SAU 18:00 HẰNG NGÀY
-  useEffect(() => {
-      if (!currentUser || !records || records.length === 0) return;
-
-      const autoTransferAfter18 = async () => {
-          const today = new Date();
-          const currentHours = today.getHours();
-          
-          if (currentHours >= 18) {
-              const todayEnd = new Date();
-              todayEnd.setHours(23, 59, 59, 999);
-
-              const unsyncedTodayRecords = records.filter(r => {
-                  if (r.isDeptSynced === true) return false;
-                  if (!r.receivedDate) return false;
-                  const recDate = new Date(r.receivedDate);
-                  return recDate <= todayEnd;
-              });
-
-              if (unsyncedTodayRecords.length > 0) {
-                  console.log(`Auto-transfer active: It is after 18:00. Automatically syncing ${unsyncedTodayRecords.length} unsynced records...`);
-                  const updates = unsyncedTodayRecords.map(r => ({
-                      ...r,
-                      isDeptSynced: true
-                  }));
-                  try {
-                      await updateRecordsBatchById(updates);
-                      setToast({ 
-                          type: 'success', 
-                          message: `Hệ thống tự động đồng bộ ${updates.length} hồ sơ tiếp nhận hôm nay về các phòng chuyên môn (Sau 18h00).` 
-                      });
-                      loadData();
-                  } catch (err) {
-                      console.error("Lỗi tự động chuyển hồ sơ sau 18h:", err);
-                  }
-              }
-          }
-      };
-
-      // Run initially on load
-      autoTransferAfter18();
-
-      // Check every 5 minutes
-      const interval = setInterval(autoTransferAfter18, 5 * 60 * 1000);
-      return () => clearInterval(interval);
-  }, [records, currentUser, loadData]);
 
   // Chat Listener
   useGlobalChatListener(currentUser, currentView, notificationEnabled, setUnreadMessages);
@@ -1001,11 +954,6 @@ function App() {
 
               setRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
               await updateRecordApi({ ...record, ...updates });
-              
-              if (nextStep.overallStatus === RecordStatus.SIGNED) {
-                  // Tự động đồng bộ sang hồ sơ Vô số GCN
-                  await syncRecordToVaoSo({ ...record, ...updates }, updates.issueNumber || record.issueNumber, currentUser?.username);
-              }
 
               setToast({ type: 'success', message: `Đã chuyển hồ sơ sang bước: ${nextStep.label}` });
           } else {
@@ -1149,11 +1097,6 @@ function App() {
               
               await updateRecordsBatchById(updates);
               
-              // Tự động đồng bộ sang hồ sơ Vô số GCN cho cả loạt hồ sơ đã ký
-              for (const r of updates) {
-                  await syncRecordToVaoSo(r, r.issueNumber, currentUser?.username);
-              }
-
               setToast({ type: 'success', message: `Đã ký duyệt ${updates.length} hồ sơ thành công và chuyển sang bước chờ giao 1 cửa!` });
               setSelectedRecordIds(new Set());
               loadData();

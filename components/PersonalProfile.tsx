@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx-js-style';
 import { getShortRecordType } from '../constants';
 import { confirmAction, isRecordOverdue, isRecordApproaching, getGcnWorkflowStepsHelper, isArchiveType, isMeasurementType, isRegType, getDisplayNotes } from '../utils/appHelpers';
 import { updateRecordApi } from '../services/api';
-import { fetchArchiveRecords, ArchiveRecord, saveArchiveRecord, syncRecordToVaoSo } from '../services/apiArchive';
+import { fetchArchiveRecords, ArchiveRecord, saveArchiveRecord } from '../services/apiArchive';
 import SubmitModal from './receive-record/SubmitModal';
 import RejectReasonModal from './receive-record/RejectReasonModal';
 import ReturnStepReasonModal from './receive-record/ReturnStepReasonModal';
@@ -518,8 +518,6 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                 await updateRecordApi(updatedRecord);
                 onUpdateStatus(record, RecordStatus.SIGNED);
             }
-            // Tự động đồng bộ sang hồ sơ Vô số GCN
-            await syncRecordToVaoSo(updatedRecord, updatedRecord.issueNumber, user.username);
         }
         
         const saoluc = await fetchArchiveRecords('saoluc');
