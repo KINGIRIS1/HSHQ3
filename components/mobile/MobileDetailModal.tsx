@@ -913,6 +913,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                   let checkerEmp = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
                   let submittedToId = record.submittedTo;
 
+
                   if (savedAssigneeId) {
                       if (label.includes("thẩm tra")) {
                           const matched = employees.find(e => e.id === savedAssigneeId) || users.find(u => u.employeeId === savedAssigneeId);
@@ -930,7 +931,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                   
                   const directorName = submittedToId ? findPersonNameAndTitle(submittedToId) : "";
 
-                  const receiverName = record.receivedBy ? findPersonNameAndTitle(record.receivedBy) : "";
+                  const receiverName = record.receivedBy ? findPersonNameAndTitle(record.receivedBy) : "Cán bộ Một cửa";
 
                    if (label.includes("nhận hồ sơ")) {
                        return receiverName || "";
@@ -962,12 +963,8 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                    if (label.includes("thẩm tra")) {
                        return checkerName || "";
                    }
-                   if (label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
-                       if (directorName) {
-                           const fromStr = checkerName || assignedName;
-                           return fromStr ? `Trình: ${fromStr} -> Duyệt: ${directorName}` : `Duyệt: ${directorName}`;
-                       }
-                       return checkerName || assignedName || "";
+                   if (label.includes("trình ký gcn") || label.includes("trình ký giấy") || label.includes("trình ký")) {
+                       return directorName || "";
                    }
                    if (label.includes("vô số")) {
                        return assignedName || "";
@@ -1015,8 +1012,8 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                   if (label.includes("vô số")) {
                       return record.approvalDate;
                   }
-                  if (label.includes("giao 1 cửa") || label.includes("giao một cửa")) {
-                      return record.completedDate;
+                  if (label.includes("giao 1 cửa") || label.includes("giao một cửa") || label.includes("trả kết quả")) {
+                      return record.resultReturnedDate;
                   }
                   
                   if (stepStatus === RecordStatus.IN_PROGRESS) return record.assignedDate;
@@ -1026,6 +1023,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                   if (stepStatus === RecordStatus.PENDING_SIGN) return record.submissionDate;
                   if (stepStatus === RecordStatus.SIGNED) return record.approvalDate;
                   if (stepStatus === RecordStatus.HANDOVER) return record.completedDate;
+                  if (stepStatus === RecordStatus.RETURNED) return record.resultReturnedDate;
                   return null;
               };
 

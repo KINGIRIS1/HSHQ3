@@ -696,9 +696,10 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
 
                 let extraUpdates: any = {};
                 if (isRegType(record.recordType)) {
+                    const helper = getGcnWorkflowStepsHelper(record, holidays || []);
                     let currentStepIndex = record.currentStepIndex;
-                    if (currentStepIndex === undefined || currentStepIndex === null) {
-                        currentStepIndex = 0;
+                    if (currentStepIndex === undefined || currentStepIndex === null || currentStepIndex >= helper.steps.length) {
+                        currentStepIndex = helper.currentStepIndex;
                     }
                     extraUpdates.currentStepIndex = currentStepIndex + 1;
                 }
@@ -786,8 +787,8 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
         } else if (isRegType(record.recordType)) {
             const workflow = getGcnWorkflowStepsHelper(record, holidays || []);
             let currentIdx = record.currentStepIndex;
-            if (currentIdx === undefined || currentIdx === null) {
-                currentIdx = 0;
+            if (currentIdx === undefined || currentIdx === null || currentIdx >= workflow.steps.length) {
+                currentIdx = workflow.currentStepIndex;
             }
             if (currentIdx > 0) {
                 const prevIdx = currentIdx - 1;
@@ -1872,9 +1873,10 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                           // Hồ sơ Đo đạc thường
                           let extraUpdates: any = {};
                  if (isRegType(record.recordType)) {
+                     const helper = getGcnWorkflowStepsHelper(record, holidays || []);
                      let currentStepIndex = record.currentStepIndex;
-                     if (currentStepIndex === undefined || currentStepIndex === null) {
-                         currentStepIndex = 0;
+                     if (currentStepIndex === undefined || currentStepIndex === null || currentStepIndex >= helper.steps.length) {
+                         currentStepIndex = helper.currentStepIndex;
                      }
                      extraUpdates.currentStepIndex = currentStepIndex + 1;
                  }

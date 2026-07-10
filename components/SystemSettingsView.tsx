@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Database, AlertTriangle, Cloud, Loader2, CheckCircle, Save, Globe, Calendar, Plus, Trash2, ShieldAlert, Key, Compass, FolderOpen, Award, FileCheck, Users, Clock, Timer, RefreshCw, Sliders, ChevronRight, HelpCircle } from 'lucide-react';
-import { Holiday, UserRole, RolePermissions, DepartmentPermissions, DEFAULT_ROLE_PERMISSIONS, AVAILABLE_PERMISSIONS, Employee, RecordFile } from '../types';
+import { Database, AlertTriangle, Cloud, Loader2, CheckCircle, Save, Globe, Calendar, Plus, Trash2, ShieldAlert, Key, Compass, FolderOpen, Award, FileCheck, Users, Clock, Timer, RefreshCw, Sliders, ChevronRight, HelpCircle, X } from 'lucide-react';
+import { Holiday, UserRole, RolePermissions, DepartmentPermissions, DEFAULT_ROLE_PERMISSIONS, AVAILABLE_PERMISSIONS, Employee, RecordFile, RecordStatus } from '../types';
 import { fetchHolidays, saveHolidays, testDatabaseConnection, saveUpdateInfo, fetchUpdateInfo, getSystemSetting, saveSystemSetting } from '../services/api';
 import { APP_VERSION } from '../constants';
-import { confirmAction } from '../utils/appHelpers';
+import { confirmAction, getGcnWorkflowsList, GcnWorkflow } from '../utils/appHelpers';
 
 interface SystemSettingsViewProps {
   onDeleteAllData: () => Promise<boolean>;
@@ -188,7 +188,7 @@ const GCN_WORKFLOW_DEFAULTS = [
       { label: "BB Mộc Kê", defaultDuration: "1 ngày" },
       { label: "BB Thế chấp", defaultDuration: "1 ngày" },
       { label: "Niêm yết", defaultDuration: "22 ngày" },
-      { label: "Lập Phiếu chuyển thông tin nghĩa vụ tài chính", defaultDuration: "2 ngày" },
+      { label: "Phiếu chuyển Thuế", defaultDuration: "2 ngày" },
       { label: "Chờ Thông báo thuế (TBT)", defaultDuration: "---" },
       { label: "In GCN", defaultDuration: "3 ngày" },
       { label: "Thẩm tra", defaultDuration: "2 ngày" },
@@ -202,7 +202,7 @@ const GCN_WORKFLOW_DEFAULTS = [
     steps: [
       { label: "BB Thế chấp", defaultDuration: "1 ngày" },
       { label: "Niêm yết", defaultDuration: "22 ngày" },
-      { label: "Lập Phiếu chuyển thông tin nghĩa vụ tài chính", defaultDuration: "2 ngày" },
+      { label: "Phiếu chuyển Thuế", defaultDuration: "2 ngày" },
       { label: "Chờ Thông báo thuế (TBT)", defaultDuration: "---" },
       { label: "In GCN", defaultDuration: "3 ngày" },
       { label: "Thẩm tra", defaultDuration: "2 ngày" },
@@ -259,6 +259,14 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [slaConfig, setSlaConfig] = useState<Record<string, Record<string, string>>>({});
   const [selectedSlaWorkflow, setSelectedSlaWorkflow] = useState<string>('quy_trinh_1');
   const [isSavingSla, setIsSavingSla] = useState(false);
+  const [allWorkflows, setAllWorkflows] = useState<GcnWorkflow[]>([]);
+
+  // States for adding custom workflow
+  const [showAddWorkflowModal, setShowAddWorkflowModal] = useState(false);
+  const [newWorkflowTitle, setNewWorkflowTitle] = useState('');
+  const [newWorkflowSteps, setNewWorkflowSteps] = useState<Array<{ label: string; duration: string; overallStatus: RecordStatus }>>([
+      { label: 'Tiếp nhận', duration: '4 giờ', overallStatus: RecordStatus.RECEIVED }
+  ]);
 
   const loadSlaConfig = () => {
       try {
@@ -266,8 +274,92 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           if (savedSla) {
               setSlaConfig(JSON.parse(savedSla));
           }
+          setAllWorkflows(getGcnWorkflowsList());
       } catch (e) {
           console.error("Failed to load sla_config_gcn", e);
+      }
+  };
+
+  const handleSaveNewWorkflow = async () => {
+      if (!newWorkflowTitle.trim()) {
+          alert('Vui lòng nhập tên quy trình!');
+          return;
+      }
+      if (newWorkflowSteps.length === 0) {
+          alert('Vui lòng thêm ít nhất một bước xử lý!');
+          return;
+      }
+      const newId = `custom_wf_${Date.now()}`;
+      const newWf: GcnWorkflow = {
+          id: newId,
+          title: `Quy trình ${allWorkflows.length + 1}: ${newWorkflowTitle}`,
+          steps: newWorkflowSteps
+      };
+
+      try {
+          const currentCustomStr = localStorage.getItem('gcn_custom_workflows');
+          let currentCustom: GcnWorkflow[] = [];
+          if (currentCustomStr) {
+              currentCustom = JSON.parse(currentCustomStr);
+          }
+          currentCustom.push(newWf);
+          const valStr = JSON.stringify(currentCustom);
+          
+          localStorage.setItem('gcn_custom_workflows', valStr);
+          await saveSystemSetting('gcn_custom_workflows', valStr);
+
+          const updated = getGcnWorkflowsList();
+          setAllWorkflows(updated);
+          setSelectedSlaWorkflow(newId);
+
+          setShowAddWorkflowModal(false);
+          setNewWorkflowTitle('');
+          setNewWorkflowSteps([
+              { label: 'Tiếp nhận', duration: '4 giờ', overallStatus: RecordStatus.RECEIVED }
+          ]);
+          alert('Đã thêm quy trình mới thành công!');
+          if (onHolidaysChanged) {
+              onHolidaysChanged();
+          }
+      } catch (e) {
+          console.error(e);
+          alert('Có lỗi xảy ra khi thêm quy trình!');
+      }
+  };
+
+  const handleDeleteWorkflow = async (workflowId: string, title: string) => {
+      if (['quy_trinh_1', 'quy_trinh_2', 'quy_trinh_3', 'quy_trinh_4', 'quy_trinh_5', 'quy_trinh_6', 'quy_trinh_7'].includes(workflowId)) {
+          alert('Không thể xóa quy trình mặc định của hệ thống!');
+          return;
+      }
+      const confirmDelete = await confirmAction(`Bạn có chắc chắn muốn xóa "${title}"? Thao tác này không thể hoàn tác.`);
+      if (!confirmDelete) return;
+
+      try {
+          const currentCustomStr = localStorage.getItem('gcn_custom_workflows');
+          let currentCustom: GcnWorkflow[] = [];
+          if (currentCustomStr) {
+              currentCustom = JSON.parse(currentCustomStr);
+          }
+          currentCustom = currentCustom.filter(w => w.id !== workflowId);
+          const valStr = JSON.stringify(currentCustom);
+
+          localStorage.setItem('gcn_custom_workflows', valStr);
+          await saveSystemSetting('gcn_custom_workflows', valStr);
+
+          if (selectedSlaWorkflow === workflowId) {
+              setSelectedSlaWorkflow('quy_trinh_1');
+          }
+
+          const updated = getGcnWorkflowsList();
+          setAllWorkflows(updated);
+          alert('Đã xóa quy trình thành công!');
+          if (onHolidaysChanged) {
+              onHolidaysChanged();
+          }
+      } catch (e) {
+          console.error(e);
+          alert('Có lỗi xảy ra khi xóa quy trình!');
       }
   };
 
@@ -1079,36 +1171,59 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                        {/* Left List of 7 Workflows */}
+                        {/* Left List of Workflows */}
                         <div className="lg:col-span-4 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-2">
-                            <h4 className="text-xs font-black uppercase tracking-wider text-gray-400 mb-3 px-2">Danh sách quy trình</h4>
-                            {GCN_WORKFLOW_DEFAULTS.map((wf) => {
+                            <div className="flex items-center justify-between mb-3 px-2">
+                                <h4 className="text-xs font-black uppercase tracking-wider text-gray-400">Danh sách quy trình</h4>
+                                <button
+                                    onClick={() => setShowAddWorkflowModal(true)}
+                                    className="text-[11px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 hover:border-emerald-200 font-bold flex items-center gap-1 transition-all"
+                                >
+                                    <Plus size={12} /> Thêm mới
+                                </button>
+                            </div>
+                            {allWorkflows.map((wf) => {
                                 const customStepCount = Object.keys(slaConfig[wf.id] || {}).length;
                                 const isSelected = selectedSlaWorkflow === wf.id;
+                                const isCustomWorkflow = !['quy_trinh_1', 'quy_trinh_2', 'quy_trinh_3', 'quy_trinh_4', 'quy_trinh_5', 'quy_trinh_6', 'quy_trinh_7'].includes(wf.id);
                                 return (
-                                    <button
-                                        key={wf.id}
-                                        onClick={() => setSelectedSlaWorkflow(wf.id)}
-                                        className={`w-full text-left p-3.5 rounded-xl transition-all flex items-center justify-between group border ${isSelected ? 'border-emerald-500 bg-emerald-50/40 text-emerald-800 font-bold shadow-sm' : 'border-transparent text-gray-600 hover:bg-gray-50'}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-lg transition-colors ${isSelected ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-50 text-gray-400 group-hover:bg-gray-100'}`}>
-                                                <Timer size={16} />
+                                    <div key={wf.id} className="relative group/item flex items-center w-full">
+                                        <button
+                                            onClick={() => setSelectedSlaWorkflow(wf.id)}
+                                            className={`flex-1 text-left p-3.5 rounded-xl transition-all flex items-center justify-between group border ${isSelected ? 'border-emerald-500 bg-emerald-50/40 text-emerald-800 font-bold shadow-sm' : 'border-transparent text-gray-600 hover:bg-gray-50'}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-lg transition-colors ${isSelected ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-50 text-gray-400 group-hover:bg-gray-100'}`}>
+                                                    <Timer size={16} />
+                                                </div>
+                                                <div className="space-y-0.5">
+                                                    <p className="text-xs font-bold leading-tight truncate max-w-[150px]">{wf.title}</p>
+                                                    <p className="text-[10px] text-gray-400 font-medium">Có {wf.steps.length} bước xử lý</p>
+                                                </div>
                                             </div>
-                                            <div className="space-y-0.5">
-                                                <p className="text-xs font-bold leading-tight truncate max-w-[200px]">{wf.title}</p>
-                                                <p className="text-[10px] text-gray-400 font-medium">Có {wf.steps.length} bước xử lý</p>
+                                            <div className="flex items-center gap-1.5 shrink-0 pr-6">
+                                                {customStepCount > 0 && (
+                                                    <span className="bg-emerald-100 text-emerald-700 font-black text-[9px] px-2 py-0.5 rounded-full border border-emerald-200">
+                                                        Chỉnh {customStepCount}
+                                                    </span>
+                                                )}
+                                                <ChevronRight size={14} className={`text-gray-300 transition-transform ${isSelected ? 'translate-x-0.5 text-emerald-500' : 'group-hover:translate-x-0.5'}`} />
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                            {customStepCount > 0 && (
-                                                <span className="bg-emerald-100 text-emerald-700 font-black text-[9px] px-2 py-0.5 rounded-full border border-emerald-200">
-                                                    Chỉnh {customStepCount}
-                                                </span>
-                                            )}
-                                            <ChevronRight size={14} className={`text-gray-300 transition-transform ${isSelected ? 'translate-x-0.5 text-emerald-500' : 'group-hover:translate-x-0.5'}`} />
-                                        </div>
-                                    </button>
+                                        </button>
+                                        
+                                        {isCustomWorkflow && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteWorkflow(wf.id, wf.title);
+                                                }}
+                                                className="absolute right-2 opacity-0 group-hover/item:opacity-100 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                title="Xóa quy trình tùy chỉnh"
+                                            >
+                                                <Trash2 size={13} />
+                                            </button>
+                                        )}
+                                    </div>
                                 );
                             })}
                         </div>
@@ -1116,7 +1231,7 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                         {/* Right Workflow Steps Details */}
                         <div className="lg:col-span-8 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-6">
                             {(() => {
-                                const activeWf = GCN_WORKFLOW_DEFAULTS.find(w => w.id === selectedSlaWorkflow);
+                                const activeWf = allWorkflows.find(w => w.id === selectedSlaWorkflow);
                                 if (!activeWf) return null;
 
                                 return (
@@ -1178,7 +1293,7 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                                                     </span>
                                                                 </div>
                                                                 <p className="text-xs text-gray-400 font-medium">
-                                                                    Thời hạn gốc mặc định: <strong className="text-gray-500 font-bold">{step.defaultDuration}</strong>
+                                                                    Thời hạn gốc mặc định: <strong className="text-gray-500 font-bold">{(step as any).defaultDuration || (step as any).duration}</strong>
                                                                 </p>
                                                             </div>
 
@@ -1260,6 +1375,136 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                     </>
                                 );
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showAddWorkflowModal && (
+                <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+                    <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-2xl overflow-hidden animate-scale-up">
+                        <div className="bg-emerald-600 text-white p-6 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-black text-lg tracking-tight">Thêm quy trình SLA tùy chỉnh mới</h3>
+                                <p className="text-xs text-emerald-100 mt-0.5">Xây dựng quy trình xử lý của riêng bạn với thời gian mặc định</p>
+                            </div>
+                            <button 
+                                onClick={() => setShowAddWorkflowModal(false)}
+                                className="p-1.5 hover:bg-emerald-700/50 rounded-xl transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6 max-h-[65vh] overflow-y-auto">
+                            <div>
+                                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Tên quy trình</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ví dụ: Đăng ký thế chấp, Trích đo bản đồ..."
+                                    value={newWorkflowTitle}
+                                    onChange={(e) => setNewWorkflowTitle(e.target.value)}
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <h5 className="text-xs font-black uppercase tracking-wider text-gray-400">Các bước xử lý</h5>
+                                    <button
+                                        onClick={() => setNewWorkflowSteps([...newWorkflowSteps, { label: '', duration: '4 giờ', overallStatus: RecordStatus.IN_PROGRESS }])}
+                                        className="text-xs text-emerald-600 font-bold hover:underline flex items-center gap-1"
+                                    >
+                                        <Plus size={14} /> Thêm bước mới
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {newWorkflowSteps.map((step, idx) => (
+                                        <div key={idx} className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-150 relative w-full">
+                                            <div className="flex-1 w-full">
+                                                <label className="block text-[10px] font-bold text-gray-400 mb-1">Tên bước</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Ví dụ: Đo đạc thực địa, Thẩm tra..."
+                                                    value={step.label}
+                                                    onChange={(e) => {
+                                                        const copy = [...newWorkflowSteps];
+                                                        copy[idx].label = e.target.value;
+                                                        setNewWorkflowSteps(copy);
+                                                    }}
+                                                    className="w-full border border-gray-200 bg-white rounded-lg px-3 py-1.5 text-xs font-medium focus:ring-1 focus:ring-emerald-500 outline-none"
+                                                />
+                                            </div>
+
+                                            <div className="w-full sm:w-1/4">
+                                                <label className="block text-[10px] font-bold text-gray-400 mb-1">Thời hạn ban đầu</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Ví dụ: 4 giờ, 3 ngày"
+                                                    value={step.duration}
+                                                    onChange={(e) => {
+                                                        const copy = [...newWorkflowSteps];
+                                                        copy[idx].duration = e.target.value;
+                                                        setNewWorkflowSteps(copy);
+                                                    }}
+                                                    className="w-full border border-gray-200 bg-white rounded-lg px-3 py-1.5 text-xs font-medium focus:ring-1 focus:ring-emerald-500 outline-none"
+                                                />
+                                            </div>
+
+                                            <div className="w-full sm:w-1/3">
+                                                <label className="block text-[10px] font-bold text-gray-400 mb-1">Trạng thái hồ sơ</label>
+                                                <select
+                                                    value={step.overallStatus}
+                                                    onChange={(e) => {
+                                                        const copy = [...newWorkflowSteps];
+                                                        copy[idx].overallStatus = e.target.value as RecordStatus;
+                                                        setNewWorkflowSteps(copy);
+                                                    }}
+                                                    className="w-full border border-gray-200 bg-white rounded-lg px-2 py-1.5 text-xs font-medium focus:ring-1 focus:ring-emerald-500 outline-none"
+                                                >
+                                                    <option value={RecordStatus.RECEIVED}>Tiếp nhận (RECEIVED)</option>
+                                                    <option value={RecordStatus.ASSIGNED}>Giao nhân viên (ASSIGNED)</option>
+                                                    <option value={RecordStatus.IN_PROGRESS}>Đang xử lý (IN_PROGRESS)</option>
+                                                    <option value={RecordStatus.PENDING_CHECK}>Chờ thẩm tra (PENDING_CHECK)</option>
+                                                    <option value={RecordStatus.PENDING_SIGN}>Chờ trình ký (PENDING_SIGN)</option>
+                                                    <option value={RecordStatus.SIGNED}>Đã ký duyệt / Vô số (SIGNED)</option>
+                                                    <option value={RecordStatus.HANDOVER}>Giao Một cửa (HANDOVER)</option>
+                                                    <option value={RecordStatus.RETURNED}>Đã trả dân (RETURNED)</option>
+                                                </select>
+                                            </div>
+
+                                            {idx > 0 && (
+                                                <button
+                                                    onClick={() => {
+                                                        const copy = newWorkflowSteps.filter((_, sIdx) => sIdx !== idx);
+                                                        setNewWorkflowSteps(copy);
+                                                    }}
+                                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg shrink-0 self-end mb-1 sm:self-center sm:mb-0"
+                                                    title="Xóa bước này"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-50 p-6 flex justify-end gap-3 border-t border-gray-100">
+                            <button
+                                onClick={() => setShowAddWorkflowModal(false)}
+                                className="px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                onClick={handleSaveNewWorkflow}
+                                className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/10 active:scale-95 rounded-xl transition-all"
+                            >
+                                Tạo quy trình
+                            </button>
                         </div>
                     </div>
                 </div>

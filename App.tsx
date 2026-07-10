@@ -776,8 +776,6 @@ function App() {
           foundIdx = helper.steps.findIndex(s => s.label.toLowerCase().includes('dnlis') || s.label.toLowerCase().includes('ranh'));
       } else if (v === 'phieu_chuyen_thue') {
           foundIdx = helper.steps.findIndex(s => s.label.toLowerCase().includes('phiếu chuyển thuế') || s.label.toLowerCase().includes('phiếu chuyển') || s.label.toLowerCase().includes('nghĩa vụ tài chính'));
-      } else if (v === 'trinh_ky_thue') {
-          foundIdx = helper.steps.findIndex(s => s.label.toLowerCase().includes('trình ký thuế'));
       } else if (v === 'tbt') {
           foundIdx = helper.steps.findIndex(s => s.label.toLowerCase().includes('tbt') || s.label.toLowerCase().includes('thông báo thuế'));
       } else if (v === 'in_gcn') {
@@ -924,10 +922,11 @@ function App() {
 
       const nowStr = new Date().toISOString();
       if (isRegType(record.recordType)) {
-          const stepConfigs = getGcnWorkflowSteps(record, holidays);
+          const helper = getGcnWorkflowStepsHelper(record, holidays);
+          const stepConfigs = helper.steps;
           let currentIdx = record.currentStepIndex;
-          if (currentIdx === undefined || currentIdx === null) {
-              currentIdx = 0;
+          if (currentIdx === undefined || currentIdx === null || currentIdx >= stepConfigs.length) {
+              currentIdx = helper.currentStepIndex;
           }
 
           const currentStep = stepConfigs[currentIdx];
@@ -1684,11 +1683,24 @@ function App() {
                         
                         let extraUpdates: any = {};
                         if (isRegType(r.recordType)) {
+                            const helper = getGcnWorkflowStepsHelper(r, holidays || []);
                             let currentStepIndex = r.currentStepIndex;
-                            if (currentStepIndex === undefined || currentStepIndex === null) {
-                                currentStepIndex = 0;
+                            if (currentStepIndex === undefined || currentStepIndex === null || currentStepIndex >= helper.steps.length) {
+                                currentStepIndex = helper.currentStepIndex;
                             }
                             extraUpdates.currentStepIndex = currentStepIndex + 1;
+
+                            // Save step assignees history
+                            const stepAssignees = { ...(r.stepAssignees || {}) };
+                            const currentStep = helper.steps[currentStepIndex];
+                            if (currentStep) {
+                                stepAssignees[currentStep.label.toLowerCase().trim()] = r.checkedBy || currentUser?.employeeId || "";
+                            }
+                            const nextStep = helper.steps[currentStepIndex + 1];
+                            if (nextStep) {
+                                stepAssignees[nextStep.label.toLowerCase().trim()] = directorId;
+                            }
+                            extraUpdates.stepAssignees = stepAssignees;
                         }
 
                         if (isLuuTru) {
@@ -1743,11 +1755,24 @@ function App() {
                     const updates = submitTargetRecords.map(r => {
                         let extraUpdates: any = {};
                         if (isRegType(r.recordType)) {
+                            const helper = getGcnWorkflowStepsHelper(r, holidays || []);
                             let currentStepIndex = r.currentStepIndex;
-                            if (currentStepIndex === undefined || currentStepIndex === null) {
-                                currentStepIndex = 0;
+                            if (currentStepIndex === undefined || currentStepIndex === null || currentStepIndex >= helper.steps.length) {
+                                currentStepIndex = helper.currentStepIndex;
                             }
                             extraUpdates.currentStepIndex = currentStepIndex + 1;
+
+                            // Save step assignees history
+                            const stepAssignees = { ...(r.stepAssignees || {}) };
+                            const currentStep = helper.steps[currentStepIndex];
+                            if (currentStep) {
+                                stepAssignees[currentStep.label.toLowerCase().trim()] = r.assignedTo || currentUser?.employeeId || "";
+                            }
+                            const nextStep = helper.steps[currentStepIndex + 1];
+                            if (nextStep) {
+                                stepAssignees[nextStep.label.toLowerCase().trim()] = checkerId;
+                            }
+                            extraUpdates.stepAssignees = stepAssignees;
                         }
                         return {
                             ...r,

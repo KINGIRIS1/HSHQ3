@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Employee, RecordFile, User, UserRole } from '../types';
 import { X, Check, MapPin, User as UserIcon, Users, Search, FolderOpen, Compass, Award, FileCheck } from 'lucide-react';
-import { removeVietnameseTones, isRegType } from '../utils/appHelpers';
+import { removeVietnameseTones, isRegType, getGcnWorkflowsList } from '../utils/appHelpers';
 
 interface AssignModalProps {
   isOpen: boolean;
@@ -245,7 +245,11 @@ export const isViewAllowedForUser = (currentUser: User | null, viewId: string, e
     "registration_check_list",
     "registration_handover_list",
     "registration_director_completed",
-    "registration_vao_so"
+    "registration_vao_so",
+    "registration_phieu_chuyen_thue",
+    "registration_tbt",
+    "registration_in_gcn",
+    "registration_tham_tra"
   ];
 
   const archiveViews = [
@@ -622,13 +626,9 @@ const AssignModal: React.FC<AssignModalProps> = ({
                       className="border border-blue-300 rounded-lg px-3 py-1.5 bg-white text-blue-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs shadow-sm hover:border-blue-400 transition-colors cursor-pointer"
                     >
                       <option value="">Tự động nhận diện (Hệ thống)</option>
-                      <option value="quy_trinh_1">Quy trình 1: DNLIS</option>
-                      <option value="quy_trinh_2">Quy trình 2: Phiếu chuyển thuế</option>
-                      <option value="quy_trinh_3">Quy trình 3: In GCN</option>
-                      <option value="quy_trinh_4">Quy trình 4: Cấp lại không thuế (Có đối chiếu SMK)</option>
-                      <option value="quy_trinh_5">Quy trình 5: Cấp lại không thuế (Đã đối chiếu SMK)</option>
-                      <option value="quy_trinh_6">Quy trình 6: Cấp lại có thuế (Có đối chiếu SMK)</option>
-                      <option value="quy_trinh_7">Quy trình 7: Cấp lại có thuế (Đã đối chiếu SMK)</option>
+                      {getGcnWorkflowsList().map(wf => (
+                        <option key={wf.id} value={wf.id}>{wf.title}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

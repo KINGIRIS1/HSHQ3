@@ -181,24 +181,6 @@ export const useRecordFilter = (
             } else {
                 result = result.filter(r => r.status === RecordStatus.PENDING_SIGN);
             }
-
-            // Exclude 'Trình ký Thuế' records from the main 'Trình Ký GCN' tab
-            if (currentView === 'registration_check_list') {
-                const getActiveStepLabel = (r: RecordFile) => {
-                    try {
-                        const helper = getGcnWorkflowStepsHelper(r, []);
-                        if (helper && helper.steps) {
-                            const currentStep = helper.steps.find(s => s.status === 'current');
-                            if (currentStep) return currentStep.label.toLowerCase();
-                        }
-                    } catch (e) {}
-                    return '';
-                };
-                result = result.filter(r => {
-                    if (!isRegType(r.recordType)) return true;
-                    return !getActiveStepLabel(r).includes('trình ký thuế');
-                });
-            }
         } else if (isPendingCheckView) {
             // Tab Kiểm tra: Hiển thị hồ sơ Chờ kiểm tra và Đã kiểm tra
             result = result.filter(r => r.status === RecordStatus.PENDING_CHECK || r.status === RecordStatus.CHECKED);
@@ -240,7 +222,6 @@ export const useRecordFilter = (
             result = result.filter(r => r.status === RecordStatus.RECEIVED || !r.assignedTo);
         } else if ([
             'registration_phieu_chuyen_thue',
-            'registration_trinh_ky_thue',
             'registration_tbt',
             'registration_in_gcn',
             'registration_tham_tra'
@@ -262,15 +243,6 @@ export const useRecordFilter = (
 
             if (currentView === 'registration_phieu_chuyen_thue') {
                 result = result.filter(r => getActiveStepLabel(r).includes('phiếu chuyển'));
-            } else if (currentView === 'registration_trinh_ky_thue') {
-                result = result.filter(r => {
-                    const label = getActiveStepLabel(r);
-                    if (!label.includes('trình ký thuế')) return false;
-                    if (isDirector) {
-                        return r.status === RecordStatus.PENDING_SIGN && r.submittedTo === currentUser?.employeeId;
-                    }
-                    return r.status === RecordStatus.PENDING_SIGN;
-                });
             } else if (currentView === 'registration_tbt') {
                 result = result.filter(r => r.status === RecordStatus.TBT || getActiveStepLabel(r) === 'tbt');
             } else if (currentView === 'registration_in_gcn') {
@@ -300,7 +272,7 @@ export const useRecordFilter = (
             'registration_records', 'registration_assign_tasks', 'registration_completed_list', 
             'registration_pending_check_list', 'registration_check_list', 'registration_handover_list', 
             'registration_director_completed', 'registration_vao_so',
-            'registration_phieu_chuyen_thue', 'registration_trinh_ky_thue',
+            'registration_phieu_chuyen_thue',
             'registration_tbt', 'registration_in_gcn', 'registration_tham_tra'
         ].includes(currentView);
 
@@ -371,7 +343,7 @@ export const useRecordFilter = (
                 'registration_records', 'registration_assign_tasks', 'registration_completed_list', 
                 'registration_pending_check_list', 'registration_check_list', 'registration_handover_list', 
                 'registration_director_completed', 'registration_vao_so',
-                'registration_phieu_chuyen_thue', 'registration_trinh_ky_thue',
+                'registration_phieu_chuyen_thue',
                 'registration_tbt', 'registration_in_gcn', 'registration_tham_tra'
             ].includes(currentView);
 
@@ -393,11 +365,10 @@ export const useRecordFilter = (
                     const label = getActiveStepLabel(r);
                     if (filterStatus === 'dnlis') return label.includes('dnlis');
                     if (filterStatus === 'phieu_chuyen_thue') return label.includes('phiếu chuyển');
-                    if (filterStatus === 'trinh_ky_thue') return label.includes('trình ký thuế');
                     if (filterStatus === 'tbt') return r.status === RecordStatus.TBT || label === 'tbt' || label.includes('thông báo thuế');
                     if (filterStatus === 'in_gcn') return label.includes('in gcn') || label.includes('in giấy chứng nhận') || label.includes('in giấy');
                     if (filterStatus === 'tham_tra') return r.status === RecordStatus.PENDING_CHECK || label.includes('thẩm tra');
-                    if (filterStatus === 'trinh_ky_gcn') return label.includes('trình ký gcn') || label.includes('trình ký giấy') || (label.includes('trình ký') && !label.includes('thuế'));
+                    if (filterStatus === 'trinh_ky_gcn') return label.includes('trình ký') || label.includes('trình ký gcn') || label.includes('trình ký giấy');
                     if (filterStatus === 'vo_so_gcn') return label.includes('vô số');
                     if (filterStatus === 'giao_1_cua') return label.includes('cửa') || label.includes('trả kết quả');
                     if (filterStatus === 'pending_supplement') return r.status === RecordStatus.PENDING_SUPPLEMENT;

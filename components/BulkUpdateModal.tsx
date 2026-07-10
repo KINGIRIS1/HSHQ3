@@ -156,7 +156,7 @@ const BulkUpdateModal: React.FC<BulkUpdateModalProps> = ({
                                 { value: "tbt", label: "Thông báo thuế (TBT)" },
                                 { value: "in_gcn", label: "In GCN" },
                                 { value: "tham_tra", label: "Thẩm tra" },
-                                { value: "trinh_ky_gcn", label: "Trình ký GCN" },
+                                { value: "trinh_ky_gcn", label: "Trình ký" },
                                 { value: "vo_so_gcn", label: "Vô số GCN" },
                                 { value: "giao_1_cua", label: "Giao 1 cửa" },
                                 { value: "pending_supplement", label: "Chờ bổ sung (Dân)" },

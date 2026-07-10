@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RecordFile, Holiday, RecordStatus, User, Employee, UserRole } from '../../types';
 import { RECORD_TYPES, REGISTRATION_PROCEDURES, STATUS_LABELS } from '../../constants';
-import { getStatusLabel, isMeasurementType, isArchiveType, removeVietnameseTones, groupEmployeesByDepartment, getGcnWorkflowStepsHelper, isRegType } from '../../utils/appHelpers';
+import { getStatusLabel, isMeasurementType, isArchiveType, removeVietnameseTones, groupEmployeesByDepartment, getGcnWorkflowStepsHelper, isRegType, getGcnWorkflowsList } from '../../utils/appHelpers';
 import { Save, User as UserIcon, Calendar, MapPin, FileCheck, Loader2, Printer, RotateCcw, XCircle, CheckCircle, AlertCircle, X, Phone, FileText, BookOpen, Clock, Hash, Map, Camera, Trash2, Upload, Lock } from 'lucide-react';
 import SimpleRecordForm from './SimpleRecordForm';
 
@@ -1155,13 +1155,9 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                         }}
                                     >
                                         <option value="">-- Tự động nhận diện quy trình --</option>
-                                        <option value="quy_trinh_1">Quy trình 1: DNLIS</option>
-                                        <option value="quy_trinh_2">Quy trình 2: Phiếu chuyển thuế</option>
-                                        <option value="quy_trinh_3">Quy trình 3: In GCN</option>
-                                        <option value="quy_trinh_4">Quy trình 4: Cấp lại không thuế (Có đối chiếu SMK)</option>
-                                        <option value="quy_trinh_5">Quy trình 5: Cấp lại không thuế (Đã đối chiếu SMK)</option>
-                                        <option value="quy_trinh_6">Quy trình 6: Cấp lại có thuế (Có đối chiếu SMK)</option>
-                                        <option value="quy_trinh_7">Quy trình 7: Cấp lại có thuế (Đã đối chiếu SMK)</option>
+                                        {getGcnWorkflowsList().map(wf => (
+                                            <option key={wf.id} value={wf.id}>{wf.title}</option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>

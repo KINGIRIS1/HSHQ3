@@ -15,11 +15,10 @@ export const REGISTRATION_WORKFLOW_STATUS_OPTIONS = [
   { value: "all", label: "Mọi trạng thái" },
   { value: "dnlis", label: "DNLIS" },
   { value: "phieu_chuyen_thue", label: "Phiếu chuyển Thuế" },
-  { value: "trinh_ky_thue", label: "Trình ký Thuế" },
   { value: "tbt", label: "Thông báo thuế (TBT)" },
   { value: "in_gcn", label: "In GCN" },
   { value: "tham_tra", label: "Thẩm tra" },
-  { value: "trinh_ky_gcn", label: "Trình ký GCN" },
+  { value: "trinh_ky_gcn", label: "Trình ký" },
   { value: "vo_so_gcn", label: "Vô số GCN" },
   { value: "giao_1_cua", label: "Giao 1 cửa" },
   { value: "pending_supplement", label: "Chờ bổ sung (Dân)" },
@@ -368,7 +367,6 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
       "registration_director_completed",
       "registration_vao_so",
       "registration_phieu_chuyen_thue",
-      "registration_trinh_ky_thue",
       "registration_tbt",
       "registration_in_gcn",
       "registration_tham_tra",
@@ -440,7 +438,6 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
       "archive_completed_list",
       "congvan_completed_list",
       "registration_phieu_chuyen_thue",
-      "registration_trinh_ky_thue",
       "registration_tbt"
     ].includes(currentView);
 
@@ -473,13 +470,12 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
       if (currentView === "registration_records") title = "Tất cả hồ sơ cấp giấy";
       else if (currentView === "registration_assign_tasks") title = "Hồ sơ chưa giao";
       else if (currentView === "registration_phieu_chuyen_thue") title = "Danh sách Phiếu chuyển Thuế";
-      else if (currentView === "registration_trinh_ky_thue") title = "Danh sách Trình ký Thuế";
       else if (currentView === "registration_tbt") title = "Danh sách Thông báo thuế (TBT)";
       else if (currentView === "registration_in_gcn") title = "Danh sách In GCN";
       else if (currentView === "registration_tham_tra") title = "Danh sách Thẩm tra";
       else if (currentView === "registration_completed_list") title = "Hồ sơ đang thực hiện";
       else if (currentView === "registration_pending_check_list") title = "Hồ sơ chờ kiểm tra";
-      else if (currentView === "registration_check_list") title = isDirector ? "Hồ sơ Chờ ký GCN" : "Trình Ký GCN";
+      else if (currentView === "registration_check_list") title = isDirector ? "Hồ sơ Chờ ký" : "Trình ký";
       else if (currentView === "registration_handover_list") title = "Bàn giao 1 cửa";
     } else {
       if (isCheckAny)
@@ -634,14 +630,19 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
               <Printer size={16} /> In GCN
             </button>
 
-
+            <button
+              onClick={() => props.setCurrentView("registration_tham_tra")}
+              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_tham_tra" ? "border-amber-600 text-amber-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+            >
+              <CheckSquare size={16} /> Thẩm tra
+            </button>
 
             {(isAdmin || isSubadmin || isDirector || isOneDoor || hasTeamLeaderPrivileges) && (
               <button
                 onClick={() => props.setCurrentView("registration_check_list")}
                 className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_check_list" ? "border-purple-600 text-purple-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
               >
-                <ClipboardList size={16} /> {isDirector ? "Chờ ký GCN" : "Trình Ký GCN"}
+                <ClipboardList size={16} /> {isDirector ? "Chờ ký" : "Trình ký"}
               </button>
             )}
 

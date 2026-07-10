@@ -131,49 +131,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
        let checkerEmp = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
        let submittedToId = record.submittedTo;
 
-       // Smart dynamic fallback for older records (các hồ sơ cũ)
-       if (!assignedEmp) {
-           // Fallback based on managed wards
-           if (record.ward) {
-               const cleanWard = record.ward.trim().toLowerCase();
-               const matchedEmp = employees.find(e => 
-                   e.managedWards && e.managedWards.some(w => w.trim().toLowerCase() === cleanWard)
-               );
-               if (matchedEmp) assignedEmp = matchedEmp;
-           }
-           // If still no assigned employee, pick first employee of the relevant department
-           if (!assignedEmp) {
-               const type = (record.recordType || "").toLowerCase();
-               const targetDept = (type.includes("đo đạc") || type.includes("bản đồ")) ? "Đo đạc" : "Đăng ký";
-               const matchedEmp = employees.find(e => e.department?.toLowerCase().includes(targetDept.toLowerCase()));
-               if (matchedEmp) assignedEmp = matchedEmp;
-           }
-       }
-
-       if (!checkerEmp && assignedEmp) {
-           // Find team leader of assigned employee's department
-           const dept = assignedEmp.department;
-           if (dept) {
-               const matchedLeader = employees.find(e => 
-                   e.department === dept && 
-                   (e.position?.toLowerCase().includes("trưởng") || e.position?.toLowerCase().includes("phó") || e.position?.toLowerCase().includes("tổ trưởng"))
-               );
-               if (matchedLeader) checkerEmp = matchedLeader;
-           }
-       }
-
-       if (!submittedToId) {
-           // Find any director/leader in employees or users
-           const matchedDirector = employees.find(e => 
-               e.position?.toLowerCase().includes("giám đốc") || e.position?.toLowerCase().includes("lãnh đạo")
-           );
-           if (matchedDirector) {
-               submittedToId = matchedDirector.id;
-           } else {
-               const adminUser = users.find(u => u.role === UserRole.ADMIN || u.role === UserRole.SUBADMIN);
-               if (adminUser) submittedToId = adminUser.employeeId || adminUser.username;
-           }
-       }
 
        if (savedAssigneeId) {
            if (label.includes("thẩm tra") || label.includes("kiểm tra")) {
@@ -192,11 +149,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
        const directorName = submittedToId ? findPersonNameAndTitle(submittedToId) : "";
        
        // Fallback for receiver
-       let receiverName = record.receivedBy ? findPersonNameAndTitle(record.receivedBy) : "";
-       if (!receiverName) {
-           const oneDoorUser = users.find(u => u.role === UserRole.ONEDOOR);
-           receiverName = oneDoorUser ? findPersonNameAndTitle(oneDoorUser.employeeId || oneDoorUser.username) : "Cán bộ Một cửa";
-       }
+       let receiverName = record.receivedBy ? findPersonNameAndTitle(record.receivedBy) : "Cán bộ Một cửa";
 
        if (label.includes("nhận hồ sơ")) {
            return receiverName || "";
@@ -301,7 +254,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
       } else if (label.includes("vô số")) {
           date = record.approvalDate;
       } else if (label.includes("giao 1 cửa") || label.includes("giao một cửa") || label.includes("trả kết quả")) {
-          date = record.completedDate;
+          date = record.resultReturnedDate;
       }
       
       if (!date) {
@@ -312,6 +265,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
           else if (stepStatus === RecordStatus.PENDING_SIGN) date = record.submissionDate;
           else if (stepStatus === RecordStatus.SIGNED) date = record.approvalDate;
           else if (stepStatus === RecordStatus.HANDOVER) date = record.completedDate;
+          else if (stepStatus === RecordStatus.RETURNED) date = record.resultReturnedDate;
       }
 
       if (date) return date;
@@ -1268,7 +1222,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                     } else if (label.includes("vô số")) {
                         date = record.approvalDate;
                     } else if (label.includes("giao 1 cửa") || label.includes("giao một cửa") || label.includes("trả kết quả")) {
-                        date = record.completedDate;
+                        date = record.resultReturnedDate;
                     }
                     
                     if (!date) {
@@ -1279,6 +1233,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                         else if (stepStatus === RecordStatus.PENDING_SIGN) date = record.submissionDate;
                         else if (stepStatus === RecordStatus.SIGNED) date = record.approvalDate;
                         else if (stepStatus === RecordStatus.HANDOVER) date = record.completedDate;
+                        else if (stepStatus === RecordStatus.RETURNED) date = record.resultReturnedDate;
                     }
 
                     if (date) return date;
