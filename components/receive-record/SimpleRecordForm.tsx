@@ -156,28 +156,6 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
               />
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Ngày nhận <span className="text-red-500">*</span></label>
-              <input 
-                type="date" 
-                required
-                className={plainInputClass} 
-                value={dateVal(formData.receivedDate)} 
-                onChange={(e) => handleChange('receivedDate', e.target.value)} 
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Hạn xử lý (Hẹn trả)</label>
-              <input 
-                type="date" 
-                className={plainInputClass} 
-                value={dateVal(formData.deadline)} 
-                onChange={(e) => handleChange('deadline', e.target.value)} 
-              />
-            </div>
-          </div>
         </div>
       </div>
     );

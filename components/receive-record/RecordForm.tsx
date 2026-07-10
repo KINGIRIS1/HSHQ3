@@ -671,14 +671,69 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                 }
             }
         }
-        if (field === 'recordType' || field === 'receivedDate' || field === 'hasTax' || field === 'transferToDNLis') {
+        if (field === 'recordType' || field === 'receivedDate' || field === 'hasTax' || field === 'transferToDNLis' || field === 'hasCheckedSMK') {
             const rType = newData.recordType;
             const rDate = newData.receivedDate;
             const hTax = newData.hasTax;
             if (rType === '1.2 Công văn') {
                 newData.deadline = '';
-            } else if (rType && rDate) {
-                newData.deadline = calculateDeadline(rType, rDate, hTax);
+            } else {
+                const isSpecializedTab = currentView !== 'receive_record' && currentView !== 'receive_contract';
+                const isReg = isRegType(rType) || isRegistration(rType);
+                if (isSpecializedTab && isReg) {
+                    const isPreJuly2025 = (() => {
+                        const dateStr = rDate || new Date().toISOString();
+                        const date = new Date(dateStr);
+                        const targetDate = new Date('2025-07-01');
+                        return date < targetDate;
+                    })();
+                    const rTypeLower = (rType || '').toLowerCase();
+                    let detectedWorkflow = newData.gcnWorkflowType;
+                    if (rTypeLower.includes('cấp lại') || rTypeLower.includes('3.7')) {
+                        if (hTax) {
+                            detectedWorkflow = newData.hasCheckedSMK ? 'quy_trinh_7' : 'quy_trinh_6';
+                        } else {
+                            detectedWorkflow = newData.hasCheckedSMK ? 'quy_trinh_5' : 'quy_trinh_4';
+                        }
+                    } else if (!hTax && !isDefaultTaxProcedure(rType)) {
+                        detectedWorkflow = 'quy_trinh_3';
+                    } else if (isPreJuly2025 || rTypeLower.includes('tách - hợp') || rTypeLower.includes('tách thửa') || rTypeLower.includes('hợp thửa') || rTypeLower.includes('3.8')) {
+                        detectedWorkflow = 'quy_trinh_1';
+                    } else {
+                        detectedWorkflow = 'quy_trinh_2';
+                    }
+                    newData.gcnWorkflowType = detectedWorkflow;
+
+                    if (detectedWorkflow && rDate) {
+                        const simRecord = {
+                            ...newData,
+                            assignedTo: 'temp_assignee',
+                            assignedDate: rDate
+                        };
+                        const simWorkflow = getGcnWorkflowStepsHelper(simRecord as RecordFile, holidays || []);
+                        if (simWorkflow && simWorkflow.steps && simWorkflow.steps.length > 0) {
+                            let lastValidStep = null;
+                            for (let i = simWorkflow.steps.length - 1; i >= 0; i--) {
+                                const step = simWorkflow.steps[i];
+                                if (step.deadlineDate && !step.label.toLowerCase().includes("trả kết quả")) {
+                                    lastValidStep = step;
+                                    break;
+                                }
+                            }
+                            if (!lastValidStep) {
+                                lastValidStep = simWorkflow.steps[simWorkflow.steps.length - 1];
+                            }
+                            if (lastValidStep && lastValidStep.deadlineDate) {
+                                const y = lastValidStep.deadlineDate.getFullYear();
+                                const m = String(lastValidStep.deadlineDate.getMonth() + 1).padStart(2, '0');
+                                const d = String(lastValidStep.deadlineDate.getDate()).padStart(2, '0');
+                                newData.deadline = `${y}-${m}-${d}`;
+                            }
+                        }
+                    }
+                } else if (rType && rDate) {
+                    newData.deadline = calculateDeadline(rType, rDate, hTax);
+                }
             }
         }
 
