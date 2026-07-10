@@ -185,7 +185,8 @@ function App() {
       isUpdateAvailable, latestVersion, updateUrl,
       setEmployees, setUsers, setRecords, setWards,
       loadData, handleAddOrUpdateRecord, handleDeleteRecord, handleImportRecords,
-      handleSaveEmployee, handleDeleteEmployee, handleDeleteAllData, handleUpdateUser, handleDeleteUser
+      handleSaveEmployee, handleDeleteEmployee, handleDeleteAllData, handleUpdateUser, handleDeleteUser,
+      handleTransferPendingOneStopRecords
   } = useAppData(currentUser);
 
   const handleAddOrUpdateWithToast = useCallback(async (recordData: any, forceDeleteOnWithdrawn: boolean = false) => {
@@ -1573,6 +1574,7 @@ function App() {
             handleSaveEmployee={handleSaveEmployee}
             handleDeleteEmployee={handleDeleteEmployee}
             handleDeleteAllData={handleDeleteAllData}
+            handleTransferPendingOneStopRecords={handleTransferPendingOneStopRecords}
             onRefreshData={loadData}
             setWards={setWards}
             onResetWards={() => setWards(STATIC_WARDS)}

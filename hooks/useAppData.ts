@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { RecordFile, Employee, User, RecordStatus, Holiday, RolePermissions, DepartmentPermissions, DEFAULT_ROLE_PERMISSIONS } from '../types';
 import { fetchRecords, fetchEmployees, fetchUsers, fetchUpdateInfo, fetchHolidays,
     createRecordApi, updateRecordApi, deleteRecordApi, createRecordsBatchApi,
-    saveEmployeeApi, deleteEmployeeApi, saveUserApi, deleteUserApi, deleteAllDataApi, getSystemSetting
+    saveEmployeeApi, deleteEmployeeApi, saveUserApi, deleteUserApi, deleteAllDataApi, getSystemSetting,
+    updateRecordsBatchById
 } from '../services/api';
 import { supabase } from '../services/supabaseClient';
 import { mapRecordFromDb, saveToCache, getFromCache, CACHE_KEYS } from '../services/apiCore';
@@ -553,6 +554,30 @@ export const useAppData = (currentUser: User | null) => {
         return false;
     };
 
+    const handleTransferPendingOneStopRecords = async (cutoffDate: string = '2026-07-10') => {
+        const pendingRecords = records.filter(r => {
+            if (r.isDeptSynced === true) return false;
+            if (!r.receivedDate) return false;
+            const receivedDateOnly = r.receivedDate.split('T')[0];
+            return receivedDateOnly < cutoffDate;
+        });
+
+        if (pendingRecords.length === 0) {
+            return { success: true, count: 0 };
+        }
+
+        const updates = pendingRecords.map(r => ({
+            id: r.id,
+            isDeptSynced: true
+        }));
+
+        const result = await updateRecordsBatchById(updates);
+        if (result.success) {
+            await loadData();
+        }
+        return result;
+    };
+
     return {
         records, employees, users, wards, holidays, rolePermissions, departmentPermissions, connectionStatus,
         isUpdateAvailable, latestVersion, updateUrl,
@@ -561,6 +586,7 @@ export const useAppData = (currentUser: User | null) => {
         handleAddOrUpdateRecord, handleDeleteRecord, handleImportRecords, handleBatchUpdate,
         handleSaveEmployee, handleDeleteEmployee,
         handleUpdateUser, handleDeleteUser,
-        handleDeleteAllData
+        handleDeleteAllData,
+        handleTransferPendingOneStopRecords
     };
 };

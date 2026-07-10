@@ -121,6 +121,7 @@ interface AppRoutesProps {
   handleSaveEmployee: (emp: Employee) => void;
   handleDeleteEmployee: (id: string) => void;
   handleDeleteAllData: () => Promise<boolean>;
+  handleTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
   onRefreshData: () => void;
   setWards: React.Dispatch<React.SetStateAction<string[]>>;
   onResetWards: () => void;
@@ -1704,6 +1705,8 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
           wards={wards}
           onDeleteAllData={props.handleDeleteAllData}
           onHolidaysChanged={props.onRefreshData}
+          records={props.records}
+          onTransferPendingOneStopRecords={props.handleTransferPendingOneStopRecords}
         />
       );
     case "reports":

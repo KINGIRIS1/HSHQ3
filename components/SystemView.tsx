@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Employee, UserRole } from '../types';
+import { User, Employee, UserRole, RecordFile } from '../types';
 import UserManagement from './UserManagement';
 import EmployeeManagement from './EmployeeManagement';
 import SystemSettingsView from './SystemSettingsView';
@@ -17,6 +17,8 @@ interface SystemViewProps {
     wards: string[];
     onDeleteAllData: () => Promise<boolean>;
     onHolidaysChanged: () => void;
+    records?: RecordFile[];
+    onTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
 }
 
 const SystemView: React.FC<SystemViewProps> = ({
@@ -30,7 +32,9 @@ const SystemView: React.FC<SystemViewProps> = ({
     onDeleteEmployee,
     wards,
     onDeleteAllData,
-    onHolidaysChanged
+    onHolidaysChanged,
+    records = [],
+    onTransferPendingOneStopRecords
 }) => {
     const isAdmin = currentUser.role === UserRole.ADMIN;
     const isSubAdmin = currentUser.role === UserRole.SUBADMIN;
@@ -92,6 +96,8 @@ const SystemView: React.FC<SystemViewProps> = ({
                         onHolidaysChanged={onHolidaysChanged} 
                         employees={employees}
                         currentUserRole={currentUser.role}
+                        records={records}
+                        onTransferPendingOneStopRecords={onTransferPendingOneStopRecords}
                     />
                 )}
             </div>

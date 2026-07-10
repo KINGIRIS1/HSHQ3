@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Database, AlertTriangle, Cloud, Loader2, CheckCircle, Save, Globe, Calendar, Plus, Trash2, ShieldAlert, Key, Compass, FolderOpen, Award, FileCheck, Users, Clock, Timer, RefreshCw, Sliders, ChevronRight, HelpCircle } from 'lucide-react';
-import { Holiday, UserRole, RolePermissions, DepartmentPermissions, DEFAULT_ROLE_PERMISSIONS, AVAILABLE_PERMISSIONS, Employee } from '../types';
+import { Holiday, UserRole, RolePermissions, DepartmentPermissions, DEFAULT_ROLE_PERMISSIONS, AVAILABLE_PERMISSIONS, Employee, RecordFile } from '../types';
 import { fetchHolidays, saveHolidays, testDatabaseConnection, saveUpdateInfo, fetchUpdateInfo, getSystemSetting, saveSystemSetting } from '../services/api';
 import { APP_VERSION } from '../constants';
 import { confirmAction } from '../utils/appHelpers';
@@ -11,6 +11,8 @@ interface SystemSettingsViewProps {
   onHolidaysChanged?: () => void;
   employees: Employee[];
   currentUserRole?: UserRole;
+  records?: RecordFile[];
+  onTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
 }
 
 const TEAMS_PERM_LIST = [
@@ -214,7 +216,9 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   onDeleteAllData,
   onHolidaysChanged,
   employees,
-  currentUserRole
+  currentUserRole,
+  records = [],
+  onTransferPendingOneStopRecords
 }) => {
   const isAdminOrSub = currentUserRole === UserRole.ADMIN || currentUserRole === UserRole.SUBADMIN;
   const [activeTab, setActiveTab] = useState<'general' | 'holidays' | 'permissions' | 'data' | 'sla'>(
@@ -228,6 +232,10 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [manualVersion, setManualVersion] = useState('');
   const [manualUrl, setManualUrl] = useState('');
   const [isSavingUpdate, setIsSavingUpdate] = useState(false);
+
+  // Sync state for One-Stop pending records
+  const [syncCutoffDate, setSyncCutoffDate] = useState('2026-07-10');
+  const [isSyncingOneStop, setIsSyncingOneStop] = useState(false);
 
   // Holiday States
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -1258,7 +1266,82 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
             )}
 
             {activeTab === 'data' && (
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-4xl mx-auto space-y-8">
+                    {/* Chuyển xử lý hồ sơ Một cửa tồn đọng */}
+                    <div className="border border-blue-100 rounded-[2rem] overflow-hidden bg-white shadow-xl shadow-blue-50">
+                        <div className="bg-blue-50/50 p-6 border-b border-blue-50 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-blue-800 font-black flex items-center gap-2 uppercase tracking-widest text-xs"> 
+                                    <RefreshCw className="text-blue-600" size={18} /> Chuyển hồ sơ Một cửa tồn đọng
+                                </h3>
+                                <p className="text-[11px] text-blue-500 font-medium mt-1">Đồng bộ hàng loạt các hồ sơ còn tồn đọng ở khâu tiếp nhận về phòng chuyên môn.</p>
+                            </div>
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Ngày giới hạn nhận (Trước ngày)</label>
+                                    <input 
+                                        type="date" 
+                                        value={syncCutoffDate} 
+                                        onChange={(e) => setSyncCutoffDate(e.target.value)} 
+                                        className="mt-1 block w-full md:w-48 border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div className="text-left md:text-right">
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Hồ sơ chưa chuyển tìm thấy</span>
+                                    <span className="text-3xl font-black text-blue-600 tracking-tight">
+                                        {records.filter(r => r.isDeptSynced !== true && r.receivedDate && r.receivedDate.split('T')[0] < syncCutoffDate).length}
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-400 ml-1">hồ sơ</span>
+                                </div>
+                            </div>
+
+                            <p className="text-sm text-slate-500 leading-relaxed font-medium">
+                                Tính năng này sẽ quét qua toàn bộ cơ sở dữ liệu để tìm những hồ sơ đã tiếp nhận Một cửa <strong>trước ngày {syncCutoffDate.split('-').reverse().join('/')}</strong> nhưng chưa được chuyển xử lý về các phòng chuyên môn (còn ở tài khoản tiếp nhận). Sau khi thực hiện, hệ thống sẽ tự động cập nhật trạng thái đã chuyển chuyên môn cho toàn bộ các hồ sơ này để các phòng ban thụ lý tức thì.
+                            </p>
+
+                            <div className="pt-4 border-t border-slate-100 flex justify-end">
+                                <button 
+                                    onClick={async () => {
+                                        const count = records.filter(r => r.isDeptSynced !== true && r.receivedDate && r.receivedDate.split('T')[0] < syncCutoffDate).length;
+                                        if (count === 0) {
+                                            alert("Không tìm thấy hồ sơ nào chưa chuyển phù hợp với điều kiện ngày đã chọn.");
+                                            return;
+                                        }
+                                        if (await confirmAction(`Bạn có chắc chắn muốn chuyển ${count} hồ sơ Một cửa tồn đọng trước ngày ${syncCutoffDate.split('-').reverse().join('/')} về các phòng chuyên môn?`)) {
+                                            setIsSyncingOneStop(true);
+                                            try {
+                                                if (onTransferPendingOneStopRecords) {
+                                                    const res = await onTransferPendingOneStopRecords(syncCutoffDate);
+                                                    if (res && res.success) {
+                                                        alert(`Đã chuyển xử lý thành công ${res.count} hồ sơ về các phòng chuyên môn.`);
+                                                        if (onHolidaysChanged) onHolidaysChanged(); // Refresh data
+                                                    } else {
+                                                        alert("Đã xảy ra lỗi trong quá trình chuyển xử lý hồ sơ.");
+                                                    }
+                                                } else {
+                                                    alert("Lỗi: Chức năng đồng bộ chưa được định nghĩa.");
+                                                }
+                                            } catch (err) {
+                                                console.error(err);
+                                                alert("Có lỗi xảy ra: " + (err instanceof Error ? err.message : String(err)));
+                                            } finally {
+                                                setIsSyncingOneStop(false);
+                                            }
+                                        }
+                                    }}
+                                    disabled={isSyncingOneStop}
+                                    className="w-full sm:w-auto px-6 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-blue-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
+                                >
+                                    {isSyncingOneStop ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+                                    {isSyncingOneStop ? 'Đang chuyển xử lý...' : 'Chuyển xử lý hàng loạt'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Vùng nguy hiểm */}
                     <div className="border-2 border-red-100 rounded-[2rem] overflow-hidden bg-white shadow-xl shadow-red-50">
                         <div className="bg-red-50 p-5 border-b border-red-100">
                             <h3 className="text-red-700 font-black flex items-center gap-2 uppercase tracking-widest text-xs"> <AlertTriangle size={20} /> Vùng nguy hiểm </h3>
