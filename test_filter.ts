@@ -1,29 +1,29 @@
 import { supabase } from './services/supabaseClient';
 
 async function testFilter() {
-  const { data: users, error: userError } = await supabase.from('users').select('*');
-  const { data: employees, error: empError } = await supabase.from('employees').select('*');
+  const testId = 'test_' + Math.random().toString(36).substr(2, 9);
+  const payload = {
+    id: testId,
+    code: 'TEST_' + Math.floor(Math.random() * 10000),
+    customerName: 'Test Name',
+    customerAddress: 'Test Address',
+    issueNumber: 'TEST_ISSUE',
+    entryNumber: 'TEST_ENTRY',
+    residentialArea: 100,
+    area: 200,
+    recordType: '3.7 Cấp Lại',
+    receivedDate: new Date().toISOString()
+  };
 
-  if (userError || empError) {
-    console.error("Error fetching:", { userError, empError });
-    return;
+  const { data, error } = await supabase.from('land_records').insert([payload]).select();
+  if (error) {
+    console.error("Insert error:", error);
+  } else {
+    console.log("Insert success! Inserted:", data);
+    // Cleanup
+    await supabase.from('land_records').delete().eq('id', testId);
+    console.log("Cleanup success.");
   }
-
-  console.log("\n--- Employees with 'giám đốc' or in 'Ban Giám đốc' ---");
-  employees?.forEach(e => {
-    const pos = (e.position || '').toLowerCase();
-    const dept = (e.department || '').toLowerCase();
-    if (pos.includes('doc') || pos.includes('lãnh') || dept.includes('giám') || dept.includes('lãnh')) {
-      console.log(`Employee ID: '${e.id}' | Name: '${e.name}' | Position: '${e.position}' | Department: '${e.department}'`);
-    }
-  });
-
-  console.log("\n--- Users linked to these employee IDs ---");
-  users?.forEach(u => {
-    if (u.employeeId && (u.employeeId.includes('02') || u.employeeId.includes('21') || u.employeeId.includes('22') || u.employeeId.includes('23'))) {
-      console.log(`User: '${u.username}' | EmployeeId: '${u.employeeId}' | Name: '${u.name}'`);
-    }
-  });
 }
 
 testFilter();

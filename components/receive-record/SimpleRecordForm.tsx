@@ -349,13 +349,37 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
           <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
             {/* Header Block */}
             <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-bold text-slate-700 tracking-wide uppercase">
                   DIỆN TÍCH THỬA ĐẤT:
                 </span>
-                <span className="text-sm font-black text-slate-900 bg-slate-200/60 px-2.5 py-1 rounded-md font-mono">
-                  {(formData.area || 0).toLocaleString('vi-VN')} m²
-                </span>
+                {(() => {
+                  const hasActiveLandRows = landAreaRows && landAreaRows.some(row => row.area !== '' && parseFloat(row.area as any) > 0);
+                  if (hasActiveLandRows) {
+                    return (
+                      <span className="text-sm font-black text-slate-900 bg-slate-200/60 px-2.5 py-1 rounded-md font-mono">
+                        {(formData.area || 0).toLocaleString('vi-VN')} m²
+                      </span>
+                    );
+                  } else {
+                    return (
+                      <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2 h-[32px] w-36 focus-within:border-emerald-500 shadow-sm">
+                        <input
+                          type="number"
+                          step="any"
+                          placeholder="Nhập tổng DT..."
+                          className="w-full border-none bg-transparent outline-none text-right font-mono font-bold text-xs text-slate-800"
+                          value={formData.area === undefined || formData.area === null || formData.area === 0 ? '' : formData.area}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                            handleChange('area', val);
+                          }}
+                        />
+                        <span className="text-[10px] font-bold text-slate-400">m²</span>
+                      </div>
+                    );
+                  }
+                })()}
               </div>
               {addLandAreaRow && (
                 <button 

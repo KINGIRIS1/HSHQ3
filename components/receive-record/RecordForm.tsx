@@ -521,15 +521,18 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
   }, [formData.receiptNumber, onReceiptNumberChange]);
 
   useEffect(() => {
-    const total = landAreaRows.reduce((sum, row) => {
-        const val = parseFloat(row.area as any) || 0;
-        return sum + val;
-    }, 0);
-    const roundedTotal = parseFloat(total.toFixed(4));
-    if (formData.area !== roundedTotal) {
-        setFormData(prev => ({ ...prev, area: roundedTotal }));
+    const hasActiveLandRows = landAreaRows.some(row => row.area !== '' && parseFloat(row.area as any) > 0);
+    if (hasActiveLandRows) {
+        const total = landAreaRows.reduce((sum, row) => {
+            const val = parseFloat(row.area as any) || 0;
+            return sum + val;
+        }, 0);
+        const roundedTotal = parseFloat(total.toFixed(4));
+        if (formData.area !== roundedTotal) {
+            setFormData(prev => ({ ...prev, area: roundedTotal }));
+        }
     }
-  }, [landAreaRows, formData.area]);
+  }, [landAreaRows]);
 
   const isMeasOrArch = isMeasurementType(formData.recordType) || isArchiveType(formData.recordType);
 
@@ -806,19 +809,27 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
     let lucArea = 0;
     let otherLandArea = 0;
 
+    const hasActiveLandRows = isRegistration(formData.recordType) && landAreaRows.some(row => row.area !== '' && parseFloat(row.area as any) > 0);
+
     if (isRegistration(formData.recordType)) {
-        landAreaRows.forEach(row => {
-            const val = parseFloat(row.area as any) || 0;
-            if (row.type === 'ONT/ODT') residentialArea += val;
-            else if (row.type === 'CLN') clnArea += val;
-            else if (row.type === 'BHK') bhkArea += val;
-            else if (row.type === 'LUC') lucArea += val;
-            else if (row.type === 'Khác') otherLandArea += val;
-        });
+        if (hasActiveLandRows) {
+            landAreaRows.forEach(row => {
+                const val = parseFloat(row.area as any) || 0;
+                if (row.type === 'ONT/ODT') residentialArea += val;
+                else if (row.type === 'CLN') clnArea += val;
+                else if (row.type === 'BHK') bhkArea += val;
+                else if (row.type === 'LUC') lucArea += val;
+                else if (row.type === 'Khác') otherLandArea += val;
+            });
+        } else {
+            otherLandArea = parseFloat(formData.area as any) || 0;
+        }
     }
 
     const totalArea = isRegistration(formData.recordType)
-        ? parseFloat((residentialArea + clnArea + bhkArea + lucArea + otherLandArea).toFixed(4))
+        ? (hasActiveLandRows 
+            ? parseFloat((residentialArea + clnArea + bhkArea + lucArea + otherLandArea).toFixed(4)) 
+            : (parseFloat(formData.area as any) || 0))
         : (parseFloat(formData.area as any) || 0);
 
     if (isNewRecord && isRegistration(formData.recordType)) {
@@ -1451,13 +1462,37 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                     <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
                         {/* Header Block */}
                         <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-bold text-slate-700 tracking-wide uppercase">
                                     DIỆN TÍCH THỬA ĐẤT:
                                 </span>
-                                <span className="text-sm font-black text-slate-900 bg-slate-200/60 px-2.5 py-1 rounded-md font-mono">
-                                    {(formData.area || 0).toLocaleString('vi-VN')} m²
-                                </span>
+                                {(() => {
+                                    const hasActiveLandRows = landAreaRows && landAreaRows.some(row => row.area !== '' && parseFloat(row.area as any) > 0);
+                                    if (hasActiveLandRows) {
+                                        return (
+                                            <span className="text-sm font-black text-slate-900 bg-slate-200/60 px-2.5 py-1 rounded-md font-mono">
+                                                {(formData.area || 0).toLocaleString('vi-VN')} m²
+                                            </span>
+                                        );
+                                    } else {
+                                        return (
+                                            <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2 h-[32px] w-36 focus-within:border-emerald-500 shadow-sm">
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    placeholder="Nhập tổng DT..."
+                                                    className="w-full border-none bg-transparent outline-none text-right font-mono font-bold text-xs text-slate-800"
+                                                    value={formData.area === undefined || formData.area === null || formData.area === 0 ? '' : formData.area}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                                                        handleChange('area', val);
+                                                    }}
+                                                />
+                                                <span className="text-[10px] font-bold text-slate-400">m²</span>
+                                            </div>
+                                        );
+                                    }
+                                })()}
                             </div>
                             <button 
                                 type="button" 

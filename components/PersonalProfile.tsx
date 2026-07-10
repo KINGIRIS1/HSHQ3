@@ -1307,13 +1307,13 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                 )}
             </div>
             
-            <div className="flex flex-nowrap gap-1.5 w-full md:w-auto items-center overflow-x-auto md:overflow-x-visible">
-                <div className="relative w-1/2 md:w-64 shrink-0 md:shrink-1">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <div className="flex flex-row items-center gap-1 w-full md:w-auto md:gap-1.5 mt-2 md:mt-0 shrink-0">
+                <div className="relative w-[30%] sm:w-[35%] md:w-64 shrink-0">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={12} />
                     <input 
                         type="text" 
-                        placeholder={`Tìm...`}
-                        className="w-full pl-8 pr-2 py-1.5 border border-gray-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                        placeholder="Tìm..."
+                        className="w-full pl-6 pr-1 py-1.5 border border-gray-200 rounded-lg text-[11px] sm:text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                         value={searchTerm}
                         onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                     />
@@ -1322,31 +1322,30 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                 {/* Overdue Button */}
                 <button
                     onClick={() => setWarningFilter(prev => prev === 'overdue' ? 'none' : 'overdue')}
-                    className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-colors shadow-sm border shrink-0 ${warningFilter === 'overdue' ? 'bg-red-600 text-white' : 'bg-white text-red-600 border-red-200 hover:bg-red-50'}`}
+                    className={`flex items-center justify-center gap-0.5 px-1.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-colors shadow-sm border shrink-0 ${warningFilter === 'overdue' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-200 hover:bg-red-50'}`}
                     title="Hồ sơ trễ hạn"
                 >
-                    <AlertTriangle size={14} className={warningFilter === 'overdue' ? 'text-white' : 'text-red-500'} />
-                    <span>{tabWarningCounts.overdue}</span>
+                    <AlertTriangle size={12} className={warningFilter === 'overdue' ? 'text-white' : 'text-red-500'} />
+                    <span>Trễ: {tabWarningCounts.overdue}</span>
                 </button>
 
                 {/* Approaching Button */}
                 <button
                     onClick={() => setWarningFilter(prev => prev === 'approaching' ? 'none' : 'approaching')}
-                    className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-colors shadow-sm border shrink-0 ${warningFilter === 'approaching' ? 'bg-orange-500 text-white' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'}`}
+                    className={`flex items-center justify-center gap-0.5 px-1.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-colors shadow-sm border shrink-0 ${warningFilter === 'approaching' ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'}`}
                     title="Hồ sơ tới hạn"
                 >
-                    <Clock size={14} className={warningFilter === 'approaching' ? 'text-white' : 'text-orange-500'} />
-                    <span>{tabWarningCounts.approaching}</span>
+                    <Clock size={12} className={warningFilter === 'approaching' ? 'text-white' : 'text-orange-500'} />
+                    <span>Tới: {tabWarningCounts.approaching}</span>
                 </button>
 
                 <button 
                     onClick={handleExportExcel}
-                    className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-green-600 text-white rounded-lg text-xs sm:text-sm font-bold hover:bg-green-700 transition-colors whitespace-nowrap shrink-0"
+                    className="flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white rounded-lg text-[10px] sm:text-xs font-bold hover:bg-green-700 transition-colors whitespace-nowrap shrink-0 ml-auto"
                     title="Xuất Excel"
                 >
-                    <FileDown size={14} />
-                    <span className="hidden sm:inline">Xuất Excel</span>
-                    <span className="sm:hidden">Xuất</span>
+                    <FileDown size={12} />
+                    <span>Xuất DS</span>
                 </button>
             </div>
         </div>

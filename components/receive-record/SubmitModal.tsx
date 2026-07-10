@@ -46,7 +46,15 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ isOpen, onClose, records, onC
         
         if (!r.recordType) return 'Tổ Đo đạc';
         const t = r.recordType.trim().toLowerCase();
-        const isReg = r.recordType.includes('Đăng ký') || r.recordType.includes('Cấp giấy') || r.recordType.includes('Biến động') || r.recordType.includes('GCN') || t.includes('bien dong') || t.includes('cap giay');
+        const isReg = r.recordType.includes('Đăng ký') || 
+                      r.recordType.includes('Cấp giấy') || 
+                      r.recordType.includes('Biến động') || 
+                      r.recordType.includes('GCN') || 
+                      t.includes('bien dong') || 
+                      t.includes('cap giay') ||
+                      t.includes('cấp lại') ||
+                      t.includes('cap lai') ||
+                      (r.gcnWorkflowType && r.gcnWorkflowType.includes('quy_trinh'));
         if (isReg) return 'Tổ Cấp giấy';
         
         if (t.includes('luu tru') || t.includes('sao luc') || t.includes('thong tin') || t.includes('cong van') || t.includes('công văn')) {

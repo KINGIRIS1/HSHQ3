@@ -237,7 +237,7 @@ export const useRecordFilter = (
                 result = result.filter(r => r.status === RecordStatus.HANDOVER);
             }
         } else if (isAssignView) {
-            result = result.filter(r => r.status === RecordStatus.RECEIVED);
+            result = result.filter(r => r.status === RecordStatus.RECEIVED || !r.assignedTo);
         } else if ([
             'registration_phieu_chuyen_thue',
             'registration_trinh_ky_thue',

@@ -354,6 +354,12 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
       const taxPaymentDateFormatted = new Date(taxPaymentDateInput).toLocaleDateString('vi-VN');
       const newDeadlineFormatted = newDeadline ? new Date(newDeadline).toLocaleDateString('vi-VN') : '---';
 
+      const stepAssignees = { ...(record.stepAssignees || {}) };
+      if (currentUser?.employeeId) {
+          stepAssignees["chờ thông báo thuế (tbt)"] = currentUser.employeeId;
+          stepAssignees["tbt"] = currentUser.employeeId;
+      }
+
       const updatedRecord: RecordFile = {
           ...record,
           taxPaymentDate: updatedTaxPaymentDate,
@@ -361,6 +367,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
           assignedTo: null,
           currentStepIndex: nextStepIdx,
           deadline: newDeadline,
+          stepAssignees,
           notes: record.notes 
               ? `${record.notes}\n[Chuyển về ngày ${todayStr}]: Xác nhận hồ sơ chuyển về ngày ${taxPaymentDateFormatted}, chuyển sang bước Chờ giao cho Tổ trưởng phân công người in sổ. Hẹn ngày trả kết quả mới là ${newDeadlineFormatted}` 
               : `[Chuyển về ngày ${todayStr}]: Xác nhận hồ sơ chuyển về ngày ${taxPaymentDateFormatted}, chuyển sang bước Chờ giao cho Tổ trưởng phân công người in sổ. Hẹn ngày trả kết quả mới là ${newDeadlineFormatted}`
@@ -708,6 +715,17 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     </div>
                   </div>
                 )}
+                {record.customerAddress && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                      <MapPin size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">Địa chỉ thường trú</p>
+                      <p className="text-sm font-bold text-slate-800">{record.customerAddress}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -781,6 +799,36 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                   <p className="text-sm font-medium text-slate-700">{record.address}</p>
                 </div>
               )}
+              {(record.issueNumber || record.entryNumber || record.issueDate) && (
+                <div className="pt-3 border-t border-dashed border-slate-100 grid grid-cols-1 gap-2 text-xs">
+                  {record.issueNumber && (
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase">Số phát hành GCN</span>
+                      <span className="font-bold text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">{record.issueNumber}</span>
+                    </div>
+                  )}
+                  {record.entryNumber && (
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase">Số vào sổ</span>
+                      <span className="font-bold text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">{record.entryNumber}</span>
+                    </div>
+                  )}
+                  {record.issueDate && (
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase">Ngày cấp GCN</span>
+                      <span className="font-bold text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                        {(() => {
+                          try {
+                            return new Date(record.issueDate).toLocaleDateString('vi-VN');
+                          } catch(e) {
+                            return record.issueDate;
+                          }
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Financial Info */}
@@ -824,6 +872,36 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
             {isGCN ? (() => {
               const workflow = getGcnWorkflowStepsHelper(record, holidays || []);
 
+              const findPersonNameAndTitle = (idOrNameOrUsername: string | undefined | null): string => {
+                  if (!idOrNameOrUsername) return "";
+                  const query = idOrNameOrUsername.trim().toLowerCase();
+                  
+                  let foundEmp = employees.find(e => e.id.toLowerCase() === query || e.name.toLowerCase() === query);
+                  
+                  if (!foundEmp) {
+                      const foundUser = users.find(u => 
+                          (u.username && u.username.toLowerCase() === query) || 
+                          (u.employeeId && u.employeeId.toLowerCase() === query)
+                      );
+                      if (foundUser && foundUser.employeeId) {
+                          foundEmp = employees.find(e => e.id.toLowerCase() === foundUser.employeeId?.toLowerCase());
+                      }
+                      if (foundUser && !foundEmp) {
+                          const userRoleLabel = foundUser.role === UserRole.ADMIN ? 'Quản trị viên' : 
+                                                foundUser.role === UserRole.SUBADMIN ? 'Phó quản trị' : 
+                                                foundUser.role === UserRole.TEAM_LEADER ? 'Tổ trưởng/Tổ phó' : 
+                                                foundUser.role === UserRole.ONEDOOR ? 'Cán bộ Một cửa' : 'Cán bộ xử lý';
+                          return userRoleLabel ? `${foundUser.name} (${userRoleLabel})` : foundUser.name;
+                      }
+                  }
+                  
+                  if (foundEmp) {
+                      return foundEmp.position ? `${foundEmp.name} (${foundEmp.position})` : foundEmp.name;
+                  }
+                  
+                  return idOrNameOrUsername;
+              };
+
               const getStepAssigneeName = (stepLabel: string, stepStatus?: 'completed' | 'current' | 'upcoming') => {
                   if (!record) return "";
                   if (stepStatus === 'upcoming') return "";
@@ -847,14 +925,12 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                       }
                   }
 
-                  const assignedName = assignedEmp ? assignedEmp.name : "";
-                  const checkerName = checkerEmp ? checkerEmp.name : "";
+                  const assignedName = assignedEmp ? findPersonNameAndTitle(assignedEmp.id) : "";
+                  const checkerName = checkerEmp ? findPersonNameAndTitle(checkerEmp.id) : "";
                   
-                  const directorUser = submittedToId ? (users.find(u => u.employeeId === submittedToId) || employees.find(e => e.id === submittedToId)) : null;
-                  const directorName = directorUser ? directorUser.name : "";
+                  const directorName = submittedToId ? findPersonNameAndTitle(submittedToId) : "";
 
-                  const receiverUser = record.receivedBy ? (users.find(u => u.employeeId === record.receivedBy) || employees.find(e => e.id === record.receivedBy)) : null;
-                  const receiverName = receiverUser ? receiverUser.name : "";
+                  const receiverName = record.receivedBy ? findPersonNameAndTitle(record.receivedBy) : "";
 
                    if (label.includes("nhận hồ sơ")) {
                        return receiverName || "";
@@ -868,7 +944,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                    if (label.includes("thế chấp")) {
                        return assignedName || "";
                    }
-                   if (label.includes("niêm yết") || label.includes("công văn")) {
+                   if (label.includes("niêm yết") || label.includes("công văn") || label.includes("xác minh")) {
                        return assignedName || "";
                    }
                    if (label.includes("phiếu chuyển thuế") || label.includes("phiếu chuyển")) {
@@ -915,7 +991,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                   if (label.includes("kiểm tra thế chấp")) {
                       return record.assignedDate;
                   }
-                  if (label.includes("niêm yết") || label.includes("công văn")) {
+                  if (label.includes("niêm yết") || label.includes("công văn") || label.includes("xác minh")) {
                       return record.assignedDate;
                   }
                   if (label.includes("phiếu chuyển thuế") || label.includes("phiếu chuyển")) {

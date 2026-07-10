@@ -420,7 +420,7 @@ function App() {
       const updatedIds = assignTargetRecords.map(r => r.id);
       
       const getDynamicUpdates = (r: RecordFile) => {
-          if (isRegType(r.recordType) && r.taxPaymentDate && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
+          if (isRegType(r.recordType) && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
               const helper = getGcnWorkflowStepsHelper(r, holidays || []);
               const currentStep = helper.steps[r.currentStepIndex];
               const stepStatus = currentStep ? currentStep.overallStatus : RecordStatus.PENDING_CHECK;
@@ -538,7 +538,7 @@ function App() {
           
           if (matchedEmp) {
               let updates: any;
-              if (isRegType(r.recordType) && r.taxPaymentDate && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
+              if (isRegType(r.recordType) && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
                   const helper = getGcnWorkflowStepsHelper(r, holidays || []);
                   const currentStep = helper.steps[r.currentStepIndex];
                   const stepStatus = currentStep ? currentStep.overallStatus : RecordStatus.PENDING_CHECK;
@@ -953,20 +953,6 @@ function App() {
                   return;
               }
 
-              if (nextStep.label.includes("Phiếu chuyển Thuế") || nextStep.label.includes("Lập phiếu chuyển thuế") || nextStep.label.toLowerCase().includes("trình ký thuế")) {
-                  setTaxTargetRecord(record);
-                  setTaxLandPlot(record.landPlot || '');
-                  setTaxMapSheet(record.mapSheet || '');
-                  setTaxArea(record.area ? String(record.area) : '');
-                  setTaxResidentialArea(record.residentialArea ? String(record.residentialArea) : '');
-                  setTaxClnArea(record.clnArea ? String(record.clnArea) : '');
-                  setTaxBhkArea(record.bhkArea ? String(record.bhkArea) : '');
-                  setTaxLucArea(record.lucArea ? String(record.lucArea) : '');
-                  setTaxOtherLandArea(record.otherLandArea ? String(record.otherLandArea) : '');
-                  setTaxDirector(record.submittedTo || '');
-                  setTaxModalOpen(true);
-                  return;
-              }
               const currentStepLabelLower = currentStep?.label.toLowerCase() || '';
               if (currentStep && (currentStepLabelLower.includes("in gcn") || currentStepLabelLower.includes("in giấy") || currentStepLabelLower.includes("in bản đồ"))) {
                   setFoilTargetRecord(record);
@@ -975,10 +961,20 @@ function App() {
                   return;
               }
 
+              const stepAssignees = { ...(record.stepAssignees || {}) };
+              if (record.assignedTo && currentStep) {
+                  stepAssignees[currentStep.label.toLowerCase().trim()] = record.assignedTo;
+              }
+
               const updates: any = {
                   currentStepIndex: nextIdx,
-                  status: nextStep.overallStatus
+                  status: nextStep.overallStatus,
+                  stepAssignees
               };
+
+              if (nextStep.overallStatus === RecordStatus.IN_PROGRESS || nextStep.overallStatus === RecordStatus.TBT) {
+                  updates.assignedTo = null;
+              }
 
               if (nextStep.overallStatus === RecordStatus.IN_PROGRESS && !record.assignedDate) {
                   updates.assignedDate = nowStr;

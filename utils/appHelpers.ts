@@ -302,6 +302,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     if (workflowType === 'quy_trinh_1') {
         title = 'Quy trình 1: DNLIS';
         stepConfigs = [
+            { label: "Tiếp nhận", duration: "4 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "DNLIS", duration: "8 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Phiếu chuyển Thuế", duration: "16 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "TBT", duration: "0 giờ", overallStatus: RecordStatus.TBT },
@@ -314,6 +315,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_2') {
         title = 'Quy trình 2: Phiếu Chuyển Thuế';
         stepConfigs = [
+            { label: "Tiếp nhận", duration: "4 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "DNLIS", duration: "0 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Phiếu chuyển Thuế", duration: "24 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "TBT", duration: "0 giờ", overallStatus: RecordStatus.TBT },
@@ -326,6 +328,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_3') {
         title = 'Quy trình 3: In GCN';
         stepConfigs = [
+            { label: "Tiếp nhận", duration: "4 giờ", overallStatus: RecordStatus.RECEIVED },
             { label: "In GCN", duration: "5 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
             { label: "Trình ký", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
@@ -335,13 +338,11 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_4') {
         title = 'Quy trình 4: Cấp lại không thuế (Có đối chiếu SMK)';
         stepConfigs = [
-            { label: "Đối chiếu Sổ mục kê, hồ sơ lưu, GCN, CSDL đất đai", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Chuyển UBND xã niêm yết/đăng tin", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Tiếp nhận kết quả niêm yết", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Tiếp nhận", duration: "4 giờ", overallStatus: RecordStatus.RECEIVED },
+            { label: "BB Mộc Kê", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "BB Thế chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Niêm yết", duration: "22 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
             { label: "Trình ký", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
@@ -351,12 +352,10 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_5') {
         title = 'Quy trình 5: Cấp lại không thuế (Đã đối chiếu SMK)';
         stepConfigs = [
-            { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Chuyển UBND xã niêm yết/đăng tin", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Tiếp nhận kết quả niêm yết", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Tiếp nhận", duration: "4 giờ", overallStatus: RecordStatus.RECEIVED },
+            { label: "BB Thế chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Niêm yết", duration: "22 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
             { label: "Trình ký", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
@@ -366,15 +365,13 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_6') {
         title = 'Quy trình 6: Cấp lại có thuế (Có đối chiếu SMK)';
         stepConfigs = [
-            { label: "Đối chiếu Sổ mục kê, hồ sơ lưu, GCN, CSDL đất đai", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Chuyển UBND xã niêm yết/đăng tin", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Tiếp nhận kết quả niêm yết", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Tiếp nhận", duration: "4 giờ", overallStatus: RecordStatus.RECEIVED },
+            { label: "BB Mộc Kê", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "BB Thế chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Niêm yết", duration: "22 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Lập Phiếu chuyển thông tin nghĩa vụ tài chính", duration: "2 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Chờ Thông báo thuế (TBT)", duration: "---", overallStatus: RecordStatus.TBT },
-            { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
             { label: "Trình ký - Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
@@ -382,14 +379,12 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else {
         title = 'Quy trình 7: Cấp lại có thuế (Đã đối chiếu SMK)';
         stepConfigs = [
-            { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Lập biên bản xác minh đủ điều kiện cấp lại", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Chuyển UBND xã niêm yết/đăng tin", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", duration: "20 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-            { label: "Tiếp nhận kết quả niêm yết", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Tiếp nhận", duration: "4 giờ", overallStatus: RecordStatus.RECEIVED },
+            { label: "BB Thế chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "Niêm yết", duration: "22 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Lập Phiếu chuyển thông tin nghĩa vụ tài chính", duration: "2 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Chờ Thông báo thuế (TBT)", duration: "---", overallStatus: RecordStatus.TBT },
-            { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
+            { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
             { label: "Trình ký - Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
             { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }

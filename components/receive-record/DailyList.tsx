@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx-js-style';
 import { RecordFile, RecordStatus, Employee } from '../../types';
 import { getNormalizedWard, getShortRecordType, REGISTRATION_PROCEDURES } from '../../constants';
-import { isArchiveType, isMeasurementType, isRegType } from '../../utils/appHelpers';
+import { isArchiveType, isMeasurementType, isRegType, getStatusLabel } from '../../utils/appHelpers';
 import { Search, Eye, FileSpreadsheet, Pencil, Printer, Trash2, Send, XCircle, UserPlus, FileSignature } from 'lucide-react';
 import AssignModal from '../AssignModal';
 
@@ -432,79 +432,35 @@ const DailyList: React.FC<DailyListProps> = ({
       ) : false;
 
       if (isReg) {
-          switch (status) {
-              case RecordStatus.RECEIVED:
-                  return rec?.isDeptSynced ? (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-[#e6f7ff] text-[#0050b3] border border-[#91d5ff] rounded-full inline-block">
-                          Đã chuyển bộ phận
-                      </span>
-                  ) : (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200 rounded-full inline-block">
-                          Chờ chuyển
-                      </span>
-                  );
-              case RecordStatus.ASSIGNED:
-              case RecordStatus.IN_PROGRESS:
-                  return (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-blue-50 text-blue-600 border border-blue-200 rounded-full inline-block">
-                          DNLIS
-                      </span>
-                  );
-              case RecordStatus.COMPLETED_WORK:
-                  return (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-cyan-50 text-cyan-600 border border-cyan-200 rounded-full inline-block">
-                          Phiếu chuyển
-                      </span>
-                  );
-              case RecordStatus.PENDING_CHECK:
-                  return (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-orange-50 text-orange-600 border border-orange-200 rounded-full inline-block">
-                          Trình Ký thuế
-                      </span>
-                  );
-              case RecordStatus.TBT:
-                  return (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200 rounded-full inline-block">
-                          TBT(Thông báo thuế)
-                      </span>
-                  );
-              case RecordStatus.CHECKED:
-                  return (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-teal-50 text-teal-600 border border-teal-200 rounded-full inline-block">
-                          In GCN
-                      </span>
-                  );
-              case RecordStatus.PENDING_SIGN:
-                  return (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-purple-50 text-purple-600 border border-purple-200 rounded-full inline-block">
-                          Kiểm Tra
-                      </span>
-                  );
-              case RecordStatus.SIGNED:
-                  return (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-full inline-block">
-                          Trình Ký
-                      </span>
-                  );
-              case RecordStatus.HANDOVER:
-                  return (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-green-50 text-green-600 border border-green-200 rounded-full inline-block">
-                          Giao 1 cửa
-                      </span>
-                  );
-              case RecordStatus.RETURNED:
-                  return (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full inline-block">
-                          Đã trả KQ
-                      </span>
-                  );
-              default:
-                  return (
-                      <span className="px-2.5 py-1 text-xs font-bold bg-gray-50 text-gray-600 border border-gray-200 rounded-full inline-block">
-                          {status}
-                      </span>
-                  );
+          const labelText = getStatusLabel(status, rec?.recordType, rec);
+          let colorClasses = "bg-gray-50 text-gray-600 border border-gray-200";
+          if (status === RecordStatus.RETURNED) {
+              colorClasses = "bg-emerald-50 text-emerald-600 border border-emerald-200";
+          } else if (status === RecordStatus.WITHDRAWN || status === RecordStatus.REJECTED) {
+              colorClasses = "bg-red-50 text-red-600 border border-red-200";
+          } else if (status === RecordStatus.HANDOVER) {
+              colorClasses = "bg-green-50 text-green-600 border border-green-200";
+          } else if (status === RecordStatus.SIGNED) {
+              colorClasses = "bg-indigo-50 text-indigo-600 border border-indigo-200";
+          } else if (status === RecordStatus.PENDING_SIGN) {
+              colorClasses = "bg-purple-50 text-purple-600 border border-purple-200";
+          } else if (status === RecordStatus.PENDING_CHECK) {
+              colorClasses = "bg-orange-50 text-orange-600 border border-orange-200";
+          } else if (status === RecordStatus.TBT) {
+              colorClasses = "bg-amber-50 text-amber-600 border border-amber-200";
+          } else if (status === RecordStatus.COMPLETED_WORK) {
+              colorClasses = "bg-cyan-50 text-cyan-600 border border-cyan-200";
+          } else if (status === RecordStatus.IN_PROGRESS || status === RecordStatus.ASSIGNED) {
+              colorClasses = "bg-blue-50 text-blue-600 border border-blue-200";
+          } else if (status === RecordStatus.RECEIVED) {
+              colorClasses = rec?.isDeptSynced ? "bg-[#e6f7ff] text-[#0050b3] border border-[#91d5ff]" : "bg-amber-50 text-amber-600 border border-amber-200";
           }
+
+          return (
+              <span className={`px-2.5 py-1 text-xs font-bold ${colorClasses} rounded-full inline-block`}>
+                  {labelText}
+              </span>
+          );
       }
 
       switch (status) {

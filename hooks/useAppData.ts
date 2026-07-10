@@ -9,6 +9,7 @@ import { supabase } from '../services/supabaseClient';
 import { mapRecordFromDb, saveToCache, getFromCache, CACHE_KEYS } from '../services/apiCore';
 import { DEFAULT_WARDS as STATIC_WARDS, APP_VERSION, MOCK_EMPLOYEES, MOCK_USERS } from '../constants';
 import { addToOfflineQueue } from '../utils/offlineSync';
+import { isRegType, getGcnWorkflowStepsHelper } from '../utils/appHelpers';
 
 // --- HELPERS FOR AUTO-TRANSITION TO TBT ---
 const getSolarDateFromLunar = (lunarDay: number, lunarMonth: number, year: number): Date | null => {
@@ -76,6 +77,7 @@ const getWorkingDaysCount = (startDateStr: string, endDate: Date, listHolidays: 
 
 export const useAppData = (currentUser: User | null) => {
     const hasCheckedAutoTransitionRef = useRef(false);
+    const hasCheckedNiemYetRef = useRef(false);
 
     const [records, setRecords] = useState<RecordFile[]>(() => {
         return getFromCache(CACHE_KEYS.RECORDS, []);
@@ -106,6 +108,7 @@ export const useAppData = (currentUser: User | null) => {
 
     const loadData = useCallback(async () => {
         hasCheckedAutoTransitionRef.current = false;
+        hasCheckedNiemYetRef.current = false;
         try {
             // Tạo timeout promise để tránh việc fetch bị treo mãi mãi
             // Nâng lên 25 giây để tải toàn bộ hơn 5600 hồ sơ từ Supabase Cloud thành công trên mọi đường truyền
@@ -260,6 +263,108 @@ export const useAppData = (currentUser: User | null) => {
             });
         } else {
             hasCheckedAutoTransitionRef.current = true;
+        }
+    }, [records, holidays]);
+
+    // Tự động chuyển bước chờ giao cho hồ sơ đang ở bước Niêm yết khi hết ngày
+    useEffect(() => {
+        if (records.length === 0 || holidays.length === 0) return;
+        if (hasCheckedNiemYetRef.current) return;
+
+        const today = new Date();
+        const recordsToUpdate: RecordFile[] = [];
+
+        records.forEach(r => {
+            // Chỉ xét hồ sơ GCN
+            if (!isRegType(r.recordType)) return;
+
+            try {
+                const helper = getGcnWorkflowStepsHelper(r, holidays);
+                if (!helper || !helper.steps) return;
+
+                const currentIdx = helper.currentStepIndex;
+                const currentStep = helper.steps[currentIdx];
+                if (!currentStep) return;
+
+                const labelLower = currentStep.label.toLowerCase();
+                // Phải ở bước Niêm yết
+                if (labelLower.includes("niêm yết")) {
+                    const deadline = currentStep.deadlineDate;
+                    // Hết ngày (đã quá hạn/đến hạn)
+                    if (deadline && today > deadline) {
+                        const nextIdx = currentIdx + 1;
+                        if (nextIdx < helper.steps.length) {
+                            const nextStep = helper.steps[nextIdx];
+                            const nowStr = new Date().toISOString();
+
+                            const stepAssignees = { ...(r.stepAssignees || {}) };
+                            if (r.assignedTo) {
+                                stepAssignees[currentStep.label.toLowerCase().trim()] = r.assignedTo;
+                            }
+
+                            const updates: any = {
+                                currentStepIndex: nextIdx,
+                                status: nextStep.overallStatus,
+                                stepAssignees,
+                                assignedTo: r.assignedTo || null // Tự động giao cho người đang xử lý (In GCN)
+                            };
+
+                            // Cập nhật các mốc thời gian tương ứng giống App.tsx
+                            if (nextStep.overallStatus === RecordStatus.IN_PROGRESS) {
+                                updates.assignedDate = nowStr;
+                            }
+                            if (nextStep.overallStatus === RecordStatus.COMPLETED_WORK && !r.completedWorkDate) {
+                                updates.completedWorkDate = nowStr;
+                            }
+                            if ((nextStep.overallStatus as any) === RecordStatus.PENDING_CHECK && !r.pendingCheckDate) {
+                                updates.pendingCheckDate = nowStr;
+                            }
+                            if (nextStep.overallStatus === RecordStatus.CHECKED) {
+                                updates.checkedDate = nowStr;
+                                updates.checkedBy = r.checkedBy || null;
+                            }
+                            if ((nextStep.overallStatus as any) === RecordStatus.PENDING_SIGN && !r.submissionDate) {
+                                updates.submissionDate = nowStr;
+                            }
+                            if (nextStep.overallStatus === RecordStatus.SIGNED && !r.approvalDate) {
+                                updates.approvalDate = nowStr;
+                            }
+                            if (nextStep.overallStatus === RecordStatus.HANDOVER && !r.completedDate) {
+                                updates.completedDate = nowStr;
+                            }
+
+                            recordsToUpdate.push({
+                                ...r,
+                                ...updates
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Lỗi khi kiểm tra hết hạn niêm yết cho hồ sơ:", r.code, e);
+            }
+        });
+
+        if (recordsToUpdate.length > 0) {
+            hasCheckedNiemYetRef.current = true;
+            setRecords(prev => {
+                const newRecords = prev.map(r => {
+                    const updated = recordsToUpdate.find(u => u.id === r.id);
+                    return updated ? updated : r;
+                });
+                saveToCache(CACHE_KEYS.RECORDS, newRecords);
+                return newRecords;
+            });
+
+            recordsToUpdate.forEach(async (updatedRecord) => {
+                try {
+                    await updateRecordApi(updatedRecord);
+                } catch (err) {
+                    console.error("Lỗi tự động cập nhật chuyển bước sau niêm yết cho hồ sơ:", updatedRecord.code, err);
+                }
+            });
+        } else {
+            hasCheckedNiemYetRef.current = true;
         }
     }, [records, holidays]);
 

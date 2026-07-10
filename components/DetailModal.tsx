@@ -90,6 +90,36 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
       record.recordType.toLowerCase().includes('trích lục quy hoạch')
   ));
 
+  const findPersonNameAndTitle = (idOrNameOrUsername: string | undefined | null): string => {
+      if (!idOrNameOrUsername) return "";
+      const query = idOrNameOrUsername.trim().toLowerCase();
+      
+      let foundEmp = employees.find(e => e.id.toLowerCase() === query || e.name.toLowerCase() === query);
+      
+      if (!foundEmp) {
+          const foundUser = users.find(u => 
+              (u.username && u.username.toLowerCase() === query) || 
+              (u.employeeId && u.employeeId.toLowerCase() === query)
+          );
+          if (foundUser && foundUser.employeeId) {
+              foundEmp = employees.find(e => e.id.toLowerCase() === foundUser.employeeId?.toLowerCase());
+          }
+          if (foundUser && !foundEmp) {
+              const userRoleLabel = foundUser.role === UserRole.ADMIN ? 'Quản trị viên' : 
+                                    foundUser.role === UserRole.SUBADMIN ? 'Phó quản trị' : 
+                                    foundUser.role === UserRole.TEAM_LEADER ? 'Tổ trưởng/Tổ phó' : 
+                                    foundUser.role === UserRole.ONEDOOR ? 'Cán bộ Một cửa' : 'Cán bộ xử lý';
+              return userRoleLabel ? `${foundUser.name} (${userRoleLabel})` : foundUser.name;
+          }
+      }
+      
+      if (foundEmp) {
+          return foundEmp.position ? `${foundEmp.name} (${foundEmp.position})` : foundEmp.name;
+      }
+      
+      return idOrNameOrUsername;
+  };
+
   const getStepAssigneeName = (stepLabel: string, stepStatus?: 'completed' | 'current' | 'upcoming') => {
       if (!record) return "";
       if (stepStatus === 'upcoming') return "";
@@ -113,14 +143,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
           }
       }
 
-      const assignedName = assignedEmp ? assignedEmp.name : "";
-      const checkerName = checkerEmp ? checkerEmp.name : "";
+      const assignedName = assignedEmp ? findPersonNameAndTitle(assignedEmp.id) : "";
+      const checkerName = checkerEmp ? findPersonNameAndTitle(checkerEmp.id) : "";
       
-      const directorUser = submittedToId ? (users.find(u => u.employeeId === submittedToId) || employees.find(e => e.id === submittedToId)) : null;
-      const directorName = directorUser ? directorUser.name : "";
+      const directorName = submittedToId ? findPersonNameAndTitle(submittedToId) : "";
 
-      const receiverUser = record.receivedBy ? (users.find(u => u.employeeId === record.receivedBy) || employees.find(e => e.id === record.receivedBy)) : null;
-      const receiverName = receiverUser ? receiverUser.name : "";
+      const receiverName = record.receivedBy ? findPersonNameAndTitle(record.receivedBy) : "";
 
       if (label.includes("nhận hồ sơ")) {
           return receiverName || "";
@@ -134,7 +162,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
       if (label.includes("thế chấp")) {
           return assignedName || "";
       }
-      if (label.includes("niêm yết") || label.includes("công văn")) {
+      if (label.includes("niêm yết") || label.includes("công văn") || label.includes("xác minh")) {
           return assignedName || "";
       }
       if (label.includes("phiếu chuyển thuế") || label.includes("phiếu chuyển")) {
@@ -216,7 +244,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
       if (label.includes("kiểm tra thế chấp")) {
           return record.assignedDate;
       }
-      if (label.includes("niêm yết") || label.includes("công văn")) {
+      if (label.includes("niêm yết") || label.includes("công văn") || label.includes("xác minh")) {
           return record.assignedDate;
       }
       if (label.includes("phiếu chuyển thuế") || label.includes("phiếu chuyển")) {
@@ -750,6 +778,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
       const taxPaymentDateFormatted = new Date(taxPaymentDateInput).toLocaleDateString('vi-VN');
       const newDeadlineFormatted = newDeadline ? new Date(newDeadline).toLocaleDateString('vi-VN') : '---';
 
+      const stepAssignees = { ...(record.stepAssignees || {}) };
+      if (currentUser?.employeeId) {
+          stepAssignees["chờ thông báo thuế (tbt)"] = currentUser.employeeId;
+          stepAssignees["tbt"] = currentUser.employeeId;
+      }
+
       const updatedRecord: RecordFile = {
           ...record,
           taxPaymentDate: updatedTaxPaymentDate,
@@ -757,6 +791,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
           assignedTo: null,
           currentStepIndex: nextStepIdx,
           deadline: newDeadline,
+          stepAssignees,
           notes: record.notes 
               ? `${record.notes}\n[Chuyển về ngày ${todayStr}]: Xác nhận hồ sơ chuyển về ngày ${taxPaymentDateFormatted}, chuyển sang bước Chờ giao cho Tổ trưởng phân công người in sổ. Hẹn ngày trả kết quả mới là ${newDeadlineFormatted}` 
               : `[Chuyển về ngày ${todayStr}]: Xác nhận hồ sơ chuyển về ngày ${taxPaymentDateFormatted}, chuyển sang bước Chờ giao cho Tổ trưởng phân công người in sổ. Hẹn ngày trả kết quả mới là ${newDeadlineFormatted}`
@@ -1183,7 +1218,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                         }[] = [
                             {
                                 label: "Xử lý bản vẽ / mộc kê",
-                                matchKeywords: ["ranh", "dnlis", "mộc kê", "thế chấp", "niêm yết", "công văn"],
+                                matchKeywords: ["ranh", "dnlis", "mộc kê", "thế chấp", "niêm yết", "công văn", "xác minh"],
                                 subSteps: []
                             },
                             {
@@ -1553,6 +1588,36 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                             <div>
                                 <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Địa chỉ chi tiết</label>
                                 <p className="text-sm font-bold text-gray-800">{record.address}</p>
+                            </div>
+                        )}
+                        {(record.issueNumber || record.entryNumber || record.issueDate) && (
+                            <div className="mt-4 pt-4 border-t border-dashed border-gray-100 grid grid-cols-3 gap-4 animate-fade-in-up">
+                                {record.issueNumber && (
+                                    <div>
+                                        <label className="text-[10px] text-emerald-600 uppercase font-bold block mb-1">Số phát hành GCN (Seri phôi)</label>
+                                        <p className="font-bold text-emerald-800 bg-emerald-50/50 px-2 py-1 rounded border border-emerald-200 text-center text-xs">{record.issueNumber}</p>
+                                    </div>
+                                )}
+                                {record.entryNumber && (
+                                    <div>
+                                        <label className="text-[10px] text-emerald-600 uppercase font-bold block mb-1">Số vào sổ</label>
+                                        <p className="font-bold text-emerald-800 bg-emerald-50/50 px-2 py-1 rounded border border-emerald-200 text-center text-xs">{record.entryNumber}</p>
+                                    </div>
+                                )}
+                                {record.issueDate && (
+                                    <div>
+                                        <label className="text-[10px] text-emerald-600 uppercase font-bold block mb-1">Ngày cấp GCN</label>
+                                        <p className="font-bold text-emerald-800 bg-emerald-50/50 px-2 py-1 rounded border border-emerald-200 text-center text-xs">
+                                            {(() => {
+                                                try {
+                                                    return new Date(record.issueDate).toLocaleDateString('vi-VN');
+                                                } catch(e) {
+                                                    return record.issueDate;
+                                                }
+                                            })()}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {(record.measurementNumber || record.excerptNumber) && (
