@@ -82,6 +82,32 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
     return targetRecords.length > 0 && targetRecords.every(r => r.status === RecordStatus.RETURNED);
   }, [targetRecords]);
 
+  // Ngày hiện tại cho đợt mới
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const filteredRecordsForBatches = useMemo(() => {
+      if (!currentView) return records;
+      const activeGroup = getViewActiveGroup(currentView);
+      const isReturnedMode = targetRecords.length > 0 && targetRecords.every(r => r.status === RecordStatus.RETURNED);
+      return records.filter(r => 
+          getRecordGroup(r) === activeGroup && 
+          (isReturnedMode ? r.status === RecordStatus.RETURNED : r.status !== RecordStatus.RETURNED)
+      );
+  }, [records, currentView, targetRecords]);
+
+  const nextBatchInfo = useMemo(() => {
+      let maxBatch = 0;
+      filteredRecordsForBatches.forEach(r => {
+          if (r.exportBatch && r.exportDate && r.exportDate.startsWith(todayStr)) {
+              if (r.exportBatch > maxBatch) maxBatch = r.exportBatch;
+          }
+      });
+      return {
+          batch: maxBatch + 1,
+          date: new Date().toISOString() // Dùng ISO đầy đủ cho chính xác
+      };
+  }, [filteredRecordsForBatches, todayStr]);
+
   // State quản lý danh sách hồ sơ để thay đổi cờ DNLis
   const [localRecords, setLocalRecords] = useState<RecordFile[]>([]);
 
@@ -105,8 +131,13 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
   // State danh sách cảnh báo thực tế (đã lọc qua logic kiểm tra bảng chỉnh lý)
   const [filteredWarningList, setFilteredWarningList] = useState<RecordFile[]>([]);
 
-  // Ngày hiện tại cho đợt mới
-  const todayStr = new Date().toISOString().split('T')[0];
+  const [customBatchNumber, setCustomBatchNumber] = useState<number>(1);
+
+  useEffect(() => {
+      if (isOpen) {
+          setCustomBatchNumber(nextBatchInfo.batch);
+      }
+  }, [isOpen, nextBatchInfo.batch]);
 
   useEffect(() => {
       // Logic kiểm tra xem hồ sơ nào cần chỉnh lý NHƯNG chưa có trong danh sách đã chuyển ('sent')
@@ -147,28 +178,7 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
       checkWarnings();
   }, [isOpen, targetRecords]);
 
-  const filteredRecordsForBatches = useMemo(() => {
-      if (!currentView) return records;
-      const activeGroup = getViewActiveGroup(currentView);
-      const isReturnedMode = targetRecords.length > 0 && targetRecords.every(r => r.status === RecordStatus.RETURNED);
-      return records.filter(r => 
-          getRecordGroup(r) === activeGroup && 
-          (isReturnedMode ? r.status === RecordStatus.RETURNED : r.status !== RecordStatus.RETURNED)
-      );
-  }, [records, currentView, targetRecords]);
 
-  const nextBatchInfo = useMemo(() => {
-      let maxBatch = 0;
-      filteredRecordsForBatches.forEach(r => {
-          if (r.exportBatch && r.exportDate && r.exportDate.startsWith(todayStr)) {
-              if (r.exportBatch > maxBatch) maxBatch = r.exportBatch;
-          }
-      });
-      return {
-          batch: maxBatch + 1,
-          date: new Date().toISOString() // Dùng ISO đầy đủ cho chính xác
-      };
-  }, [filteredRecordsForBatches, todayStr]);
 
   const historyBatches = useMemo(() => {
       const batches: Record<string, { date: string, batch: number, count: number, fullDate: string }> = {};
@@ -230,7 +240,7 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
       const handoverWard = isNonGeographic ? selectedHandoverWard : undefined;
 
       if (mode === 'new') {
-          onConfirm(nextBatchInfo.batch, nextBatchInfo.date, handoverWard, localRecords);
+          onConfirm(customBatchNumber, nextBatchInfo.date, handoverWard, localRecords);
       } else {
           if (!selectedExistingBatch) {
               alert('Vui lòng chọn một đợt cũ.');
@@ -313,14 +323,78 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
                     onChange={() => setMode('new')}
                     className="mt-1 w-4 h-4 text-blue-600 focus:ring-blue-500"
                 />
-                <div className="flex-1">
+                <div className="flex-1" onClick={(e) => {
+                    if (mode !== 'new') {
+                        setMode('new');
+                    }
+                }}>
                     <div className="flex items-center gap-2 font-bold text-gray-800">
                         <Plus size={16} className="text-blue-600" /> Tạo đợt mới (Hôm nay)
                     </div>
-                    <div className="text-sm text-gray-600 mt-1 pl-6">
-                        Đợt tiếp theo: <span className="font-bold text-blue-700">Đợt {nextBatchInfo.batch}{isReturnedTab ? ' (DD-LT)' : ''}</span>
-                        <br/>
-                        <span className="text-xs text-gray-500">Ngày: {formatDate(todayStr)}</span>
+                    <div className="text-sm text-gray-600 mt-2 pl-6 space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Số thứ tự đợt:</span>
+                            <div className="flex items-center border border-gray-300 rounded overflow-hidden shadow-sm bg-white">
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        if (customBatchNumber > 1) {
+                                            setCustomBatchNumber(customBatchNumber - 1);
+                                        }
+                                    }}
+                                    disabled={mode !== 'new' || customBatchNumber <= 1}
+                                    className="px-2 py-1 bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-50 text-sm font-bold border-r transition-colors"
+                                >
+                                    -
+                                </button>
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    className="w-14 text-center font-extrabold text-blue-700 outline-none text-sm py-1 disabled:bg-gray-100"
+                                    value={customBatchNumber}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value, 10);
+                                        if (!isNaN(val) && val > 0) {
+                                            setCustomBatchNumber(val);
+                                        } else if (e.target.value === '') {
+                                            setCustomBatchNumber(1);
+                                        }
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    disabled={mode !== 'new'}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        setCustomBatchNumber(customBatchNumber + 1);
+                                    }}
+                                    disabled={mode !== 'new'}
+                                    className="px-2 py-1 bg-gray-50 text-gray-600 hover:bg-gray-100 disabled:opacity-50 text-sm font-bold border-l transition-colors"
+                                >
+                                    +
+                                </button>
+                            </div>
+                            {isReturnedTab && <span className="text-xs font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">(DD-LT)</span>}
+                        </div>
+                        <div className="flex justify-between items-center text-xs text-gray-400 mt-1">
+                            <span>Ngày: {formatDate(todayStr)}</span>
+                            {nextBatchInfo.batch !== customBatchNumber && (
+                                <button 
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCustomBatchNumber(nextBatchInfo.batch);
+                                    }}
+                                    className="text-blue-500 hover:underline font-semibold"
+                                >
+                                    Khôi phục gợi ý ({nextBatchInfo.batch})
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </label>
