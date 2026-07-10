@@ -1201,33 +1201,59 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
               )}
 
               {isHandoverAny && props.handoverTab === "today" && (
-                <button
-                  onClick={() => {
-                    props.setExportModalType(
-                      currentView === "check_list" ||
-                        currentView === "other_check_list" ||
-                        currentView === "archive_check_list"
-                        ? "check_list"
-                        : "handover",
-                    );
-                    props.setIsExportModalOpen(true);
-                  }}
-                  className="flex items-center gap-1 bg-white text-gray-700 border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-50 shadow-sm text-sm font-bold whitespace-nowrap"
-                >
-                  <FileOutput size={16} /> Xuất Danh Sách
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      props.setExportModalType(
+                        currentView === "check_list" ||
+                          currentView === "other_check_list" ||
+                          currentView === "archive_check_list"
+                          ? "check_list"
+                          : "handover",
+                      );
+                      props.setIsExportModalOpen(true);
+                    }}
+                    className="flex items-center gap-1 bg-white text-gray-700 border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-50 shadow-sm text-sm font-bold whitespace-nowrap"
+                  >
+                    <FileOutput size={16} /> Xuất DS
+                  </button>
+
+                  {tabAllowedCanPerformAction && props.selectedRecordIds.size > 0 && (
+                    <button
+                      onClick={() => {
+                        props.setIsAddToBatchModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700 shadow-sm text-sm font-bold whitespace-nowrap"
+                    >
+                      <CheckCircle size={16} /> Tạo đợt Giao ({props.selectedRecordIds.size})
+                    </button>
+                  )}
+                </>
               )}
 
               {isHandoverAny && props.handoverTab === "returned" && (
-                <button
-                  onClick={() => {
-                    props.setExportModalType("returned" as any);
-                    props.setIsExportModalOpen(true);
-                  }}
-                  className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700 shadow-sm text-sm font-bold whitespace-nowrap"
-                >
-                  <FileSpreadsheet size={16} /> Xuất DS TKQ
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      props.setExportModalType("returned" as any);
+                      props.setIsExportModalOpen(true);
+                    }}
+                    className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700 shadow-sm text-sm font-bold whitespace-nowrap"
+                  >
+                    <FileSpreadsheet size={16} /> Xuất DS TKQ
+                  </button>
+
+                  {tabAllowedCanPerformAction && props.selectedRecordIds.size > 0 && (
+                    <button
+                      onClick={() => {
+                        props.setIsAddToBatchModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 bg-teal-600 text-white px-3 py-1.5 rounded-md hover:bg-teal-700 shadow-sm text-sm font-bold whitespace-nowrap"
+                    >
+                      <CheckCircle size={16} /> Chốt DS ({props.selectedRecordIds.size})
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -1267,32 +1293,6 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
           )}
 
           <div className="flex justify-end gap-3 mt-2">
-            {tabAllowedCanPerformAction &&
-              isHandoverAny &&
-              props.handoverTab === "today" &&
-              props.selectedRecordIds.size > 0 && (
-                <button
-                  onClick={() => props.setIsAddToBatchModalOpen(true)}
-                  className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 font-bold shadow-md transition-all animate-pulse"
-                >
-                  <CheckCircle size={18} /> Chốt Danh Sách Giao (
-                  {props.selectedRecordIds.size})
-                </button>
-              )}
-
-            {tabAllowedCanPerformAction &&
-              isHandoverAny &&
-              props.handoverTab === "returned" &&
-              props.selectedRecordIds.size > 0 && (
-                <button
-                  onClick={() => props.setIsAddToBatchModalOpen(true)}
-                  className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 font-bold shadow-md transition-all animate-pulse"
-                >
-                  <CheckCircle size={18} /> Chốt DS TKQ (
-                  {props.selectedRecordIds.size})
-                </button>
-              )}
-
             {tabAllowedCanPerformAction &&
               (isAdmin || isSubadmin || isDirector || hasTeamLeaderPrivileges) &&
               isCheckAny &&

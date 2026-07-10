@@ -476,22 +476,31 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
     const ws = XLSX.utils.aoa_to_sheet([]); 
 
     // Header Quốc Hiệu
-    XLSX.utils.sheet_add_aoa(ws, [
+    const isDoDac = selectedDept === 'Tổ Đo đạc';
+    
+    const headerRows = [
         ["CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM"],
         ["Độc lập - Tự do - Hạnh phúc"],
         [""],
         [title],
         [displayDate.toUpperCase()],
-        [subTitle],
-        [""],
-        tableHeader
-    ], { origin: "A1" });
+        [subTitle]
+    ];
+    
+    if (isDoDac) {
+        headerRows.push(["Có hồ sơ gốc kèm theo"]);
+    }
+    
+    headerRows.push([""], tableHeader);
+    
+    XLSX.utils.sheet_add_aoa(ws, headerRows, { origin: "A1" });
 
     // Data
-    XLSX.utils.sheet_add_aoa(ws, dataRows, { origin: "A9" });
+    const dataStartRow = headerRows.length + 1; // 9 if not isDoDac, 10 if isDoDac
+    XLSX.utils.sheet_add_aoa(ws, dataRows, { origin: `A${dataStartRow}` });
 
     const totalCols = tableHeader.length;
-    const lastDataRow = 8 + dataRows.length;
+    const lastDataRow = (dataStartRow - 1) + dataRows.length; // 8 + dataRows.length or 9 + dataRows.length
     const footerStartRow = lastDataRow + 2;
 
     // Thêm Footer (Canh đều 2 bên - Justify)
@@ -553,8 +562,9 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
     // Đây là phần quan trọng để tăng chiều cao dòng cho việc ký tên
     const wsrows = [];
     
-    // 8 dòng đầu (Tiêu đề, Header bảng): Cao 30px
-    for(let i=0; i<8; i++) {
+    // Tiêu đề, Header bảng: Cao 30px
+    const headerRowCount = isDoDac ? 9 : 8;
+    for(let i=0; i<headerRowCount; i++) {
         wsrows.push({ hpx: 30 }); 
     }
     
@@ -575,12 +585,19 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
     ws['!rows'] = wsrows;
 
     // Merge Config
-    ws['!merges'] = [
+    const headerMerges = [
         { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
         { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
         { s: { r: 3, c: 0 }, e: { r: 3, c: totalCols - 1 } },
         { s: { r: 4, c: 0 }, e: { r: 4, c: totalCols - 1 } },
-        { s: { r: 5, c: 0 }, e: { r: 5, c: totalCols - 1 } },
+        { s: { r: 5, c: 0 }, e: { r: 5, c: totalCols - 1 } }
+    ];
+    if (isDoDac) {
+        headerMerges.push({ s: { r: 6, c: 0 }, e: { r: 6, c: totalCols - 1 } });
+    }
+
+    ws['!merges'] = [
+        ...headerMerges,
         // Footer Merges
         { s: { r: footerStartRow, c: leftStart }, e: { r: footerStartRow, c: leftEnd } },     
         { s: { r: footerStartRow + 1, c: leftStart }, e: { r: footerStartRow + 1, c: leftEnd } }, 
@@ -608,13 +625,15 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
     if(ws['A4']) ws['A4'].s = styles.reportTitle;
     if(ws['A5']) ws['A5'].s = styles.reportSubTitle;
     if(ws['A6']) ws['A6'].s = styles.reportSubTitle;
+    if(isDoDac && ws['A7']) ws['A7'].s = styles.reportSubTitle;
 
+    const headerRowIdx = dataStartRow - 2; // 7 if dataStartRow is 9, 8 if dataStartRow is 10
     for (let c = 0; c < totalCols; c++) {
-        const headerCell = XLSX.utils.encode_cell({ r: 7, c: c });
+        const headerCell = XLSX.utils.encode_cell({ r: headerRowIdx, c: c });
         if (!ws[headerCell]) ws[headerCell] = { v: "", t: "s" };
         ws[headerCell].s = styles.tableHeader;
 
-        for (let r = 8; r < lastDataRow; r++) {
+        for (let r = headerRowIdx + 1; r < lastDataRow; r++) {
             const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
             if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" };
             

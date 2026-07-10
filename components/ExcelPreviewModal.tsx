@@ -79,6 +79,11 @@ const ExcelPreviewModal: React.FC<ExcelPreviewModalProps> = ({ isOpen, onClose, 
                     const rowText = row.innerText.toLowerCase();
                     const cells = row.querySelectorAll('td, th');
 
+                    // Áp dụng font chữ Times New Roman cho tất cả các ô
+                    cells.forEach((cell: any) => {
+                        cell.style.fontFamily = "'Times New Roman', Times, serif";
+                    });
+
                     if (tableHeaderIndex !== -1 && rowIndex < tableHeaderIndex) {
                         cells.forEach((cell: any) => {
                             cell.style.border = 'none';
