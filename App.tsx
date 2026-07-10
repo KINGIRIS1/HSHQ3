@@ -1095,12 +1095,12 @@ function App() {
           }));
 
           await updateRecordsBatchById(updates);
-          await exportReturnedListToExcel(updates, String(batch), date);
           
           if (isReturnedMode) {
+              await exportReturnedListToExcel(updates, String(batch), date);
               setToast({ type: 'success', message: `Đã chốt đợt trả kết quả số ${batch} và xuất file excel thành công!` });
           } else {
-              setToast({ type: 'success', message: `Đã chốt đợt giao nhận số ${batch} và xuất file excel thành công!` });
+              setToast({ type: 'success', message: `Đã chốt đợt giao nhận số ${batch} thành công!` });
           }
           setIsAddToBatchModalOpen(false);
           setSelectedRecordIds(new Set());

@@ -120,91 +120,132 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
       return idOrNameOrUsername;
   };
 
-  const getStepAssigneeName = (stepLabel: string, stepStatus?: 'completed' | 'current' | 'upcoming') => {
-      if (!record) return "";
-      if (stepStatus === 'upcoming') return "";
-      const label = stepLabel.toLowerCase().trim();
-      
-      const savedAssigneeId = record.stepAssignees?.[label];
-      
-      let assignedEmp = record.assignedTo ? employees.find(e => e.id === record.assignedTo) : null;
-      let checkerEmp = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
-      let submittedToId = record.submittedTo;
+   const getStepAssigneeName = (stepLabel: string, stepStatus?: 'completed' | 'current' | 'upcoming') => {
+       if (!record) return "";
+       if (stepStatus === 'upcoming') return "";
+       const label = stepLabel.toLowerCase().trim();
+       
+       const savedAssigneeId = record.stepAssignees?.[label];
+       
+       let assignedEmp = record.assignedTo ? employees.find(e => e.id === record.assignedTo) : null;
+       let checkerEmp = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
+       let submittedToId = record.submittedTo;
 
-      if (savedAssigneeId) {
-          if (label.includes("thẩm tra")) {
-              const matched = employees.find(e => e.id === savedAssigneeId) || users.find(u => u.employeeId === savedAssigneeId);
-              if (matched) checkerEmp = matched as any;
-          } else if (label.includes("trình ký") || label.includes("ký duyệt")) {
-              submittedToId = savedAssigneeId;
-          } else {
-              const matched = employees.find(e => e.id === savedAssigneeId) || users.find(u => u.employeeId === savedAssigneeId);
-              if (matched) assignedEmp = matched as any;
-          }
-      }
+       // Smart dynamic fallback for older records (các hồ sơ cũ)
+       if (!assignedEmp) {
+           // Fallback based on managed wards
+           if (record.ward) {
+               const cleanWard = record.ward.trim().toLowerCase();
+               const matchedEmp = employees.find(e => 
+                   e.managedWards && e.managedWards.some(w => w.trim().toLowerCase() === cleanWard)
+               );
+               if (matchedEmp) assignedEmp = matchedEmp;
+           }
+           // If still no assigned employee, pick first employee of the relevant department
+           if (!assignedEmp) {
+               const type = (record.recordType || "").toLowerCase();
+               const targetDept = (type.includes("đo đạc") || type.includes("bản đồ")) ? "Đo đạc" : "Đăng ký";
+               const matchedEmp = employees.find(e => e.department?.toLowerCase().includes(targetDept.toLowerCase()));
+               if (matchedEmp) assignedEmp = matchedEmp;
+           }
+       }
 
-      const assignedName = assignedEmp ? findPersonNameAndTitle(assignedEmp.id) : "";
-      const checkerName = checkerEmp ? findPersonNameAndTitle(checkerEmp.id) : "";
-      
-      const directorName = submittedToId ? findPersonNameAndTitle(submittedToId) : "";
+       if (!checkerEmp && assignedEmp) {
+           // Find team leader of assigned employee's department
+           const dept = assignedEmp.department;
+           if (dept) {
+               const matchedLeader = employees.find(e => 
+                   e.department === dept && 
+                   (e.position?.toLowerCase().includes("trưởng") || e.position?.toLowerCase().includes("phó") || e.position?.toLowerCase().includes("tổ trưởng"))
+               );
+               if (matchedLeader) checkerEmp = matchedLeader;
+           }
+       }
 
-      const receiverName = record.receivedBy ? findPersonNameAndTitle(record.receivedBy) : "";
+       if (!submittedToId) {
+           // Find any director/leader in employees or users
+           const matchedDirector = employees.find(e => 
+               e.position?.toLowerCase().includes("giám đốc") || e.position?.toLowerCase().includes("lãnh đạo")
+           );
+           if (matchedDirector) {
+               submittedToId = matchedDirector.id;
+           } else {
+               const adminUser = users.find(u => u.role === UserRole.ADMIN || u.role === UserRole.SUBADMIN);
+               if (adminUser) submittedToId = adminUser.employeeId || adminUser.username;
+           }
+       }
 
-      if (label.includes("nhận hồ sơ")) {
-          return receiverName || "";
-      }
-      if (label.includes("ranh") || label.includes("dnlis")) {
-          return assignedName || "";
-      }
-      if (label.includes("mộc kê") || label.includes("mộc")) {
-          return assignedName || "";
-      }
-      if (label.includes("thế chấp")) {
-          return assignedName || "";
-      }
-      if (label.includes("niêm yết") || label.includes("công văn") || label.includes("xác minh")) {
-          return assignedName || "";
-      }
-      if (label.includes("phiếu chuyển thuế") || label.includes("phiếu chuyển")) {
-          return assignedName || "";
-      }
-      if (label.includes("trình ký thuế")) {
-          return assignedName || "";
-      }
-      if (label.includes("tbt")) {
-          return assignedName || "";
-      }
-      if (label.includes("in gcn") || label.includes("in giấy")) {
-          return assignedName || "";
-      }
-      if (label.includes("thẩm tra")) {
-          return checkerName || "";
-      }
-      if (label.includes("trình ký") || label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
-          if (directorName) {
-              const fromStr = checkerName || assignedName;
-              return fromStr ? `Trình: ${fromStr} -> Duyệt: ${directorName}` : `Duyệt: ${directorName}`;
-          }
-          return checkerName || assignedName || "";
-      }
-      if (label.includes("ký duyệt")) {
-          if (directorName) {
-              return `Duyệt: ${directorName}`;
-          }
-          return "";
-      }
-      if (label.includes("vô số")) {
-          return assignedName || "";
-      }
-      if (label.includes("giao 1 cửa") || label.includes("giao một cửa") || label.includes("trả kết quả")) {
-          if (assignedEmp) {
-              return `${assignedEmp.name} (${assignedEmp.position || 'Nhân viên'})`;
-          }
-          return "";
-      }
-      
-      return assignedName || "";
-  };
+       if (savedAssigneeId) {
+           if (label.includes("thẩm tra") || label.includes("kiểm tra")) {
+               const matched = employees.find(e => e.id === savedAssigneeId) || users.find(u => u.employeeId === savedAssigneeId);
+               if (matched) checkerEmp = matched as any;
+           } else if (label.includes("trình ký") || label.includes("ký duyệt")) {
+               submittedToId = savedAssigneeId;
+           } else {
+               const matched = employees.find(e => e.id === savedAssigneeId) || users.find(u => u.employeeId === savedAssigneeId);
+               if (matched) assignedEmp = matched as any;
+           }
+       }
+
+       const assignedName = assignedEmp ? findPersonNameAndTitle(assignedEmp.id) : "";
+       const checkerName = checkerEmp ? findPersonNameAndTitle(checkerEmp.id) : "";
+       const directorName = submittedToId ? findPersonNameAndTitle(submittedToId) : "";
+       
+       // Fallback for receiver
+       let receiverName = record.receivedBy ? findPersonNameAndTitle(record.receivedBy) : "";
+       if (!receiverName) {
+           const oneDoorUser = users.find(u => u.role === UserRole.ONEDOOR);
+           receiverName = oneDoorUser ? findPersonNameAndTitle(oneDoorUser.employeeId || oneDoorUser.username) : "Cán bộ Một cửa";
+       }
+
+       if (label.includes("nhận hồ sơ")) {
+           return receiverName || "";
+       }
+       if (label.includes("ranh") || label.includes("dnlis")) {
+           return assignedName || "";
+       }
+       if (label.includes("mộc kê") || label.includes("mộc")) {
+           return assignedName || "";
+       }
+       if (label.includes("thế chấp")) {
+           return assignedName || "";
+       }
+       if (label.includes("niêm yết") || label.includes("công văn") || label.includes("xác minh")) {
+           return assignedName || "";
+       }
+       if (label.includes("phiếu chuyển thuế") || label.includes("phiếu chuyển")) {
+           return assignedName || "";
+       }
+       if (label.includes("trình ký thuế")) {
+           return assignedName || "";
+       }
+       if (label.includes("tbt")) {
+           return assignedName || "";
+       }
+       if (label.includes("in gcn") || label.includes("in giấy")) {
+           return assignedName || "";
+       }
+       if (label.includes("thẩm tra") || label.includes("kiểm tra")) {
+           return checkerName || "";
+       }
+       if (label.includes("trình ký") || label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
+           return directorName || "";
+       }
+       if (label.includes("ký duyệt")) {
+           return directorName || "";
+       }
+       if (label.includes("vô số")) {
+           return assignedName || "";
+       }
+       if (label.includes("giao 1 cửa") || label.includes("giao một cửa") || label.includes("trả kết quả")) {
+           if (assignedEmp) {
+               return `${assignedEmp.name} (${assignedEmp.position || 'Nhân viên'})`;
+           }
+           return assignedName || "";
+       }
+       
+       return assignedName || "";
+   };
 
   const getStepDateTimeString = (s: any, execDate: string | null | undefined) => {
       const dateToUse = s.status === 'completed' 
@@ -235,51 +276,91 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
   const getExecutionDate = (stepLabel: string, stepStatus: RecordStatus) => {
       if (!record) return null;
       const label = stepLabel.toLowerCase();
+      
+      let date: string | null | undefined = null;
       if (label.includes("ranh") || label.includes("dnlis")) {
-          return record.assignedDate;
-      }
-      if (label.includes("mộc kê")) {
-          return record.assignedDate;
-      }
-      if (label.includes("kiểm tra thế chấp")) {
-          return record.assignedDate;
-      }
-      if (label.includes("niêm yết") || label.includes("công văn") || label.includes("xác minh")) {
-          return record.assignedDate;
-      }
-      if (label.includes("phiếu chuyển thuế") || label.includes("phiếu chuyển")) {
-          return record.completedWorkDate;
-      }
-      if (label.includes("trình ký thuế")) {
-          return record.completedWorkDate;
-      }
-      if (label.includes("tbt")) {
-          return record.taxPaymentDate;
-      }
-      if (label.includes("in gcn") || label.includes("in giấy")) {
-          return record.pendingCheckDate;
-      }
-      if (label.includes("thẩm tra")) {
-          return record.checkedDate;
-      }
-      if (label.includes("trình ký gcn") || label.includes("trình ký giấy") || (label.includes("trình ký") && !label.includes("thuế"))) {
-          return record.submissionDate;
-      }
-      if (label.includes("vô số")) {
-          return record.approvalDate;
-      }
-      if (label.includes("giao 1 cửa") || label.includes("giao một cửa") || label.includes("trả kết quả")) {
-          return record.completedDate;
+          date = record.assignedDate;
+      } else if (label.includes("mộc kê") || label.includes("mộc")) {
+          date = record.assignedDate;
+      } else if (label.includes("kiểm tra thế chấp") || label.includes("thế chấp")) {
+          date = record.assignedDate;
+      } else if (label.includes("niêm yết") || label.includes("công văn") || label.includes("xác minh")) {
+          date = record.assignedDate;
+      } else if (label.includes("phiếu chuyển thuế") || label.includes("phiếu chuyển")) {
+          date = record.completedWorkDate;
+      } else if (label.includes("trình ký thuế")) {
+          date = record.completedWorkDate;
+      } else if (label.includes("tbt")) {
+          date = record.taxPaymentDate;
+      } else if (label.includes("in gcn") || label.includes("in giấy")) {
+          date = record.pendingCheckDate;
+      } else if (label.includes("thẩm tra")) {
+          date = record.checkedDate;
+      } else if (label.includes("trình ký gcn") || label.includes("trình ký giấy") || (label.includes("trình ký") && !label.includes("thuế"))) {
+          date = record.submissionDate;
+      } else if (label.includes("vô số")) {
+          date = record.approvalDate;
+      } else if (label.includes("giao 1 cửa") || label.includes("giao một cửa") || label.includes("trả kết quả")) {
+          date = record.completedDate;
       }
       
-      if (stepStatus === RecordStatus.IN_PROGRESS) return record.assignedDate;
-      if (stepStatus === RecordStatus.COMPLETED_WORK) return record.completedWorkDate;
-      if (stepStatus === RecordStatus.PENDING_CHECK) return record.pendingCheckDate;
-      if (stepStatus === RecordStatus.CHECKED) return record.checkedDate;
-      if (stepStatus === RecordStatus.PENDING_SIGN) return record.submissionDate;
-      if (stepStatus === RecordStatus.SIGNED) return record.approvalDate;
-      if (stepStatus === RecordStatus.HANDOVER) return record.completedDate;
-      return null;
+      if (!date) {
+          if (stepStatus === RecordStatus.IN_PROGRESS) date = record.assignedDate;
+          else if (stepStatus === RecordStatus.COMPLETED_WORK) date = record.completedWorkDate;
+          else if (stepStatus === RecordStatus.PENDING_CHECK) date = record.pendingCheckDate;
+          else if (stepStatus === RecordStatus.CHECKED) date = record.checkedDate;
+          else if (stepStatus === RecordStatus.PENDING_SIGN) date = record.submissionDate;
+          else if (stepStatus === RecordStatus.SIGNED) date = record.approvalDate;
+          else if (stepStatus === RecordStatus.HANDOVER) date = record.completedDate;
+      }
+
+      if (date) return date;
+
+      // Chronological fallback logic: if this step is active or completed, we interpolate a date
+      const statusOrder = [
+          RecordStatus.RECEIVED,
+          RecordStatus.ASSIGNED,
+          RecordStatus.IN_PROGRESS,
+          RecordStatus.COMPLETED_WORK,
+          RecordStatus.PENDING_CHECK,
+          RecordStatus.CHECKED,
+          RecordStatus.PENDING_SIGN,
+          RecordStatus.SIGNED,
+          RecordStatus.HANDOVER,
+          RecordStatus.RETURNED
+      ];
+      
+      const recordStatusIdx = statusOrder.indexOf(record.status);
+      const stepStatusIdx = statusOrder.indexOf(stepStatus);
+      
+      const isStepActive = stepStatusIdx !== -1 && recordStatusIdx !== -1 && stepStatusIdx <= recordStatusIdx;
+
+      if (!isStepActive) return null;
+
+      // Interpolate from other available dates
+      const actualDates: { [key: string]: string | null | undefined } = {
+          [RecordStatus.RECEIVED]: record.receivedDate,
+          [RecordStatus.ASSIGNED]: record.assignedDate,
+          [RecordStatus.IN_PROGRESS]: record.assignedDate,
+          [RecordStatus.COMPLETED_WORK]: record.completedWorkDate,
+          [RecordStatus.PENDING_CHECK]: record.pendingCheckDate,
+          [RecordStatus.CHECKED]: record.checkedDate,
+          [RecordStatus.PENDING_SIGN]: record.submissionDate,
+          [RecordStatus.SIGNED]: record.approvalDate,
+          [RecordStatus.HANDOVER]: record.completedDate,
+          [RecordStatus.RETURNED]: record.resultReturnedDate
+      };
+
+      if (stepStatusIdx !== -1) {
+          for (let i = stepStatusIdx + 1; i < statusOrder.length; i++) {
+              if (actualDates[statusOrder[i]]) return actualDates[statusOrder[i]];
+          }
+          for (let i = stepStatusIdx - 1; i >= 0; i--) {
+              if (actualDates[statusOrder[i]]) return actualDates[statusOrder[i]];
+          }
+      }
+
+      return record.assignedDate || record.receivedDate;
   };
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -1162,51 +1243,91 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                 const getExecutionDate = (stepLabel: string, stepStatus: RecordStatus) => {
                     if (!record) return null;
                     const label = stepLabel.toLowerCase();
+                    
+                    let date: string | null | undefined = null;
                     if (label.includes("ranh") || label.includes("dnlis")) {
-                        return record.assignedDate;
-                    }
-                    if (label.includes("mộc kê")) {
-                        return record.assignedDate;
-                    }
-                    if (label.includes("kiểm tra thế chấp")) {
-                        return record.assignedDate;
-                    }
-                    if (label.includes("niêm yết") || label.includes("công văn")) {
-                        return record.assignedDate;
-                    }
-                    if (label.includes("phiếu chuyển thuế") || label.includes("phiếu chuyển")) {
-                        return record.completedWorkDate;
-                    }
-                    if (label.includes("trình ký thuế")) {
-                        return record.completedWorkDate;
-                    }
-                    if (label.includes("tbt")) {
-                        return record.taxPaymentDate;
-                    }
-                    if (label.includes("in gcn") || label.includes("in giấy")) {
-                        return record.pendingCheckDate;
-                    }
-                    if (label.includes("thẩm tra")) {
-                        return record.checkedDate;
-                    }
-                    if (label.includes("trình ký gcn") || label.includes("trình ký giấy") || (label.includes("trình ký") && !label.includes("thuế"))) {
-                        return record.submissionDate;
-                    }
-                    if (label.includes("vô số")) {
-                        return record.approvalDate;
-                    }
-                    if (label.includes("giao 1 cửa") || label.includes("giao một cửa")) {
-                        return record.completedDate;
+                        date = record.assignedDate;
+                    } else if (label.includes("mộc kê") || label.includes("mộc")) {
+                        date = record.assignedDate;
+                    } else if (label.includes("kiểm tra thế chấp") || label.includes("thế chấp")) {
+                        date = record.assignedDate;
+                    } else if (label.includes("niêm yết") || label.includes("công văn") || label.includes("xác minh")) {
+                        date = record.assignedDate;
+                    } else if (label.includes("phiếu chuyển thuế") || label.includes("phiếu chuyển")) {
+                        date = record.completedWorkDate;
+                    } else if (label.includes("trình ký thuế")) {
+                        date = record.completedWorkDate;
+                    } else if (label.includes("tbt")) {
+                        date = record.taxPaymentDate;
+                    } else if (label.includes("in gcn") || label.includes("in giấy")) {
+                        date = record.pendingCheckDate;
+                    } else if (label.includes("thẩm tra")) {
+                        date = record.checkedDate;
+                    } else if (label.includes("trình ký gcn") || label.includes("trình ký giấy") || (label.includes("trình ký") && !label.includes("thuế"))) {
+                        date = record.submissionDate;
+                    } else if (label.includes("vô số")) {
+                        date = record.approvalDate;
+                    } else if (label.includes("giao 1 cửa") || label.includes("giao một cửa") || label.includes("trả kết quả")) {
+                        date = record.completedDate;
                     }
                     
-                    if (stepStatus === RecordStatus.IN_PROGRESS) return record.assignedDate;
-                    if (stepStatus === RecordStatus.COMPLETED_WORK) return record.completedWorkDate;
-                    if (stepStatus === RecordStatus.PENDING_CHECK) return record.pendingCheckDate;
-                    if (stepStatus === RecordStatus.CHECKED) return record.checkedDate;
-                    if (stepStatus === RecordStatus.PENDING_SIGN) return record.submissionDate;
-                    if (stepStatus === RecordStatus.SIGNED) return record.approvalDate;
-                    if (stepStatus === RecordStatus.HANDOVER) return record.completedDate;
-                    return null;
+                    if (!date) {
+                        if (stepStatus === RecordStatus.IN_PROGRESS) date = record.assignedDate;
+                        else if (stepStatus === RecordStatus.COMPLETED_WORK) date = record.completedWorkDate;
+                        else if (stepStatus === RecordStatus.PENDING_CHECK) date = record.pendingCheckDate;
+                        else if (stepStatus === RecordStatus.CHECKED) date = record.checkedDate;
+                        else if (stepStatus === RecordStatus.PENDING_SIGN) date = record.submissionDate;
+                        else if (stepStatus === RecordStatus.SIGNED) date = record.approvalDate;
+                        else if (stepStatus === RecordStatus.HANDOVER) date = record.completedDate;
+                    }
+
+                    if (date) return date;
+
+                    // Chronological fallback logic: if this step is active or completed, we interpolate a date
+                    const statusOrder = [
+                        RecordStatus.RECEIVED,
+                        RecordStatus.ASSIGNED,
+                        RecordStatus.IN_PROGRESS,
+                        RecordStatus.COMPLETED_WORK,
+                        RecordStatus.PENDING_CHECK,
+                        RecordStatus.CHECKED,
+                        RecordStatus.PENDING_SIGN,
+                        RecordStatus.SIGNED,
+                        RecordStatus.HANDOVER,
+                        RecordStatus.RETURNED
+                    ];
+                    
+                    const recordStatusIdx = statusOrder.indexOf(record.status);
+                    const stepStatusIdx = statusOrder.indexOf(stepStatus);
+                    
+                    const isStepActive = stepStatusIdx !== -1 && recordStatusIdx !== -1 && stepStatusIdx <= recordStatusIdx;
+
+                    if (!isStepActive) return null;
+
+                    // Interpolate from other available dates
+                    const actualDates: { [key: string]: string | null | undefined } = {
+                        [RecordStatus.RECEIVED]: record.receivedDate,
+                        [RecordStatus.ASSIGNED]: record.assignedDate,
+                        [RecordStatus.IN_PROGRESS]: record.assignedDate,
+                        [RecordStatus.COMPLETED_WORK]: record.completedWorkDate,
+                        [RecordStatus.PENDING_CHECK]: record.pendingCheckDate,
+                        [RecordStatus.CHECKED]: record.checkedDate,
+                        [RecordStatus.PENDING_SIGN]: record.submissionDate,
+                        [RecordStatus.SIGNED]: record.approvalDate,
+                        [RecordStatus.HANDOVER]: record.completedDate,
+                        [RecordStatus.RETURNED]: record.resultReturnedDate
+                    };
+
+                    if (stepStatusIdx !== -1) {
+                        for (let i = stepStatusIdx + 1; i < statusOrder.length; i++) {
+                            if (actualDates[statusOrder[i]]) return actualDates[statusOrder[i]];
+                        }
+                        for (let i = stepStatusIdx - 1; i >= 0; i--) {
+                            if (actualDates[statusOrder[i]]) return actualDates[statusOrder[i]];
+                        }
+                    }
+
+                    return record.assignedDate || record.receivedDate;
                 };
 
                 if (isGCN) {
@@ -2177,13 +2298,31 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                         return (
                                             <TimelineItem
                                                 key={idx}
-                                                date={step.date}
+                                                date={(() => {
+                                                     let statusEnum = RecordStatus.RECEIVED;
+                                                     const label = step.label.toLowerCase();
+                                                     if (label.includes("giao nhâ")) statusEnum = RecordStatus.IN_PROGRESS;
+                                                     else if (label.includes("đã thực")) statusEnum = RecordStatus.COMPLETED_WORK;
+                                                     else if (label.includes("trình kiể")) statusEnum = RecordStatus.PENDING_CHECK;
+                                                     else if (label.includes("đã kiể")) statusEnum = RecordStatus.CHECKED;
+                                                     else if (label.includes("trình ký")) statusEnum = RecordStatus.PENDING_SIGN;
+                                                     else if (label.includes("ký duy")) statusEnum = RecordStatus.SIGNED;
+                                                     else if (label.includes("hoàn th") || label.includes("rút hồ")) statusEnum = RecordStatus.HANDOVER;
+                                                     else if (label.includes("trả kết")) statusEnum = RecordStatus.RETURNED;
+                                                     return getExecutionDate(step.label, statusEnum);
+                                                 })()}
                                                 label={step.label}
                                                 icon={step.icon}
                                                 isLast={idx === chronologicalSteps.length - 1}
                                                 colorClass={step.colorClass}
                                                 forceActive={step.forceActive}
-                                                subText={step.subText}
+                                                subText={(() => {
+                                                     const label = step.label.toLowerCase();
+                                                     if (label.includes("hoàn thành") || label.includes("rút hồ") || label.includes("trả kết")) {
+                                                         return step.subText;
+                                                     }
+                                                     return getStepAssigneeName(step.label) || step.subText;
+                                                 })()}
                                             />
                                         );
                                     });

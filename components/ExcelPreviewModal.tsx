@@ -119,7 +119,31 @@ const ExcelPreviewModal: React.FC<ExcelPreviewModalProps> = ({ isOpen, onClose, 
                                  }
                                  cell.style.verticalAlign = 'middle';
                                  cell.style.padding = '4px';
-                                 if (cell.cellIndex === 0 || cell.cellIndex === 9) cell.style.textAlign = 'center';
+                                 
+                                 // Căn giữa dựa trên nội dung tiêu đề cột để đồng bộ hoàn toàn với Excel
+                                 let shouldCenter = false;
+                                 if (tableHeaderIndex !== -1 && rows[tableHeaderIndex]) {
+                                     const headerCells = rows[tableHeaderIndex].querySelectorAll('td, th');
+                                     const headerCell = headerCells[cell.cellIndex] as HTMLElement | undefined;
+                                     if (headerCell) {
+                                         const headerText = headerCell.innerText.trim().toLowerCase();
+                                         const centerHeaderTexts = [
+                                             "stt", "thửa", "tờ", "số tđ", "số tl", "hẹn trả", "đợt xuất", 
+                                             "ngày nhận hồ sơ", "ngày hẹn", "ngày trả kết quả", "số biên lai", 
+                                             "ngày nhận", "ngày hoàn thành", "bản đồ", "diện tích", "số thứ tự"
+                                         ];
+                                         shouldCenter = centerHeaderTexts.some(text => headerText.includes(text));
+                                     }
+                                 } else {
+                                     // Fallback nếu không tìm thấy header
+                                     shouldCenter = cell.cellIndex === 0 || cell.cellIndex === 9;
+                                 }
+                                 
+                                 if (shouldCenter) {
+                                     cell.style.textAlign = 'center';
+                                 } else {
+                                     cell.style.textAlign = 'left';
+                                 }
                              });
                         }
                     }
@@ -164,10 +188,10 @@ const ExcelPreviewModal: React.FC<ExcelPreviewModalProps> = ({ isOpen, onClose, 
                     <style>
                         @page { size: A4 landscape; margin: 10mm; }
                         body { font-family: "Times New Roman", serif; margin: 0; padding: 0; }
-                        table { width: 100%; border-collapse: collapse; font-size: 11pt; }
-                        td, th { padding: 4px; }
+                        table { width: 100%; border-collapse: collapse; font-size: 11pt; table-layout: fixed; }
+                        td, th { padding: 4px; overflow: hidden; word-wrap: break-word; }
                         /* Ensure custom heights are preserved in print */
-                        tr { height: auto; } 
+                        tr { page-break-inside: avoid; } 
                     </style>
                 </head>
                 <body>${content}</body>
