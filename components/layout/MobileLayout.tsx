@@ -1,5 +1,6 @@
-import React from 'react';
-import { User, UserRole } from '../../types';
+import React, { useState } from 'react';
+import { User, UserRole, Employee } from '../../types';
+import { getEmployeeTeam } from '../AssignModal';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -22,6 +23,7 @@ interface MobileLayoutProps {
   children: React.ReactNode;
   unreadMessages: number;
   activeRemindersCount: number;
+  employees: Employee[];
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -31,13 +33,31 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   onLogout,
   children,
   unreadMessages,
-  activeRemindersCount
+  activeRemindersCount,
+  employees
 }) => {
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+  const emp = employees?.find(e => e.id === currentUser.employeeId);
+  const teamName = emp ? getEmployeeTeam(emp) : '';
+
+  const hasFullPermission = 
+    currentUser.role === UserRole.ADMIN || 
+    currentUser.role === UserRole.SUBADMIN || 
+    currentUser.role === UserRole.ONEDOOR ||
+    teamName === 'Ban Giám đốc' || 
+    teamName === 'Tổ Hành chính';
+
+  const hasSearchPermission = 
+    hasFullPermission || 
+    teamName === 'Tổ Đo đạc' || 
+    teamName === 'Tổ Cấp giấy' || 
+    teamName === 'Tổ Lưu trữ';
+
   const navItems = [
     { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
-    { id: 'all_records', label: 'Tìm kiếm', icon: Search },
+    ...(hasSearchPermission ? [{ id: 'all_records', label: 'Tìm kiếm', icon: Search }] : []),
     { id: 'mobile_search', label: 'Hồ sơ cá nhân', icon: UserIcon },
-    { id: 'account_settings', label: 'Cài đặt', icon: Settings },
   ];
 
   return (
@@ -59,8 +79,54 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
               </span>
             )}
           </button>
-          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center font-bold border border-white/30">
-            {currentUser.name.charAt(0)}
+          
+          <div className="relative">
+            <button 
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className="flex items-center gap-1.5 hover:bg-white/10 p-1 rounded-lg transition-colors outline-none cursor-pointer"
+            >
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center font-bold border border-white/30 text-white">
+                {currentUser.name.charAt(0)}
+              </div>
+            </button>
+
+            {isUserMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsUserMenuOpen(false)}></div>
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right text-left text-slate-800">
+                  <div className="p-3 border-b border-gray-100 bg-gray-50/50">
+                    <p className="text-xs font-bold text-gray-800 truncate">{currentUser.name}</p>
+                    <p className="text-[10px] text-gray-500 truncate mt-0.5">@{currentUser.username}</p>
+                    <div className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded inline-block border border-blue-100">
+                      {currentUser.role === UserRole.ADMIN ? 'Admin' : currentUser.role === UserRole.SUBADMIN ? 'Phó quản trị' : currentUser.role === UserRole.TEAM_LEADER ? 'Nhóm trưởng' : currentUser.role === UserRole.ONEDOOR ? 'Một cửa' : 'Nhân viên'}
+                    </div>
+                  </div>
+                  <div className="p-1 space-y-0.5">
+                    <button 
+                      onClick={() => {
+                        setCurrentView('account_settings');
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg flex items-center gap-2 transition-colors"
+                    >
+                      <Settings size={14} className="text-gray-400" />
+                      Cài đặt tài khoản
+                    </button>
+                    <div className="h-px bg-gray-100 my-1 mx-1"></div>
+                    <button 
+                      onClick={() => {
+                        onLogout();
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-2 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-2 transition-colors"
+                    >
+                      <LogOut size={14} className="text-red-400" />
+                      Đăng xuất
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>

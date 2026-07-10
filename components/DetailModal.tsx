@@ -1800,12 +1800,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                             </h4>
                             
                             <p className="text-[11px] text-gray-600 leading-normal">
-                                Quy trình đang <span className="font-bold text-rose-600">tạm dừng xử lý</span> tại bước Thông báo thuế (TBT). Vui lòng nhập ngày hồ sơ chuyển về (ngày thực hiện tiếp) để chuyển tiếp sang <span className="font-bold text-blue-600">In GCN</span> và tính ngày trả kết quả tiếp theo.
+                                Khâu TBT Một cửa tiến hành chuyển tại tab Cấp giấy: khi chuyển yêu cầu nhập ngày nộp thuế để chuyển hồ sơ quay về trạng thái <span className="font-bold text-rose-600">Chờ giao việc</span> để chọn người in GCN.
                             </p>
 
                             <div className="space-y-2.5">
                                 <div>
-                                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Ngày chuyển về thực hiện tiếp (*)</label>
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Ngày nộp thông báo thuế (*)</label>
                                     <input 
                                         type="date"
                                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 transition-all font-semibold"
@@ -1819,7 +1819,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                     className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
                                 >
                                     {isSavingTaxPayment ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                                    Xác nhận chuyển về & Chuyển In
+                                    Chuyển hồ sơ về Chờ giao việc in GCN
                                 </button>
                             </div>
                         </div>

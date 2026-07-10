@@ -13,7 +13,7 @@ import { exportReportToExcel, exportReturnedListToExcel } from './utils/excelExp
 import { generateReport } from './services/geminiService';
 import { syncTemplatesFromCloud } from './services/docxService'; 
 import { updateRecordApi, saveEmployeeApi, saveUserApi, forceUpdateRecordsBatchApi, updateRecordsBatchById } from './services/api';
-import { migrateCungCapTaiLieu, migrateCongVanToLandRecords, saveArchiveRecord, fetchArchiveRecords } from './services/apiArchive';
+import { migrateCungCapTaiLieu, migrateCongVanToLandRecords, saveArchiveRecord, fetchArchiveRecords, syncRecordToVaoSo } from './services/apiArchive';
 import * as XLSX from 'xlsx-js-style';
 import { CheckCircle, AlertTriangle, X } from 'lucide-react';
 
@@ -941,7 +941,8 @@ function App() {
           if (nextIdx < stepConfigs.length) {
               const nextStep = stepConfigs[nextIdx];
 
-              if (nextStep.overallStatus === RecordStatus.PENDING_CHECK && !nextStep.label.includes("In GCN") && !nextStep.label.includes("In Giấy chứng nhận")) {
+              const nextStepLabelLower = nextStep.label.toLowerCase();
+              if (nextStep.overallStatus === RecordStatus.PENDING_CHECK && !nextStepLabelLower.includes("in gcn") && !nextStepLabelLower.includes("in giấy") && !nextStepLabelLower.includes("in giấy")) {
                   setSubmitTargetRecords([record]);
                   setIsSubmitCheckModalOpen(true);
                   return;
@@ -966,7 +967,8 @@ function App() {
                   setTaxModalOpen(true);
                   return;
               }
-              if (currentStep && (currentStep.label.includes("In GCN") || currentStep.label.includes("In Giấy chứng nhận"))) {
+              const currentStepLabelLower = currentStep?.label.toLowerCase() || '';
+              if (currentStep && (currentStepLabelLower.includes("in gcn") || currentStepLabelLower.includes("in giấy") || currentStepLabelLower.includes("in bản đồ"))) {
                   setFoilTargetRecord(record);
                   setFoilNumber(record.issueNumber || '');
                   setFoilModalOpen(true);
@@ -1003,6 +1005,12 @@ function App() {
 
               setRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
               await updateRecordApi({ ...record, ...updates });
+              
+              if (nextStep.overallStatus === RecordStatus.SIGNED) {
+                  // Tự động đồng bộ sang hồ sơ Vô số GCN
+                  await syncRecordToVaoSo({ ...record, ...updates }, updates.issueNumber || record.issueNumber, currentUser?.username);
+              }
+
               setToast({ type: 'success', message: `Đã chuyển hồ sơ sang bước: ${nextStep.label}` });
           } else {
               setToast({ type: 'success', message: `Hồ sơ ${record.code} đã hoàn thành tất cả các bước!` });
@@ -1144,6 +1152,12 @@ function App() {
                   }));
               
               await updateRecordsBatchById(updates);
+              
+              // Tự động đồng bộ sang hồ sơ Vô số GCN cho cả loạt hồ sơ đã ký
+              for (const r of updates) {
+                  await syncRecordToVaoSo(r, r.issueNumber, currentUser?.username);
+              }
+
               setToast({ type: 'success', message: `Đã ký duyệt ${updates.length} hồ sơ thành công và chuyển sang bước chờ giao 1 cửa!` });
               setSelectedRecordIds(new Set());
               loadData();
@@ -1347,11 +1361,18 @@ function App() {
                                   <button
                                       onClick={async () => {
                                           if (!foilTargetRecord) return;
+                                          if (!foilNumber || !foilNumber.trim()) {
+                                              setToast({ type: 'error', message: 'Vui lòng nhập Số phát hành (Số phôi GCN mới) trước khi trình thẩm tra!' });
+                                              return;
+                                          }
                                           const nowStr = new Date().toISOString();
                                           const stepConfigs = getGcnWorkflowSteps(foilTargetRecord, holidays);
                                           let currentStepIndex = foilTargetRecord.currentStepIndex;
                                           if (currentStepIndex === undefined || currentStepIndex === null) {
-                                              const foundIdx = stepConfigs.findIndex(s => s.label.includes("In GCN") || s.label.includes("In Giấy chứng nhận"));
+                                              const foundIdx = stepConfigs.findIndex(s => {
+                                                  const l = s.label.toLowerCase();
+                                                  return l.includes("in gcn") || l.includes("in giấy") || l.includes("in bản đồ");
+                                              });
                                               currentStepIndex = foundIdx !== -1 ? foundIdx : 0;
                                           }
                                           const nextStepIndex = currentStepIndex + 1;
@@ -1394,6 +1415,7 @@ function App() {
         onLogout={() => setCurrentUser(null)}
         unreadMessages={unreadMessages}
         activeRemindersCount={activeRemindersCount}
+        employees={employees}
       >
         <MobileRoutes
           currentView={currentView}

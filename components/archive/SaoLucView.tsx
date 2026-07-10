@@ -203,12 +203,12 @@ const SaoLucView: React.FC<SaoLucViewProps> = ({
       if (handoverTab === "today") {
         list = list.filter((r) => r.status === "signed");
       } else if (handoverTab === "history") {
-        list = list.filter((r) => r.status === "completed");
+        list = list.filter((r) => r.status === "completed" && !r.data?.result_returned_date);
       } else if (handoverTab === "returned") {
         list = list.filter(
           (r) =>
             r.status === "completed" &&
-            (r.data?.payment_status === "Đã thu" || r.data?.result_returned_date)
+            !!r.data?.result_returned_date
         );
       }
     }

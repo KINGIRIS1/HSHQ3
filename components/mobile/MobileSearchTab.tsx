@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RecordFile, Employee, Holiday, User, UserRole, RecordStatus } from '../../types';
-import { removeVietnameseTones, getGcnWorkflowStepsHelper } from '../../utils/appHelpers';
+import { removeVietnameseTones, getGcnWorkflowStepsHelper, isMeasurementType, isRegType, isArchiveType } from '../../utils/appHelpers';
 import { STATUS_LABELS } from '../../constants';
+import { getEmployeeTeam } from '../AssignModal';
 import { Html5Qrcode } from 'html5-qrcode';
 import { 
   Search, 
@@ -43,20 +44,41 @@ export function canUserViewRecord(record: RecordFile, currentUser: User | null, 
     return true;
   }
   
-  // EMPLOYEE chỉ được xem hồ sơ được phân công cho mình
-  if (currentUser.role === UserRole.EMPLOYEE) {
-    return record.assignedTo === currentUser.employeeId;
+  // Lấy thông tin Employee của người đăng nhập
+  const emp = employees.find(e => e.id === currentUser.employeeId);
+  if (!emp) return false;
+  
+  const teamName = getEmployeeTeam(emp);
+  
+  // Quyền ưu tiên cao nhất: Được giao việc trực tiếp
+  const isDirectlyAssigned = 
+    record.assignedTo === currentUser.employeeId ||
+    record.checkedBy === currentUser.employeeId ||
+    record.submittedTo === currentUser.employeeId ||
+    record.receivedBy === currentUser.employeeId;
+    
+  if (isDirectlyAssigned) {
+    return true;
+  }
+
+  // Nếu không được phân công trực tiếp, phân quyền chặt chẽ theo Tổ chuyên môn (như bản PC)
+  if (teamName === 'Tổ Đo đạc') {
+    if (!isMeasurementType(record.recordType)) return false;
+  } else if (teamName === 'Tổ Cấp giấy') {
+    if (!isRegType(record.recordType)) return false;
+  } else if (teamName === 'Tổ Lưu trữ') {
+    if (!isArchiveType(record.recordType)) return false;
   }
   
-  // TEAM_LEADER được xem hồ sơ được phân công cho mình HOẶC thuộc địa bàn xã phường quản lý
+  // EMPLOYEE chỉ được xem hồ sơ được phân công cho mình (ở trên đã check isDirectlyAssigned)
+  if (currentUser.role === UserRole.EMPLOYEE) {
+    return false;
+  }
+  
+  // TEAM_LEADER được xem hồ sơ thuộc địa bàn xã phường quản lý (đã lọc theo Tổ chuyên môn ở trên)
   if (currentUser.role === UserRole.TEAM_LEADER) {
-    const leaderEmp = employees.find(e => e.id === currentUser.employeeId);
-    if (!leaderEmp) return false;
-    
-    const isMyTask = record.assignedTo === currentUser.employeeId;
-    const isMyWard = leaderEmp.managedWards && leaderEmp.managedWards.some((w: string) => record.ward && record.ward.includes(w));
-    
-    return isMyTask || isMyWard;
+    const isMyWard = emp.managedWards && emp.managedWards.some((w: string) => record.ward && record.ward.includes(w));
+    return !!isMyWard;
   }
   
   return false;
@@ -196,20 +218,23 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
     }
   };
 
-  // Danh sách gợi ý / kết quả tìm kiếm tương đối
+  // Danh sách gợi ý / kết quả tìm kiếm tương đối - Phân quyền chặt chẽ như PC
   const searchResults = React.useMemo(() => {
     if (!query.trim()) return [];
     
     const normQuery = removeVietnameseTones(query.toLowerCase());
     
     return records.filter(r => {
+      // Lọc phân quyền chặt chẽ như bản PC
+      if (!canUserViewRecord(r, currentUser, employees)) return false;
+
       // Tìm theo Tên, SĐT, Mã hồ sơ
       const matchCode = r.code.toLowerCase().includes(query.toLowerCase());
       const matchName = removeVietnameseTones(r.customerName).includes(normQuery);
       const matchPhone = r.phoneNumber && r.phoneNumber.includes(query);
       return matchCode || matchName || matchPhone;
     });
-  }, [query, records]);
+  }, [query, records, currentUser, employees]);
 
   // Lấy danh sách quy trình hồ sơ đã chọn
   const workflowData = React.useMemo(() => {
@@ -246,20 +271,20 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 text-slate-800">
-      {/* Banner / Header */}
-      <div className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white px-4 pt-6 pb-8 shrink-0 shadow-lg">
-        <h2 className="text-xl font-extrabold tracking-tight mb-1 flex items-center gap-2">
-          <Search size={22} />
-          Tra Cứu Quy Trình Hồ Sơ
-        </h2>
-        <p className="text-xs text-blue-100 opacity-90 leading-relaxed">
-          Nhập mã biên nhận, số điện thoại, tên chủ hộ hoặc quét mã vạch trên biên nhận bằng máy ảnh để xem tiến độ thực tế của hồ sơ.
+      {/* Banner / Header - Super compact space-saving */}
+      <div className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white px-3 py-2.5 shrink-0 shadow-md flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Search size={18} />
+          <h2 className="text-sm font-black tracking-tight uppercase">Tra Cứu Hồ Sơ</h2>
+        </div>
+        <p className="text-[10px] text-blue-100 opacity-80 hidden xs:block">
+          Tìm theo Tên, SĐT, Mã HS
         </p>
       </div>
 
-      <div className="p-4 space-y-4 flex-1 -mt-4">
+      <div className="p-2.5 space-y-3 flex-1">
         {/* Search Input Box */}
-        <div className="bg-white rounded-2xl p-4 shadow-md border border-slate-100 space-y-3">
+        <div className="bg-white rounded-xl p-2.5 shadow-sm border border-slate-100 space-y-2.5">
           <form onSubmit={handleManualSearch} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -341,12 +366,12 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
 
         {/* ----------------- CASE 1: NO RECORD SELECTED YET ----------------- */}
         {!selectedRecord && (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {searchResults.length > 0 ? (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kết quả tìm thấy ({searchResults.length})</span>
-                  <Info size={14} className="text-slate-400" />
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="bg-slate-50 px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kết quả tìm thấy ({searchResults.length})</span>
+                  <Info size={12} className="text-slate-400" />
                 </div>
                 <div className="divide-y divide-slate-100 max-h-[350px] overflow-y-auto">
                   {searchResults.map((record) => {
@@ -355,22 +380,22 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
                       <div
                         key={record.id}
                         onClick={() => setSelectedRecord(record)}
-                        className="px-4 py-3 flex justify-between items-center hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer text-left"
+                        className="px-3 py-2 flex justify-between items-center hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer text-left"
                       >
-                        <div className="flex-1 min-w-0 pr-3">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="font-extrabold text-slate-800 text-sm truncate">{record.customerName}</span>
-                            {!permitted && <Lock size={12} className="text-slate-400 shrink-0" />}
+                        <div className="flex-1 min-w-0 pr-2">
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <span className="font-extrabold text-slate-800 text-xs truncate">{record.customerName}</span>
+                            {!permitted && <Lock size={10} className="text-slate-400 shrink-0" />}
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono">
                             <span>{record.code}</span>
                             <span>•</span>
-                            <span className="truncate">{record.recordType}</span>
+                            <span className="truncate max-w-[120px]">{record.recordType}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 text-blue-600 font-bold text-xs shrink-0">
+                        <div className="flex items-center gap-0.5 text-blue-600 font-bold text-[10px] shrink-0">
                           {permitted ? "Xem" : "Bị khóa"}
-                          <ChevronRight size={14} />
+                          <ChevronRight size={12} />
                         </div>
                       </div>
                     );
@@ -378,16 +403,16 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
                 </div>
               </div>
             ) : query.trim() ? (
-              <div className="bg-white rounded-2xl p-8 border border-slate-100 text-center text-slate-400 flex flex-col items-center justify-center">
-                <Search size={44} className="opacity-15 mb-2" />
-                <p className="text-sm font-bold">Không tìm thấy hồ sơ trùng khớp</p>
-                <p className="text-xs mt-1 text-slate-400 max-w-[250px]">Hãy thử tìm kiếm bằng Số điện thoại, Tên hoặc Mã hồ sơ chính xác hơn.</p>
+              <div className="bg-white rounded-xl p-6 border border-slate-100 text-center text-slate-400 flex flex-col items-center justify-center">
+                <Search size={36} className="opacity-15 mb-1.5" />
+                <p className="text-xs font-bold text-slate-650">Không tìm thấy hồ sơ trùng khớp</p>
+                <p className="text-[10px] mt-0.5 text-slate-400 max-w-[220px]">Hãy thử tìm bằng SĐT, Tên hoặc Mã hồ sơ chính xác.</p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl p-6 border border-slate-100 text-center text-slate-400 flex flex-col items-center justify-center space-y-2">
-                <Scan size={36} className="text-blue-500 opacity-30 animate-pulse" />
-                <p className="text-xs font-bold text-slate-600">Đang chờ quét mã vạch biên nhận hoặc tìm kiếm...</p>
-                <p className="text-[11px] text-slate-400 max-w-[240px]">Khi bạn quét hoặc chọn một hồ sơ, toàn bộ quy trình, người phụ trách và tiến độ xử lý sẽ được phơi bày chi tiết ở đây.</p>
+              <div className="bg-white rounded-xl p-5 border border-slate-100 text-center text-slate-400 flex flex-col items-center justify-center space-y-1.5">
+                <Scan size={30} className="text-blue-500 opacity-30 animate-pulse" />
+                <p className="text-[11px] font-bold text-slate-600">Đang chờ quét mã vạch hoặc tìm kiếm...</p>
+                <p className="text-[10px] text-slate-400 max-w-[220px]">Quét hoặc tìm hồ sơ để theo dõi quy trình, người phụ trách và tiến độ chi tiết.</p>
               </div>
             )}
           </div>
@@ -395,102 +420,102 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
 
         {/* ----------------- CASE 2: RECORD IS SELECTED ----------------- */}
         {selectedRecord && (
-          <div className="space-y-4 animate-fade-in">
+          <div className="space-y-3 animate-fade-in">
             {/* Quick Back Header */}
-            <div className="flex justify-between items-center px-1">
+            <div className="flex justify-between items-center px-0.5">
               <button 
                 onClick={() => setSelectedRecord(null)}
-                className="text-xs font-bold text-blue-600 flex items-center gap-1 py-1 px-2.5 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors"
+                className="text-[11px] font-bold text-blue-600 flex items-center gap-1 py-1 px-2 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors"
               >
-                <ArrowLeft size={14} /> Trở về danh sách
+                <ArrowLeft size={12} /> Trở về danh sách
               </button>
               
               <button 
                 onClick={() => onViewRecordDetail(selectedRecord)}
-                className="text-xs font-bold text-indigo-600 flex items-center gap-1 py-1 px-2.5 bg-indigo-50 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors"
+                className="text-[11px] font-bold text-indigo-600 flex items-center gap-1 py-1 px-2 bg-indigo-50 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors"
               >
-                Xem chi tiết đầy đủ <ChevronRight size={14} />
+                Xem chi tiết đầy đủ <ChevronRight size={12} />
               </button>
             </div>
 
             {/* Permission Guard Alert */}
             {!hasViewPermission ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center space-y-3">
-                <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
-                  <Lock size={22} />
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center space-y-2">
+                <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+                  <Lock size={18} />
                 </div>
-                <h3 className="font-bold text-slate-800 text-base">Hồ sơ đã bị ẩn quyền truy cập</h3>
-                <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+                <h3 className="font-bold text-slate-800 text-sm">Hồ sơ đã bị ẩn quyền truy cập</h3>
+                <p className="text-[11px] text-slate-600 leading-relaxed max-w-sm mx-auto">
                   Tài khoản của bạn (vai trò <strong>{currentUser.role}</strong>) không thuộc diện phân quyền được xem hồ sơ <strong>{selectedRecord.code}</strong> này.
                 </p>
-                <p className="text-[11px] text-slate-500 italic">
+                <p className="text-[10px] text-slate-500 italic">
                   * Chỉ có Admin, Sub-admin, Một cửa, hoặc Cán bộ được phân công trực tiếp/quản lý địa bàn xã phường này mới được phép theo dõi quy trình hồ sơ này.
                 </p>
               </div>
             ) : (
               // ----------------- AUTHORIZED VIEWER -----------------
-              <div className="space-y-4">
+              <div className="space-y-3">
                 
-                {/* Record Metadata Card */}
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
-                  <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+                {/* Record Metadata Card - Super Compact */}
+                <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 space-y-2.5">
+                  <div className="flex justify-between items-start border-b border-slate-100 pb-2">
                     <div className="min-w-0 flex-1">
-                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider font-mono">
+                      <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-bold uppercase tracking-wider font-mono">
                         Mã: {selectedRecord.code}
                       </span>
-                      <h3 className="font-extrabold text-slate-800 text-lg mt-1 leading-tight">
+                      <h3 className="font-extrabold text-slate-800 text-base mt-0.5 leading-tight">
                         {selectedRecord.customerName}
                       </h3>
                       {selectedRecord.phoneNumber && (
-                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                          <Phone size={12} /> {selectedRecord.phoneNumber}
+                        <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                          <Phone size={11} /> {selectedRecord.phoneNumber}
                         </p>
                       )}
                     </div>
-                    <span className={`px-2.5 py-1 rounded-lg text-xs font-extrabold border uppercase tracking-wide shrink-0 ${getStatusBadgeClass(selectedRecord.status)}`}>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border uppercase tracking-wider shrink-0 ${getStatusBadgeClass(selectedRecord.status)}`}>
                       {STATUS_LABELS[selectedRecord.status]}
                     </span>
                   </div>
 
                   {/* Core Specs Grid */}
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 pt-1">
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-0.5">
+                    <div className="space-y-0.2">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
                         <MapPin size={10} /> Xã phường
                       </span>
                       <p className="text-xs font-bold text-slate-700 truncate">{selectedRecord.ward || 'Chưa rõ'}</p>
                     </div>
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
+                    <div className="space-y-0.2">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
                         <Building size={10} /> Số Tờ / Số Thửa
                       </span>
-                      <p className="text-xs font-bold text-slate-700">
+                      <p className="text-xs font-bold text-slate-700 truncate">
                         {selectedRecord.mapSheet ? `Tờ ${selectedRecord.mapSheet}` : 'Chưa rõ'} / {selectedRecord.landPlot ? `Thửa ${selectedRecord.landPlot}` : 'Chưa rõ'}
                       </p>
                     </div>
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
+                    <div className="space-y-0.2">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
                         <Calendar size={10} /> Ngày tiếp nhận
                       </span>
                       <p className="text-xs font-bold text-slate-700">{selectedRecord.receivedDate || 'N/A'}</p>
                     </div>
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
+                    <div className="space-y-0.2">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
                         <Clock size={10} /> Hạn xử lý dự kiến
                       </span>
-                      <p className={`text-xs font-bold ${selectedRecord.status !== RecordStatus.HANDOVER && selectedRecord.status !== RecordStatus.RETURNED && selectedRecord.deadline && new Date() > new Date(selectedRecord.deadline) ? 'text-red-600' : 'text-slate-700'}`}>
+                      <p className={`text-xs font-bold truncate ${selectedRecord.status !== RecordStatus.HANDOVER && selectedRecord.status !== RecordStatus.RETURNED && selectedRecord.deadline && new Date() > new Date(selectedRecord.deadline) ? 'text-red-600' : 'text-slate-700'}`}>
                         {selectedRecord.deadline || 'Chưa định đoạt'}
                       </p>
                     </div>
-                    <div className="space-y-0.5 col-span-2 border-t border-slate-50 pt-2">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
+                    <div className="space-y-0.2 col-span-2 border-t border-slate-50 pt-1.5">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
                         <UserIcon size={10} /> Cán bộ xử lý
                       </span>
                       <p className="text-xs font-bold text-slate-700">
                         {selectedRecord.assignedTo ? (
                           <span>
                             {employees.find(e => e.id === selectedRecord.assignedTo)?.name || 'Chưa rõ danh tính'} 
-                            <span className="text-slate-400 font-normal">
+                            <span className="text-slate-400 font-normal text-[11px]">
                               {employees.find(e => e.id === selectedRecord.assignedTo)?.department ? ` (${employees.find(e => e.id === selectedRecord.assignedTo)?.department})` : ''}
                             </span>
                           </span>
@@ -503,21 +528,21 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
                 </div>
 
                 {/* Step-by-Step Workflow Progress Timeline (Tiến độ quy trình) */}
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-4">
-                  <div className="border-b border-slate-100 pb-2 flex justify-between items-center">
-                    <h4 className="font-extrabold text-sm text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <Clock size={16} className="text-blue-500" />
+                <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 space-y-3">
+                  <div className="border-b border-slate-100 pb-1.5 flex justify-between items-center">
+                    <h4 className="font-extrabold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                      <Clock size={14} className="text-blue-500" />
                       Quy Trình & Tiến Độ Xử Lý
                     </h4>
                     {workflowData?.type && (
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+                      <span className="text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.2 rounded-full uppercase tracking-wider font-mono">
                         {workflowData.type.replace('_', ' ')}
                       </span>
                     )}
                   </div>
 
                   {workflowData && workflowData.steps && workflowData.steps.length > 0 ? (
-                    <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2.5 before:bottom-2.5 before:w-0.5 before:bg-slate-150">
+                    <div className="relative pl-5 space-y-3.5 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-150">
                       {workflowData.steps.map((step, idx) => {
                         const isCompleted = step.status === 'completed';
                         const isCurrent = step.status === 'current';
@@ -542,17 +567,17 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
                         }
 
                         return (
-                          <div key={idx} className="relative flex flex-col gap-1 text-left">
+                          <div key={idx} className="relative flex flex-col gap-0.5 text-left">
                             {/* Step Indicator Bullet */}
-                            <div className={`absolute -left-[23.5px] top-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] z-10 transition-colors ${dotClass}`}>
+                            <div className={`absolute -left-[21.5px] top-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center text-[9px] z-10 transition-colors ${dotClass}`}>
                               {isCompleted ? "✓" : idx + 1}
                             </div>
 
                             {/* Step Card */}
-                            <div className={`border p-3 rounded-xl shadow-xs transition-all ${cardClass}`}>
-                              <div className="flex justify-between items-start gap-2">
-                                <span className={`text-xs ${textClass}`}>{step.label}</span>
-                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                            <div className={`border p-2 rounded-lg shadow-xs transition-all ${cardClass}`}>
+                              <div className="flex justify-between items-start gap-1.5">
+                                <span className={`text-[11px] ${textClass}`}>{step.label}</span>
+                                <span className={`text-[8px] font-extrabold px-1 py-0.2 rounded uppercase tracking-wider ${
                                   isCompleted 
                                     ? "bg-green-100 text-green-700" 
                                     : isCurrent 
@@ -563,7 +588,7 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
                                 </span>
                               </div>
                               
-                              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500 font-medium">
+                              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[9px] text-slate-500 font-medium">
                                 {step.duration && step.duration !== '0 giờ' && (
                                   <span>Thời gian: <strong className="text-slate-600">{step.duration}</strong></span>
                                 )}

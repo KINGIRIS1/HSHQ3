@@ -1,14 +1,16 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { RecordFile, RecordStatus, Employee } from '../../types';
+import { RecordFile, RecordStatus, Employee, User, UserRole } from '../../types';
 import { STATUS_LABELS } from '../../constants';
 import { isMeasurementType, isRegType, isArchiveType } from '../../utils/appHelpers';
+import { canUserViewRecord } from './MobileSearchTab';
+import { getEmployeeTeam } from '../AssignModal';
 import { Html5Qrcode } from 'html5-qrcode';
 import { 
   Search, 
   Filter, 
   ChevronRight, 
   MapPin, 
-  User, 
+  User as UserIcon, 
   Phone, 
   Calendar,
   MoreVertical,
@@ -25,6 +27,7 @@ import {
 interface MobileRecordListProps {
   records: RecordFile[];
   employees: Employee[];
+  currentUser: User;
   onViewRecord: (r: RecordFile) => void;
   onEditRecord: (r: RecordFile) => void;
   onDeleteRecord: (r: RecordFile) => void;
@@ -34,6 +37,7 @@ interface MobileRecordListProps {
 const MobileRecordList: React.FC<MobileRecordListProps> = ({ 
   records, 
   employees, 
+  currentUser,
   onViewRecord, 
   onEditRecord, 
   onDeleteRecord,
@@ -41,7 +45,47 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterWard, setFilterWard] = useState('all');
-  const [activeDept, setActiveDept] = useState<'all' | 'dodac' | 'capgiay' | 'luutru' | 'other'>('all');
+
+  const emp = useMemo(() => employees.find(e => e.id === currentUser.employeeId), [employees, currentUser.employeeId]);
+  const teamName = useMemo(() => emp ? getEmployeeTeam(emp) : '', [emp]);
+
+  const hasFullPermission = useMemo(() => {
+    return (
+      currentUser.role === UserRole.ADMIN || 
+      currentUser.role === UserRole.SUBADMIN || 
+      currentUser.role === UserRole.ONEDOOR ||
+      teamName === 'Ban Giám đốc' || 
+      teamName === 'Tổ Hành chính'
+    );
+  }, [currentUser.role, teamName]);
+
+  const allowedDepts = useMemo(() => {
+    if (hasFullPermission) {
+      return ['all', 'dodac', 'capgiay', 'luutru', 'other'];
+    }
+    if (teamName === 'Tổ Đo đạc') return ['dodac'];
+    if (teamName === 'Tổ Cấp giấy') return ['capgiay'];
+    if (teamName === 'Tổ Lưu trữ') return ['luutru'];
+    return [];
+  }, [hasFullPermission, teamName]);
+
+  const [activeDept, setActiveDept] = useState<'all' | 'dodac' | 'capgiay' | 'luutru' | 'other'>(() => {
+    const initialEmp = employees.find(e => e.id === currentUser.employeeId);
+    const initialTeamName = initialEmp ? getEmployeeTeam(initialEmp) : '';
+    const initialHasFull = 
+      currentUser.role === UserRole.ADMIN || 
+      currentUser.role === UserRole.SUBADMIN || 
+      currentUser.role === UserRole.ONEDOOR ||
+      initialTeamName === 'Ban Giám đốc' || 
+      initialTeamName === 'Tổ Hành chính';
+
+    if (initialHasFull) return 'all';
+    if (initialTeamName === 'Tổ Đo đạc') return 'dodac';
+    if (initialTeamName === 'Tổ Cấp giấy') return 'capgiay';
+    if (initialTeamName === 'Tổ Lưu trữ') return 'luutru';
+    return 'all';
+  });
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -125,20 +169,21 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
     stopScanning();
   };
 
-  // Tính số lượng hồ sơ cho mỗi bộ phận để hiển thị huy hiệu (badge count)
+  // Tính số lượng hồ sơ cho mỗi bộ phận để hiển thị huy hiệu (badge count) - Phân quyền chặt chẽ như PC
   const deptCounts = useMemo(() => {
     let dodac = 0;
     let capgiay = 0;
     let luutru = 0;
     let other = 0;
-    records.forEach(r => {
+    const permittedRecords = records.filter(r => canUserViewRecord(r, currentUser, employees));
+    permittedRecords.forEach(r => {
       if (isMeasurementType(r.recordType)) dodac++;
       else if (isRegType(r.recordType)) capgiay++;
       else if (isArchiveType(r.recordType)) luutru++;
       else other++;
     });
-    return { all: records.length, dodac, capgiay, luutru, other };
-  }, [records]);
+    return { all: permittedRecords.length, dodac, capgiay, luutru, other };
+  }, [records, currentUser, employees]);
 
   // Reset page when filtering
   React.useEffect(() => {
@@ -146,7 +191,8 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
   }, [searchTerm, filterWard, activeDept]);
 
   const filtered = useMemo(() => {
-    return records.filter(r => {
+    const permittedRecords = records.filter(r => canUserViewRecord(r, currentUser, employees));
+    return permittedRecords.filter(r => {
       // 1. Lọc theo bộ phận được chọn
       if (activeDept === 'dodac' && !isMeasurementType(r.recordType)) return false;
       if (activeDept === 'capgiay' && !isRegType(r.recordType)) return false;
@@ -164,7 +210,7 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
 
       return matchesSearch && matchesWard;
     });
-  }, [records, searchTerm, filterWard, activeDept]);
+  }, [records, searchTerm, filterWard, activeDept, currentUser, employees]);
 
   // Pagination logic
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
@@ -266,7 +312,7 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
             { id: 'capgiay', label: 'Cấp giấy', count: deptCounts.capgiay, icon: Award, activeColor: 'bg-teal-600 text-white border-teal-600' },
             { id: 'luutru', label: 'Lưu trữ', count: deptCounts.luutru, icon: Archive, activeColor: 'bg-amber-600 text-white border-amber-600' },
             { id: 'other', label: 'Khác', count: deptCounts.other, icon: Grid, activeColor: 'bg-slate-600 text-white border-slate-600' },
-          ].map(dept => {
+          ].filter(dept => allowedDepts.includes(dept.id)).map(dept => {
             const Icon = dept.icon;
             const isActive = activeDept === dept.id;
             return (
@@ -293,98 +339,96 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
       </div>
 
       {/* Record List */}
-      <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+      <div className="p-2 space-y-2 flex-1 overflow-y-auto">
         {paginatedRecords.length > 0 ? (
           <>
             {paginatedRecords.map((record) => (
               <div 
                 key={record.id} 
-                className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 active:scale-[0.98] transition-all"
+                className="bg-white rounded-xl shadow-xs border border-slate-100 p-2.5 hover:bg-slate-50 active:scale-[0.99] transition-all cursor-pointer flex flex-col gap-1.5"
                 onClick={() => onViewRecord(record)}
               >
-                <div className="flex justify-between items-start mb-3">
+                {/* Header Row: Customer Name & Code, Status Badges */}
+                <div className="flex justify-between items-start gap-1.5">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-slate-800 text-base truncate">{record.customerName}</h3>
-                    <p className="text-xs text-slate-500 font-mono mt-0.5">{record.code}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm truncate max-w-[150px] sm:max-w-[240px]">{record.customerName}</h3>
+                      <span className="text-[9px] font-mono font-semibold text-slate-500 bg-slate-100 px-1 py-0.2 rounded border border-slate-200/50 shrink-0">{record.code}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold border uppercase tracking-wider ${getStatusColor(record.status)}`}>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold border uppercase tracking-wider ${getStatusColor(record.status)}`}>
                       {STATUS_LABELS[record.status]}
                     </span>
                     {record.hasDefect && (
-                      <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 border border-red-200 text-[9px] font-bold uppercase tracking-wider">
-                        Có sai sót (Trả)
+                      <span className="px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider shrink-0">
+                        Sai sót
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-y-2 gap-x-4 mb-4">
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <MapPin size={14} className="shrink-0" />
-                    <span className="text-xs truncate">{record.ward || 'Chưa rõ'}</span>
+                {/* Sub Metadata Row: Compact Wrap-flexible badging with icons */}
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-slate-500 font-medium">
+                  {record.ward && (
+                    <div className="flex items-center gap-0.5">
+                      <MapPin size={11} className="text-slate-400 shrink-0" />
+                      <span className="truncate max-w-[80px]">{record.ward}</span>
+                    </div>
+                  )}
+                  {record.phoneNumber && (
+                    <div className="flex items-center gap-0.5">
+                      <Phone size={11} className="text-slate-400 shrink-0" />
+                      <span>{record.phoneNumber}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-0.5">
+                    <Calendar size={11} className="text-slate-400 shrink-0" />
+                    <span>{record.receivedDate || 'N/A'}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <Phone size={14} className="shrink-0" />
-                    <span className="text-xs">{record.phoneNumber || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <Calendar size={14} className="shrink-0" />
-                    <span className="text-xs">{record.receivedDate || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <User size={14} className="shrink-0" />
-                    <span className="text-xs truncate">
+                  <div className="flex items-center gap-0.5">
+                    <UserIcon size={11} className="text-slate-400 shrink-0" />
+                    <span className="truncate max-w-[80px]">
                       {record.assignedTo ? (employees.find(e => e.id === record.assignedTo)?.name || 'N/A') : 'Chưa giao'}
                     </span>
                   </div>
-                </div>
-
-                <div className="flex justify-between items-center pt-3 border-t border-slate-50">
-                  <div className="flex -space-x-2">
-                    {/* Visual indicator of progress or something */}
-                    <div className="w-6 h-6 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-blue-600">
-                      {record.mapSheet || '?'}
+                  {(record.mapSheet || record.landPlot) && (
+                    <div className="flex items-center gap-0.5 bg-blue-50/70 text-blue-700 px-1.5 py-0.2 rounded text-[9px] font-extrabold border border-blue-100/50">
+                      <span>Tờ {record.mapSheet || '?'} - Thửa {record.landPlot || '?'}</span>
                     </div>
-                    <div className="w-6 h-6 rounded-full bg-green-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-green-600">
-                      {record.landPlot || '?'}
-                    </div>
-                  </div>
-                  <button className="text-blue-600 flex items-center gap-1 text-xs font-bold">
-                    Chi tiết <ChevronRight size={14} />
-                  </button>
+                  )}
                 </div>
               </div>
             ))}
 
             {/* Pagination Controls */}
             {hasMore && (
-              <div className="pt-4 pb-8 flex flex-col items-center gap-3">
+              <div className="pt-3 pb-6 flex flex-col items-center gap-2">
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleLoadMore(); }}
-                  className="w-full py-3 bg-white border border-blue-200 text-blue-600 rounded-xl font-bold text-sm shadow-sm active:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-white border border-blue-200 text-blue-600 rounded-xl font-bold text-xs shadow-sm active:bg-blue-50 transition-colors flex items-center justify-center gap-1.5"
                 >
                   Xem thêm hồ sơ
-                  <span className="text-[10px] bg-blue-100 px-2 py-0.5 rounded-full">
-                    {filtered.length - paginatedRecords.length} còn lại
+                  <span className="text-[9px] bg-blue-100 px-1.5 py-0.2 rounded-full">
+                    {filtered.length - paginatedRecords.length}
                   </span>
                 </button>
-                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
                   Trang {currentPage} / {totalPages}
                 </p>
               </div>
             )}
 
             {!hasMore && filtered.length > itemsPerPage && (
-              <div className="py-8 text-center">
-                <p className="text-xs text-slate-400 font-medium italic">Bạn đã xem hết danh sách ({filtered.length} hồ sơ)</p>
+              <div className="py-6 text-center">
+                <p className="text-[10px] text-slate-400 font-medium italic">Bạn đã xem hết danh sách ({filtered.length} hồ sơ)</p>
               </div>
             )}
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <Search size={48} className="mb-4 opacity-20" />
-            <p className="text-sm font-medium">Không tìm thấy hồ sơ nào</p>
+          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+            <Search size={40} className="mb-2 opacity-25" />
+            <p className="text-xs font-bold">Không tìm thấy hồ sơ nào</p>
           </div>
         )}
       </div>

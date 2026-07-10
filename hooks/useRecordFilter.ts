@@ -227,21 +227,14 @@ export const useRecordFilter = (
             result = result.filter(r => r.submittedTo === currentUser?.employeeId && r.status !== RecordStatus.PENDING_SIGN && r.status !== RecordStatus.RECEIVED && r.status !== RecordStatus.ASSIGNED && r.status !== RecordStatus.IN_PROGRESS && r.status !== RecordStatus.COMPLETED_WORK);
         } else if (isHandoverView) {
             if (handoverTab === 'today') {
-                // Tab chờ giao: Bao gồm Đã ký HOẶC Đã có thuế HOẶC (Đã rút VÀ chưa có đợt xuất) HOẶC Hồ sơ trả (REJECTED)
-                result = result.filter(r => 
-                    r.status === RecordStatus.SIGNED || 
-                    r.status === RecordStatus.TBT || 
-                    ((r.status === RecordStatus.REJECTED || r.status === RecordStatus.WITHDRAWN) && !r.exportBatch)
-                );
+                // Tab chờ giao: là hồ sơ ký duyệt xong chờ nhập danh sách giao 1 cửa
+                result = result.filter(r => r.status === RecordStatus.SIGNED);
             } else if (handoverTab === 'returned') {
-                // Tab Đã trả kết quả: Status = RETURNED
+                // Tab Đã trả kết quả: chỉ hiển thị hồ sơ đã trả kết quả đến tay người dân
                 result = result.filter(r => r.status === RecordStatus.RETURNED);
             } else {
-                // Tab Lịch sử giao: Bao gồm Đã giao HOẶC (Đã rút VÀ đã có đợt xuất)
-                result = result.filter(r => 
-                    r.status === RecordStatus.HANDOVER || 
-                    ((r.status === RecordStatus.WITHDRAWN || r.status === RecordStatus.REJECTED) && r.exportBatch)
-                );
+                // Tab Lịch sử giao: chỉ để hồ sơ đã được giao từ chuyên môn vào đây và người dân chưa tới lấy kết quả
+                result = result.filter(r => r.status === RecordStatus.HANDOVER);
             }
         } else if (isAssignView) {
             result = result.filter(r => r.status === RecordStatus.RECEIVED);

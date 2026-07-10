@@ -1,4 +1,5 @@
 
+import { RecordFile } from '../types';
 import { supabase, isConfigured } from './supabaseClient';
 import { logError, getFromCache, saveToCache, sanitizeData } from './apiCore';
 import { RECORD_DB_COLUMNS, OPTIONAL_NEW_COLUMNS } from './apiRecords';
@@ -473,5 +474,90 @@ export const fetchListsByDate = async (type: 'saoluc' | 'congvan', date: string)
     } catch (error) {
         logError(`fetchListsByDate-${type}`, error);
         return [];
+    }
+};
+
+const isRegTypeLocal = (type: string | null | undefined): boolean => {
+    if (!type) return false;
+    const t = type.trim().toLowerCase();
+    if (t.startsWith('1.')) return false;
+    if (t.startsWith('2.')) return false;
+    if (t.startsWith('3.')) return true;
+    const REG_PROCEDURES = [
+        "đăng ký", "cấp giấy", "cấp đổi", "cấp lại", "giao đất", "thu hồi",
+        "chuyển mục đích", "gia hạn", "thừa kế", "tặng cho", "chuyển nhượng", "thế chấp", "xóa thế chấp"
+    ];
+    return t === 'đăng ký' || t === 'cấp giấy' || t === 'cấp đổi' || t === 'cấp lại' || REG_PROCEDURES.some(p => t.includes(p));
+};
+
+export const syncRecordToVaoSo = async (record: RecordFile, issueNumber?: string | null, username?: string): Promise<boolean> => {
+    try {
+        if (!isRegTypeLocal(record.recordType)) {
+            // Chỉ thực hiện đồng bộ đối với quy trình cấp giấy (quy trình đăng ký/biến động/cấp giấy)
+            return false;
+        }
+
+        const list = await fetchArchiveRecords('vaoso');
+        // Find existing archive record with the same ma_ho_so
+        const existing = list.find(r => r.data?.ma_ho_so === record.code);
+        
+        const formattedReceivedDate = record.receivedDate 
+            ? new Date(record.receivedDate).toISOString().split('T')[0] 
+            : new Date().toISOString().split('T')[0];
+
+        const formattedIssueDate = record.issueDate 
+            ? new Date(record.issueDate).toISOString().split('T')[0] 
+            : "";
+
+        const finalIssueNumber = issueNumber !== undefined ? issueNumber : (record.issueNumber || "");
+
+        const dataPayload = {
+            so_vao_so: existing?.data?.so_vao_so || record.entryNumber || "",
+            ma_ho_so: record.code || "",
+            ten_chu_su_dung: record.customerName || "",
+            loai_bien_dong: record.recordType || "",
+            loai_gcn: existing?.data?.loai_gcn || "GCN mới",
+            ngay_nhan: formattedReceivedDate,
+            so_to: record.mapSheet || "",
+            so_thua: record.landPlot || "",
+            tong_dien_tich: record.area ? String(record.area) : "",
+            dien_tich_tho_cu: record.residentialArea ? String(record.residentialArea) : "",
+            dia_danh: record.ward || "",
+            so_phat_hanh: finalIssueNumber || "",
+            ngay_ky_gcn: formattedIssueDate,
+            ngay_ky_phieu_tk: existing?.data?.ngay_ky_phieu_tk || "",
+            ghi_chu: record.notes || "",
+        };
+
+        if (existing) {
+            // Update
+            const updatedRecord: ArchiveRecord = {
+                ...existing,
+                so_hieu: record.code || "",
+                trich_yeu: record.content || "",
+                data: {
+                    ...existing.data,
+                    ...dataPayload
+                }
+            };
+            await saveArchiveRecord(updatedRecord);
+        } else {
+            // Create new
+            const newRecord: Partial<ArchiveRecord> = {
+                type: 'vaoso',
+                status: 'completed',
+                so_hieu: record.code || "",
+                trich_yeu: record.content || "",
+                ngay_thang: new Date().toISOString(),
+                noi_nhan_gui: "",
+                created_by: username || record.receivedBy || "system",
+                data: dataPayload
+            };
+            await saveArchiveRecord(newRecord);
+        }
+        return true;
+    } catch (error) {
+        console.error("Lỗi tự động đồng bộ sang hồ sơ vô số:", error);
+        return false;
     }
 };

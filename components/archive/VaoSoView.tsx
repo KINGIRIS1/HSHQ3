@@ -8,7 +8,9 @@ import {
   updateArchiveRecordsBatch,
 } from "../../services/apiArchive";
 import { useArchiveRealtime } from "../../hooks/useArchiveRealtime";
-import { User } from "../../types";
+import { User, RecordFile } from "../../types";
+import { fetchRecords } from "../../services/apiRecords";
+import { isRegType } from "../../utils/appHelpers";
 import {
   Loader2,
   Plus,
@@ -26,6 +28,7 @@ import {
   Hash,
   Edit,
   FileText,
+  Link,
 } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { confirmAction } from "../../utils/appHelpers";
@@ -128,6 +131,13 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [currentBookNumber, setCurrentBookNumber] = useState<string>("000000");
 
+  // Link / Import from Reception State
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [receptionRecords, setReceptionRecords] = useState<RecordFile[]>([]);
+  const [linkSearchTerm, setLinkSearchTerm] = useState("");
+  const [linkModalLoading, setLinkModalLoading] = useState(false);
+  const [linkingRowId, setLinkingRowId] = useState<string | null>(null);
+
   // Filters
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -175,6 +185,99 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
     }
 
     setLoading(false);
+  };
+
+  const loadReceptionRecords = async () => {
+    setLinkModalLoading(true);
+    try {
+      const recs = await fetchRecords();
+      // Filter for registration records (isRegType is true)
+      const gcnRecs = recs.filter((r) => isRegType(r.recordType));
+      setReceptionRecords(gcnRecs);
+    } catch (err) {
+      console.error("Lỗi khi tải hồ sơ tiếp nhận:", err);
+    } finally {
+      setLinkModalLoading(false);
+    }
+  };
+
+  const handleSelectReceptionRecord = async (record: RecordFile) => {
+    const formattedReceivedDate = record.receivedDate 
+      ? new Date(record.receivedDate).toISOString().split('T')[0] 
+      : new Date().toISOString().split('T')[0];
+
+    const formattedIssueDate = record.issueDate 
+      ? new Date(record.issueDate).toISOString().split('T')[0] 
+      : "";
+
+    if (linkingRowId) {
+      // Case 1: Linking an existing row
+      setRecords((prev) =>
+        prev.map((r) => {
+          if (r.id === linkingRowId) {
+            const updatedData = {
+              ...r.data,
+              ma_ho_so: record.code || "",
+              ten_chu_su_dung: record.customerName || "",
+              loai_bien_dong: record.recordType || "",
+              ngay_nhan: formattedReceivedDate,
+              so_to: record.mapSheet || "",
+              so_thua: record.landPlot || "",
+              tong_dien_tich: record.area ? String(record.area) : "",
+              dien_tich_tho_cu: record.residentialArea ? String(record.residentialArea) : "",
+              dia_danh: record.ward || "",
+              so_phat_hanh: record.issueNumber || "",
+              ngay_ky_gcn: formattedIssueDate,
+              ghi_chu: record.notes || "",
+            };
+            
+            // Save to database
+            const updatedRecord = { ...r, data: updatedData };
+            saveArchiveRecord(updatedRecord);
+            
+            return updatedRecord;
+          }
+          return r;
+        })
+      );
+    } else {
+      // Case 2: Adding a new row
+      const newRecord: Partial<ArchiveRecord> = {
+        type: "vaoso",
+        status: "completed",
+        so_hieu: record.code || "",
+        trich_yeu: record.content || "",
+        ngay_thang: new Date().toISOString(),
+        noi_nhan_gui: "",
+        created_by: currentUser.username,
+        data: {
+          so_vao_so: "",
+          ma_ho_so: record.code || "",
+          ten_chu_su_dung: record.customerName || "",
+          loai_bien_dong: record.recordType || "",
+          loai_gcn: "GCN mới",
+          ngay_nhan: formattedReceivedDate,
+          so_to: record.mapSheet || "",
+          so_thua: record.landPlot || "",
+          tong_dien_tich: record.area ? String(record.area) : "",
+          dien_tich_tho_cu: record.residentialArea ? String(record.residentialArea) : "",
+          dia_danh: record.ward || "",
+          so_phat_hanh: record.issueNumber || "",
+          ngay_ky_gcn: formattedIssueDate,
+          ngay_ky_phieu_tk: "",
+          ghi_chu: record.notes || "",
+        },
+      };
+
+      const saved = await saveArchiveRecord(newRecord);
+      if (saved) {
+        setEditingId(saved.id);
+        loadData();
+      }
+    }
+    
+    setShowLinkModal(false);
+    setLinkingRowId(null);
   };
 
   const filteredRecords = useMemo(() => {
@@ -1050,6 +1153,17 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
                 >
                   <Plus size={16} /> Thêm mới
                 </button>
+                <button
+                  onClick={() => {
+                    setLinkingRowId(null);
+                    loadReceptionRecords();
+                    setShowLinkModal(true);
+                  }}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-1.5 rounded-md font-bold text-sm hover:bg-indigo-700 shadow-sm"
+                  title="Điền tự động thông tin từ Hồ sơ tiếp nhận đất đai vào sổ"
+                >
+                  <Link size={16} /> Lấy từ hồ sơ tiếp nhận
+                </button>
                 {selectedIds.size > 0 && (
                   <button
                     onClick={handleMoveToPending}
@@ -1181,6 +1295,49 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
                         {COLUMNS.map((col) => {
                           const isEditing = editingId === r.id;
                           const isReadOnly = col.readOnly && !isEditing;
+
+                          if (col.key === "ma_ho_so") {
+                            return (
+                              <td
+                                key={`${r.id}-${col.key}`}
+                                className="p-2 border-r border-gray-200 align-top"
+                              >
+                                {isEditing ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="text"
+                                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 outline-none"
+                                      value={r.data?.ma_ho_so || ""}
+                                      onChange={(e) =>
+                                        handleCellChange(
+                                          r.id,
+                                          "ma_ho_so",
+                                          e.target.value,
+                                        )
+                                      }
+                                      onBlur={() => handleBlur(r)}
+                                      placeholder="Mã HS..."
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        setLinkingRowId(r.id);
+                                        loadReceptionRecords();
+                                        setShowLinkModal(true);
+                                      }}
+                                      className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded border border-indigo-200 transition-colors shadow-sm flex items-center justify-center"
+                                      title="Lấy thông tin từ Hồ sơ tiếp nhận"
+                                    >
+                                      <Link size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="text-sm font-semibold text-gray-800">
+                                    {r.data?.ma_ho_so || "---"}
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          }
 
                           if (col.key === "group_chu_su_dung") {
                             return (
@@ -2279,6 +2436,139 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-bold text-sm shadow-sm"
               >
                 Lưu cài đặt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Lấy dữ liệu từ hồ sơ tiếp nhận */}
+      {showLinkModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden animate-fade-in-up flex flex-col max-h-[85vh]">
+            <div className="p-4 border-b bg-indigo-600 flex justify-between items-center text-white">
+              <h3 className="font-bold text-sm uppercase tracking-wider flex items-center gap-2">
+                <FileText size={18} /> Lấy thông tin từ Hồ sơ tiếp nhận đất đai
+              </h3>
+              <button
+                onClick={() => {
+                  setShowLinkModal(false);
+                  setLinkingRowId(null);
+                }}
+                className="text-white/80 hover:text-white font-bold"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 bg-gray-50 border-b flex gap-3 items-center">
+              <div className="relative flex-1">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                  <Search size={16} />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm theo mã hồ sơ, tên chủ sử dụng, số tờ, số thửa..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={linkSearchTerm}
+                  onChange={(e) => setLinkSearchTerm(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={loadReceptionRecords}
+                className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <History size={14} className={linkModalLoading ? "animate-spin" : ""} />
+                Làm mới
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {linkModalLoading ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-3">
+                  <Loader2 className="animate-spin text-indigo-600" size={32} />
+                  <span className="text-sm font-medium text-gray-500">Đang tải danh sách hồ sơ...</span>
+                </div>
+              ) : (
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase">
+                        <th className="p-3">Mã hồ sơ</th>
+                        <th className="p-3">Chủ sử dụng</th>
+                        <th className="p-3">Loại biến động</th>
+                        <th className="p-3">Số tờ/Thửa</th>
+                        <th className="p-3">Diện tích</th>
+                        <th className="p-3 text-center">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
+                      {(() => {
+                        const filtered = receptionRecords.filter((rec) => {
+                          const query = linkSearchTerm.toLowerCase();
+                          return (
+                            (rec.code || '').toLowerCase().includes(query) ||
+                            (rec.customerName || '').toLowerCase().includes(query) ||
+                            (rec.landPlot || '').toLowerCase().includes(query) ||
+                            (rec.mapSheet || '').toLowerCase().includes(query) ||
+                            (rec.ward || '').toLowerCase().includes(query)
+                          );
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={6} className="p-8 text-center text-gray-400 font-medium">
+                                Không tìm thấy hồ sơ nào phù hợp.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return filtered.map((rec) => (
+                          <tr key={rec.id} className="hover:bg-indigo-50/40 transition-colors">
+                            <td className="p-3 font-bold text-indigo-600">{rec.code}</td>
+                            <td className="p-3">
+                              <div className="font-semibold text-gray-900">{rec.customerName}</div>
+                              <div className="text-[10px] text-gray-400">{rec.address}</div>
+                            </td>
+                            <td className="p-3 text-[11px] leading-tight text-gray-500 max-w-[180px] truncate" title={rec.recordType || undefined}>
+                              {rec.recordType}
+                            </td>
+                            <td className="p-3">
+                              Tờ: <span className="font-semibold text-gray-800">{rec.mapSheet || "---"}</span> / 
+                              Thửa: <span className="font-semibold text-gray-800">{rec.landPlot || "---"}</span>
+                            </td>
+                            <td className="p-3">
+                              {rec.area ? `${rec.area} m²` : "---"}
+                            </td>
+                            <td className="p-3 text-center">
+                              <button
+                                onClick={() => handleSelectReceptionRecord(rec)}
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold transition-all shadow-sm flex items-center justify-center gap-1 mx-auto"
+                              >
+                                <CheckCircle2 size={13} />
+                                Chọn
+                              </button>
+                            </td>
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowLinkModal(false);
+                  setLinkingRowId(null);
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-600 bg-white rounded-lg hover:bg-gray-100 text-xs font-bold transition-all shadow-sm"
+              >
+                Đóng
               </button>
             </div>
           </div>

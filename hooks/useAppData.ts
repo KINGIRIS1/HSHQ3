@@ -120,11 +120,12 @@ export const useAppData = (currentUser: User | null) => {
                 fetchUpdateInfo(),
                 fetchHolidays(), // Tải thêm danh sách ngày nghỉ
                 getSystemSetting('role_permissions'),
-                getSystemSetting('department_permissions')
+                getSystemSetting('department_permissions'),
+                getSystemSetting('sla_config_gcn')
             ]);
 
             // Race giữa fetch data và timeout
-            const [recData, empData, userData, updateInfo, holidayData, permsData, deptPermsData] = await Promise.race([dataPromise, timeoutPromise]) as any;
+            const [recData, empData, userData, updateInfo, holidayData, permsData, deptPermsData, slaConfigData] = await Promise.race([dataPromise, timeoutPromise]) as any;
 
             setRecords(recData);
             setEmployees(empData);
@@ -143,6 +144,9 @@ export const useAppData = (currentUser: User | null) => {
                 } catch (e) {
                     console.error("Failed to parse department_permissions", e);
                 }
+            }
+            if (slaConfigData) {
+                localStorage.setItem('sla_config_gcn', slaConfigData);
             }
             setConnectionStatus('connected');
 

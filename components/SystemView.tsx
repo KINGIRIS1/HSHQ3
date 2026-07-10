@@ -33,6 +33,9 @@ const SystemView: React.FC<SystemViewProps> = ({
     onHolidaysChanged
 }) => {
     const isAdmin = currentUser.role === UserRole.ADMIN;
+    const isSubAdmin = currentUser.role === UserRole.SUBADMIN;
+    const isTeamLeader = currentUser.role === UserRole.TEAM_LEADER;
+    const canSeeSettings = isAdmin || isSubAdmin || isTeamLeader;
     const [activeTab, setActiveTab] = useState<'users' | 'employees' | 'settings'>('employees');
 
     return (
@@ -53,7 +56,7 @@ const SystemView: React.FC<SystemViewProps> = ({
                 >
                     <Users size={16}/> DS Nhân sự
                 </button>
-                {isAdmin && (
+                {canSeeSettings && (
                     <button 
                         onClick={() => setActiveTab('settings')}
                         className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'settings' ? 'border-orange-600 text-orange-700 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
@@ -83,11 +86,12 @@ const SystemView: React.FC<SystemViewProps> = ({
                         currentUser={currentUser} 
                     />
                 )}
-                {activeTab === 'settings' && isAdmin && (
+                {activeTab === 'settings' && canSeeSettings && (
                     <SystemSettingsView 
                         onDeleteAllData={onDeleteAllData} 
                         onHolidaysChanged={onHolidaysChanged} 
                         employees={employees}
+                        currentUserRole={currentUser.role}
                     />
                 )}
             </div>

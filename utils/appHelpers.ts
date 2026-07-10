@@ -326,7 +326,6 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     } else if (workflowType === 'quy_trinh_3') {
         title = 'Quy trình 3: In GCN';
         stepConfigs = [
-            { label: "DNLIS", duration: "8 giờ", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "In GCN", duration: "5 ngày", overallStatus: RecordStatus.IN_PROGRESS },
             { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
             { label: "Trình ký", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
@@ -397,128 +396,33 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
         ];
     }
 
-    // Proportional scaling of GCN workflow step durations to synchronize with the total received days of the procedure
-    let totalProcedureDays = 30;
-    const rTypeLower = (record.recordType || '').trim().toLowerCase();
-    if (rTypeLower.startsWith('1.') || isArchiveType(record.recordType)) {
-        totalProcedureDays = 10;
-    } else if (rTypeLower.startsWith('2.') || isMeasurementType(record.recordType)) {
-        if (rTypeLower.includes('cmđ') || rTypeLower.includes('cmd')) {
-            totalProcedureDays = 2;
-        } else if (rTypeLower.includes('trích đo') || rTypeLower.includes('cắm mốc') || rTypeLower.includes('tách')) {
-            totalProcedureDays = 30;
-        } else {
-            totalProcedureDays = 10;
+    // Load SLA configuration from local storage, fallback to the default durations specified in stepConfigs
+    let customSlaConfig: Record<string, Record<string, string>> = {};
+    try {
+        const savedSla = localStorage.getItem('sla_config_gcn');
+        if (savedSla) {
+            customSlaConfig = JSON.parse(savedSla);
         }
-    } else if (rTypeLower.startsWith('3.') || isRegType(record.recordType)) {
-        if (rTypeLower.includes('3.1') || rTypeLower.includes('thừa kế') ||
-            rTypeLower.includes('3.2') || rTypeLower.includes('tặng cho') ||
-            rTypeLower.includes('3.3') || rTypeLower.includes('chuyển nhượng') ||
-            rTypeLower.includes('3.4') || rTypeLower.includes('thỏa thuận') || rTypeLower.includes('vbtt')) {
-            // Thừa kế (3.1), Tặng cho (3.2), Chuyển nhượng (3.3), Thỏa thuận (3.4)
-            // 8 ngày (không thuế) | 13 ngày (có thuế). Mặc định là có thuế (13 ngày)
-            totalProcedureDays = 13;
-        } else if (rTypeLower.includes('3.6') || rTypeLower.includes('cấp đổi')) {
-            // Cấp đổi (3.6): 10 ngày (không thuế) | 15 ngày (có thuế)
-            totalProcedureDays = record.hasTax ? 15 : 10;
-        } else if (rTypeLower.includes('thế chấp')) {
-            totalProcedureDays = 3;
-        } else {
-            totalProcedureDays = 30;
-        }
-    } else if (rTypeLower.includes('cmđ') || rTypeLower.includes('cmd')) {
-        totalProcedureDays = 2;
+    } catch (e) {
+        // Silence storage warning for SSR or test environments
     }
 
-    const getDefaultWeight = (label: string): number => {
-        const l = label.toLowerCase();
-        if (l.includes("tiếp nhận")) return 0;
-        if (l.includes("ranh") || l.includes("dnlis")) return 1;
-        if (l.includes("phiếu chuyển thuế") || l.includes("phiếu chuyển")) return 2;
-        if (l.includes("trình ký thuế")) return 0;
-        if (l.includes("tbt")) return 0;
-        if (l.includes("in gcn") || l.includes("in giấy")) return 5;
-        if (l.includes("thẩm tra")) return 1;
-        if (l.includes("trình ký - vô số") || (l.includes("trình ký") && l.includes("vô số"))) return 1.5;
-        if (l.includes("trình ký gcn") || l.includes("trình ký giấy") || l.includes("trình ký")) return 0.5;
-        if (l.includes("vô số")) return 0.5;
-        if (l.includes("giao 1 cửa") || l.includes("giao một cửa") || l.includes("trả kết quả") || l.includes("một cửa")) return 0;
-        if (l.includes("mộc kê")) return 1;
-        if (l.includes("thế chấp")) return 1;
-        if (l.includes("đối chiếu")) return 1;
-        if (l.includes("biên bản") || l.includes("xác minh")) return 1;
-        return 0;
-    };
-
-    const hasHalfDayFraction = totalProcedureDays % 1 !== 0;
-    const hasTiepNhan = stepConfigs.some(s => s.label.toLowerCase().includes("tiếp nhận"));
-    const hasGiaoMộtCửa = stepConfigs.some(s => s.label.toLowerCase().includes("giao 1 cửa") || s.label.toLowerCase().includes("giao một cửa") || s.label.toLowerCase().includes("trả kết quả") || s.label.toLowerCase().includes("một cửa"));
-    
-    let daysToDistribute = totalProcedureDays;
-    if (hasTiepNhan) daysToDistribute -= 0.5;
-    if (hasGiaoMộtCửa) daysToDistribute -= 0.5;
-
-    const stepsWithWeights = stepConfigs.map(s => {
-        const isFixedCal = s.label.toLowerCase().includes("chờ niêm yết") || s.label.toLowerCase().includes("công văn") || s.label.toLowerCase().includes("tbt");
+    stepConfigs = stepConfigs.map(s => {
         const isHidden = isStepHiddenForWorkflow(s.label, workflowType);
+        if (isHidden) {
+            return {
+                ...s,
+                duration: "0 giờ"
+            };
+        }
+        
+        const customDuration = customSlaConfig[workflowType]?.[s.label];
+        const finalDuration = customDuration !== undefined ? customDuration : s.duration;
         return {
             ...s,
-            weight: (isFixedCal || isHidden) ? 0 : getDefaultWeight(s.label),
-            isFixedCal,
-            isHidden
+            duration: finalDuration
         };
     });
-
-    const totalWeightSum = stepsWithWeights.reduce((sum, s) => sum + s.weight, 0);
-
-    if (totalWeightSum > 0) {
-        stepConfigs = stepsWithWeights.map(s => {
-            if (s.isFixedCal) {
-                return { label: s.label, duration: s.duration, overallStatus: s.overallStatus };
-            }
-            if (s.isHidden) {
-                return { label: s.label, duration: "0 giờ", overallStatus: s.overallStatus };
-            }
-            const lLower = s.label.toLowerCase();
-            if (lLower.includes("tiếp nhận")) {
-                return { label: s.label, duration: "4 giờ", overallStatus: s.overallStatus };
-            }
-            if (lLower.includes("giao 1 cửa") || lLower.includes("giao một cửa") || lLower.includes("trả kết quả")) {
-                return { label: s.label, duration: "4 giờ", overallStatus: s.overallStatus };
-            }
-            if (s.weight === 0) {
-                return { label: s.label, duration: "0 giờ", overallStatus: s.overallStatus };
-            }
-            const stepHours = Math.max(1, Math.round((s.weight / totalWeightSum) * daysToDistribute * 8));
-            return { label: s.label, duration: `${stepHours} giờ`, overallStatus: s.overallStatus };
-        });
-
-        // Apply half-day correction if procedure has .5 fraction
-        if (hasHalfDayFraction) {
-            let maxHours = 0;
-            let longestStepIdx = -1;
-            stepConfigs.forEach((s, idx) => {
-                const lLower = s.label.toLowerCase();
-                if (!lLower.includes("tiếp nhận") && !lLower.includes("giao 1 cửa") && !lLower.includes("giao một cửa") && !lLower.includes("trả kết quả") && !s.label.toLowerCase().includes("niêm yết") && !s.label.toLowerCase().includes("công văn")) {
-                    if (s.duration.includes("giờ")) {
-                        const h = parseInt(s.duration) || 0;
-                        if (h > maxHours) {
-                            maxHours = h;
-                            longestStepIdx = idx;
-                        }
-                    }
-                }
-            });
-
-            if (longestStepIdx !== -1 && maxHours >= 4) {
-                stepConfigs[longestStepIdx].duration = `${maxHours - 4} giờ`;
-                const tiepNhanIdx = stepConfigs.findIndex(s => s.label.toLowerCase().includes("tiếp nhận"));
-                if (tiepNhanIdx !== -1) {
-                    stepConfigs[tiepNhanIdx].duration = "8 giờ";
-                }
-            }
-        }
-    }
 
     // Determine current step index
     let currentStepIndex = record.currentStepIndex;
@@ -544,6 +448,7 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
     };
 
     if (currentStepIndex === undefined || currentStepIndex === null || currentStepIndex >= stepConfigs.length || !isStepIndexMatchingStatus(currentStepIndex, record.status, stepConfigs)) {
+        currentStepIndex = null;
         if (record.status === RecordStatus.RECEIVED) {
             currentStepIndex = 0;
         } else if (record.status === RecordStatus.RETURNED) {

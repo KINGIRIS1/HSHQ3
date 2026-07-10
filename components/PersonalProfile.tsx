@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx-js-style';
 import { getShortRecordType } from '../constants';
 import { confirmAction, isRecordOverdue, isRecordApproaching, getGcnWorkflowStepsHelper, isArchiveType, isMeasurementType, isRegType, getDisplayNotes } from '../utils/appHelpers';
 import { updateRecordApi } from '../services/api';
-import { fetchArchiveRecords, ArchiveRecord, saveArchiveRecord } from '../services/apiArchive';
+import { fetchArchiveRecords, ArchiveRecord, saveArchiveRecord, syncRecordToVaoSo } from '../services/apiArchive';
 import SubmitModal from './receive-record/SubmitModal';
 import RejectReasonModal from './receive-record/RejectReasonModal';
 import ReturnStepReasonModal from './receive-record/ReturnStepReasonModal';
@@ -518,6 +518,8 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                 await updateRecordApi(updatedRecord);
                 onUpdateStatus(record, RecordStatus.SIGNED);
             }
+            // Tự động đồng bộ sang hồ sơ Vô số GCN
+            await syncRecordToVaoSo(updatedRecord, updatedRecord.issueNumber, user.username);
         }
         
         const saoluc = await fetchArchiveRecords('saoluc');
@@ -611,6 +613,17 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
   };
 
   const handleForwardToCheck = async (record: RecordFile) => {
+    if (isRegType(record.recordType)) {
+        const helper = getGcnWorkflowStepsHelper(record, holidays || []);
+        const currentStep = helper?.steps[record.currentStepIndex ?? 0];
+        const labelLower = (currentStep?.label || '').toLowerCase();
+        if (labelLower.includes("in gcn") || labelLower.includes("in giấy") || labelLower.includes("in bản đồ")) {
+            if (!record.issueNumber || !record.issueNumber.trim()) {
+                alert('Khâu in GCN yêu cầu phải nhập số phát hành mới tiến hành trình thẩm tra. Vui lòng click vào chi tiết hồ sơ để thực hiện chuyển bước (Hệ thống sẽ tự động hiển thị ô nhập số phôi/số phát hành GCN).');
+                return;
+            }
+        }
+    }
     setSubmitTargetRecords([record]);
     setIsSubmitCheckModalOpen(true);
   };
@@ -681,9 +694,18 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                 const checked = record.checkedDate || pendingCheck;
                 const submission = nowStr;
 
+                let extraUpdates: any = {};
+                if (isRegType(record.recordType)) {
+                    let currentStepIndex = record.currentStepIndex;
+                    if (currentStepIndex === undefined || currentStepIndex === null) {
+                        currentStepIndex = 0;
+                    }
+                    extraUpdates.currentStepIndex = currentStepIndex + 1;
+                }
+
                 const updatedRecord = {
                     ...record,
-                    status: RecordStatus.PENDING_SIGN,
+                    ...extraUpdates, status: RecordStatus.PENDING_SIGN,
                     submittedTo: directorId,
                     assignedDate: record.assignedDate || assigned,
                     completedWorkDate: record.completedWorkDate || completedWork,
@@ -1189,34 +1211,34 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
   return (
     <div className="flex flex-col h-full space-y-4 animate-fade-in-up overflow-hidden">
       {/* Header thống kê */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-             <Briefcase className="text-blue-600" />
-             Xin chào, {user.name}
+      <div className="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4 shrink-0">
+        <div className="text-center md:text-left">
+          <h2 className="text-base md:text-2xl font-bold text-gray-800 flex items-center justify-center md:justify-start gap-1.5 md:gap-2">
+             <Briefcase size={18} className="text-blue-600 shrink-0 md:w-6 md:h-6" />
+             <span className="truncate">Xin chào, {user.name}</span>
           </h2>
-          <p className="text-gray-500 mt-1">Danh sách hồ sơ bạn đang phụ trách.</p>
+          <p className="hidden sm:block text-xs md:text-sm text-gray-500 mt-0.5 md:mt-1">Danh sách hồ sơ bạn đang phụ trách.</p>
         </div>
-        <div className="flex flex-wrap gap-2 md:gap-4 w-full md:w-auto justify-center md:justify-end">
+        <div className="flex flex-row gap-1.5 md:gap-4 w-full md:w-auto justify-between md:justify-end">
              {!isDirector && (
                  <>
-                     <div className="flex-1 md:flex-none text-center px-4 py-2 bg-blue-50 rounded-lg border border-blue-100 min-w-[100px]">
-                        <div className="text-2xl font-bold text-blue-700">{pendingRecords.length}</div>
-                        <div className="text-xs text-blue-600 uppercase font-semibold">Đang xử lý</div>
+                     <div className="flex-1 md:flex-none text-center px-1 py-1 md:px-4 md:py-2 bg-blue-50 rounded-lg border border-blue-100 min-w-0 md:min-w-[100px]">
+                        <div className="text-sm sm:text-base md:text-2xl font-extrabold text-blue-700">{pendingRecords.length}</div>
+                        <div className="text-[9px] sm:text-[10px] md:text-xs text-blue-600 uppercase font-bold truncate">Đang xử lý</div>
                      </div>
-                     <div className="flex-1 md:flex-none text-center px-4 py-2 bg-orange-50 rounded-lg border border-orange-100 min-w-[100px]">
-                        <div className="text-2xl font-bold text-orange-700">{pendingCheckRecords.length}</div>
-                        <div className="text-xs text-orange-600 uppercase font-semibold">Chờ kiểm tra</div>
+                     <div className="flex-1 md:flex-none text-center px-1 py-1 md:px-4 md:py-2 bg-orange-50 rounded-lg border border-orange-100 min-w-0 md:min-w-[100px]">
+                        <div className="text-sm sm:text-base md:text-2xl font-extrabold text-orange-700">{pendingCheckRecords.length}</div>
+                        <div className="text-[9px] sm:text-[10px] md:text-xs text-orange-600 uppercase font-bold truncate">Cần kiểm</div>
                      </div>
-                     <div className="flex-1 md:flex-none text-center px-4 py-2 bg-purple-50 rounded-lg border border-purple-100 min-w-[100px]">
-                        <div className="text-2xl font-bold text-purple-700">{reviewRecords.length}</div>
-                        <div className="text-xs text-purple-600 uppercase font-semibold">Chờ ký</div>
+                     <div className="flex-1 md:flex-none text-center px-1 py-1 md:px-4 md:py-2 bg-purple-50 rounded-lg border border-purple-100 min-w-0 md:min-w-[100px]">
+                        <div className="text-sm sm:text-base md:text-2xl font-extrabold text-purple-700">{reviewRecords.length}</div>
+                        <div className="text-[9px] sm:text-[10px] md:text-xs text-purple-600 uppercase font-bold truncate">Chờ ký</div>
                      </div>
                  </>
              )}
-             <div className="flex-1 md:flex-none text-center px-4 py-2 bg-green-50 rounded-lg border border-green-100 min-w-[100px]">
-                <div className="text-2xl font-bold text-green-700">{finishedRecords.length}</div>
-                <div className="text-xs text-green-600 uppercase font-semibold">Hoàn thành</div>
+             <div className="flex-1 md:flex-none text-center px-1 py-1 md:px-4 md:py-2 bg-green-50 rounded-lg border border-green-100 min-w-0 md:min-w-[100px]">
+                <div className="text-sm sm:text-base md:text-2xl font-extrabold text-green-700">{finishedRecords.length}</div>
+                <div className="text-[9px] sm:text-[10px] md:text-xs text-green-600 uppercase font-bold truncate">Hoàn thành</div>
              </div>
         </div>
       </div>
@@ -1231,57 +1253,67 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                     <>
                         <button 
                             onClick={() => { setActiveTab('pending'); setCurrentPage(1); setSearchTerm(''); }}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${
+                            className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
                                 activeTab === 'pending' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
                             }`}
                         >
-                            <Clock size={16} /> Đang thực hiện ({pendingRecords.length})
+                            <Clock size={16} className="shrink-0" />
+                            <span className="hidden sm:inline">Đang thực hiện</span>
+                            <span>({pendingRecords.length})</span>
                         </button>
                         <button 
                             onClick={() => { setActiveTab('pending_check'); setCurrentPage(1); setSearchTerm(''); }}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${
+                            className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
                                 activeTab === 'pending_check' ? 'bg-orange-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
                             }`}
                         >
-                            <ClipboardList size={16} /> Chờ kiểm tra ({pendingCheckRecords.length})
+                            <ClipboardList size={16} className="shrink-0" />
+                            <span className="hidden sm:inline">Chờ kiểm tra</span>
+                            <span>({pendingCheckRecords.length})</span>
                         </button>
                     </>
                 )}
                 <button 
                     onClick={() => { setActiveTab('pending_sign'); setCurrentPage(1); setSearchTerm(''); }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
                         activeTab === 'pending_sign' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
                     }`}
                 >
-                    <Send size={16} /> Chờ ký ({reviewRecords.length})
+                    <Send size={16} className="shrink-0" />
+                    <span className="hidden sm:inline">Chờ ký</span>
+                    <span>({reviewRecords.length})</span>
                 </button>
                 <button 
                     onClick={() => { setActiveTab('finished'); setCurrentPage(1); setSearchTerm(''); }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
                         activeTab === 'finished' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
                     }`}
                 >
-                    <FileCheck size={16} /> Hoàn thành ({finishedRecords.length})
+                    <FileCheck size={16} className="shrink-0" />
+                    <span className="hidden sm:inline">Hoàn thành</span>
+                    <span>({finishedRecords.length})</span>
                 </button>
                 {!isDirector && (
                     <button 
                         onClick={() => { setActiveTab('reminder'); setCurrentPage(1); setSearchTerm(''); }}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${
+                        className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
                             activeTab === 'reminder' ? 'bg-pink-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
                         }`}
                     >
-                        <Bell size={16} /> Nhắc việc ({reminderRecords.length})
+                        <Bell size={16} className="shrink-0" />
+                        <span className="hidden sm:inline">Nhắc việc</span>
+                        <span>({reminderRecords.length})</span>
                     </button>
                 )}
             </div>
             
-            <div className="flex flex-wrap md:flex-nowrap gap-2 w-full md:w-auto items-center">
-                <div className="relative w-full md:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <div className="flex flex-nowrap gap-1.5 w-full md:w-auto items-center overflow-x-auto md:overflow-x-visible">
+                <div className="relative w-1/2 md:w-64 shrink-0 md:shrink-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                     <input 
                         type="text" 
-                        placeholder={`Tìm trong ${getTabLabel()}...`}
-                        className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                        placeholder={`Tìm...`}
+                        className="w-full pl-8 pr-2 py-1.5 border border-gray-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                         value={searchTerm}
                         onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                     />
@@ -1290,231 +1322,489 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                 {/* Overdue Button */}
                 <button
                     onClick={() => setWarningFilter(prev => prev === 'overdue' ? 'none' : 'overdue')}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm border ${warningFilter === 'overdue' ? 'bg-red-600 text-white' : 'bg-white text-red-600 border-red-200 hover:bg-red-50'}`}
+                    className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-colors shadow-sm border shrink-0 ${warningFilter === 'overdue' ? 'bg-red-600 text-white' : 'bg-white text-red-600 border-red-200 hover:bg-red-50'}`}
+                    title="Hồ sơ trễ hạn"
                 >
-                    <AlertTriangle size={16} /> {tabWarningCounts.overdue}
+                    <AlertTriangle size={14} className={warningFilter === 'overdue' ? 'text-white' : 'text-red-500'} />
+                    <span>{tabWarningCounts.overdue}</span>
                 </button>
 
                 {/* Approaching Button */}
                 <button
                     onClick={() => setWarningFilter(prev => prev === 'approaching' ? 'none' : 'approaching')}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm border ${warningFilter === 'approaching' ? 'bg-orange-500 text-white' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'}`}
+                    className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-colors shadow-sm border shrink-0 ${warningFilter === 'approaching' ? 'bg-orange-500 text-white' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'}`}
+                    title="Hồ sơ tới hạn"
                 >
-                    <Clock size={16} /> {tabWarningCounts.approaching}
+                    <Clock size={14} className={warningFilter === 'approaching' ? 'text-white' : 'text-orange-500'} />
+                    <span>{tabWarningCounts.approaching}</span>
                 </button>
 
                 <button 
                     onClick={handleExportExcel}
-                    className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition-colors whitespace-nowrap"
+                    className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-green-600 text-white rounded-lg text-xs sm:text-sm font-bold hover:bg-green-700 transition-colors whitespace-nowrap shrink-0"
+                    title="Xuất Excel"
                 >
-                    <FileDown size={16} /> Xuất Excel
+                    <FileDown size={14} />
+                    <span className="hidden sm:inline">Xuất Excel</span>
+                    <span className="sm:hidden">Xuất</span>
                 </button>
             </div>
         </div>
         
         <div className="flex-1 overflow-y-auto">
             {filteredDisplayRecords.length > 0 ? (
-                <table className="w-full text-left table-fixed min-w-[1160px]">
-                    <thead className="bg-white border-b border-gray-200 text-xs text-gray-500 uppercase sticky top-0 shadow-sm z-10">
-                        <tr>
-                            <th className="p-3 w-10 text-center">#</th>
-                            <th className="p-3 w-[120px] text-center">{renderSortHeader('Mã HS', 'code', 'center')}</th>
-                            <th className="p-3 w-[180px] text-center">{renderSortHeader('Chủ sử dụng', 'customerName', 'center')}</th>
-                            <th className="p-3 w-[110px] text-left">{renderSortHeader('Loại hồ sơ', 'recordType', 'left')}</th>
-                            <th className="p-3 w-[130px] text-center">{renderSortHeader('Ngày giao việc', 'assignedDate', 'center')}</th>
-                            
-                            {/* Conditional columns for Ngày trình / Ngày trình kiểm tra */}
-                            {activeTab === 'pending_check' && (
-                                <th className="p-3 w-[140px] text-center">{renderSortHeader('Ngày trình kiểm tra', 'pendingCheckDate', 'center')}</th>
-                            )}
-                            {activeTab === 'pending_sign' && (
-                                <th className="p-3 w-[110px] text-center">{renderSortHeader('Ngày trình', 'submissionDate', 'center')}</th>
-                            )}
-                            {activeTab === 'finished' && (
-                                <>
-                                    <th className="p-3 w-[140px] text-center">{renderSortHeader('Ngày trình kiểm tra', 'pendingCheckDate', 'center')}</th>
-                                    <th className="p-3 w-[110px] text-center">{renderSortHeader('Ngày trình', 'submissionDate', 'center')}</th>
-                                </>
-                            )}
-
-                            <th className="p-3 w-[150px] text-center">
-                                {activeTab === 'reminder' 
-                                    ? <div className="flex items-center justify-center gap-1 text-pink-600"><CalendarClock size={14}/> Thời gian nhắc</div>
-                                    : renderSortHeader('Hẹn trả', 'deadline', 'center')
-                                }
-                            </th>
-                            
-                            {activeTab === 'pending_check' && (
-                                <th className="p-3 w-[150px] text-center">Người kiểm tra</th>
-                            )}
-
-                            <th className="p-3 text-center w-[120px]">Trạng thái</th>
-                            <th className="p-3 text-center w-[100px]">Chỉnh lý</th>
-                            <th className="p-3 text-center w-[180px]">Thao tác chính</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 text-sm">
-                        {paginatedDisplayRecords.map((r, index) => {
-                            const deadlineStatus = getDeadlineStatus(r);
-                            const rowClass = activeTab === 'reminder' ? 'hover:bg-pink-50/50 bg-pink-50/10' : 'hover:bg-blue-50/50';
-                            
-                            return (
-                                <tr key={r.id} className={`${rowClass} transition-colors`}>
-                                    <td className="p-3 text-center text-gray-400 text-xs align-middle">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                                    <td className="p-3 font-medium text-blue-600 align-middle text-center"><div className="truncate text-center" title={r.code || ''}>{r.code}</div></td>
-                                    <td className="p-3 font-medium text-gray-800 align-middle text-center"><div className="truncate text-center" title={r.customerName || ''}>{r.customerName}</div></td>
-                                    <td className="p-3 text-gray-600 align-middle text-left"><div className="truncate text-left" title={r.recordType || ''}>{getShortRecordType(r.recordType || undefined)}</div></td>
-                                    <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.assignedDate || undefined)}</td>
+                <>
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block">
+                        <table className="w-full text-left table-fixed min-w-[1160px]">
+                            <thead className="bg-white border-b border-gray-200 text-xs text-gray-500 uppercase sticky top-0 shadow-sm z-10">
+                                <tr>
+                                    <th className="p-3 w-10 text-center">#</th>
+                                    <th className="p-3 w-[120px] text-center">{renderSortHeader('Mã HS', 'code', 'center')}</th>
+                                    <th className="p-3 w-[180px] text-center">{renderSortHeader('Chủ sử dụng', 'customerName', 'center')}</th>
+                                    <th className="p-3 w-[110px] text-left">{renderSortHeader('Loại hồ sơ', 'recordType', 'left')}</th>
+                                    <th className="p-3 w-[130px] text-center">{renderSortHeader('Ngày giao việc', 'assignedDate', 'center')}</th>
                                     
-                                    {/* Conditional data cells for Ngày trình / Ngày trình kiểm tra */}
+                                    {/* Conditional columns for Ngày trình / Ngày trình kiểm tra */}
                                     {activeTab === 'pending_check' && (
-                                        <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.pendingCheckDate || undefined)}</td>
+                                        <th className="p-3 w-[140px] text-center">{renderSortHeader('Ngày trình kiểm tra', 'pendingCheckDate', 'center')}</th>
                                     )}
                                     {activeTab === 'pending_sign' && (
-                                        <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.submissionDate || undefined)}</td>
+                                        <th className="p-3 w-[110px] text-center">{renderSortHeader('Ngày trình', 'submissionDate', 'center')}</th>
                                     )}
                                     {activeTab === 'finished' && (
                                         <>
-                                            <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.pendingCheckDate || undefined)}</td>
-                                            <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.submissionDate || undefined)}</td>
+                                            <th className="p-3 w-[140px] text-center">{renderSortHeader('Ngày trình kiểm tra', 'pendingCheckDate', 'center')}</th>
+                                            <th className="p-3 w-[110px] text-center">{renderSortHeader('Ngày trình', 'submissionDate', 'center')}</th>
                                         </>
                                     )}
-                                    
-                                    <td className="p-3 align-middle text-center">
-                                        <div className="flex justify-center">
-                                            {activeTab === 'reminder' ? (
-                                                <div className="flex items-center gap-1.5 text-pink-700 font-bold bg-pink-100 px-2 py-1 rounded w-fit text-xs">
-                                                    <Bell size={12} className="fill-pink-700"/>
-                                                    {formatDateTime(r.reminderDate || undefined)}
-                                                </div>
-                                            ) : (
-                                                <div className={`flex items-center gap-1.5 ${deadlineStatus.color}`}>
-                                                    {deadlineStatus.icon}
-                                                    <span>{formatDate(r.deadline || undefined)}</span>
-                                                    <span className="text-[10px] uppercase ml-1">{deadlineStatus.text}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </td>
 
+                                    <th className="p-3 w-[150px] text-center">
+                                        {activeTab === 'reminder' 
+                                            ? <div className="flex items-center justify-center gap-1 text-pink-600"><CalendarClock size={14}/> Thời gian nhắc</div>
+                                            : renderSortHeader('Hẹn trả', 'deadline', 'center')
+                                        }
+                                    </th>
+                                    
                                     {activeTab === 'pending_check' && (
-                                        <td className="p-3 text-gray-600 align-middle text-center">
-                                            <div className="truncate text-center" title={r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : ''}>
-                                                {r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : '---'}
-                                            </div>
-                                        </td>
+                                        <th className="p-3 w-[150px] text-center">Người kiểm tra</th>
                                     )}
 
-                                    <td className="p-3 text-center align-middle">
-                                        <StatusBadge status={r.status} recordType={r.recordType} record={r} />
-                                        {r.status === RecordStatus.REJECTED && (
-                                            <span className="mt-1 block text-[10px] font-bold bg-red-100 text-red-800 px-1 py-0.5 rounded border border-red-200 text-center mx-auto max-w-[100px]">
-                                                Hồ sơ bị trả
-                                            </span>
-                                        )}
-                                        {(() => {
-                                            if (r.notes) {
-                                                try {
-                                                    const notesObj = JSON.parse(r.notes);
-                                                    if (notesObj.isStepReturned) {
-                                                        return (
-                                                            <span className="mt-1 block text-[10px] font-bold bg-amber-100 text-amber-800 px-1 py-0.5 rounded border border-amber-200 text-center mx-auto max-w-[100px]" title={`Lý do: ${notesObj.stepReturnReason || ''}`}>
-                                                                Yêu cầu sửa
-                                                            </span>
-                                                        );
-                                                    }
-                                                } catch (e) {}
-                                            }
-                                            return null;
-                                        })()}
-                                    </td>
+                                    <th className="p-3 text-center w-[120px]">Trạng thái</th>
+                                    <th className="p-3 text-center w-[100px]">Chỉnh lý</th>
+                                    <th className="p-3 text-center w-[180px]">Thao tác chính</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 text-sm">
+                                {paginatedDisplayRecords.map((r, index) => {
+                                    const deadlineStatus = getDeadlineStatus(r);
+                                    const rowClass = activeTab === 'reminder' ? 'hover:bg-pink-50/50 bg-pink-50/10' : 'hover:bg-blue-50/50';
                                     
-                                    <td className="p-3 text-center align-middle">
-                                        {onMapCorrection && (
-                                            <button 
-                                                onClick={() => onMapCorrection(r)}
-                                                className={`flex items-center justify-center gap-1 px-2 py-1 rounded border transition-all text-[10px] font-bold shadow-sm mx-auto ${
-                                                    r.needsMapCorrection 
-                                                    ? 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100 w-full' 
-                                                    : 'bg-white text-gray-400 border-gray-200 hover:text-gray-600 hover:bg-gray-50'
-                                                }`}
-                                                title={r.needsMapCorrection ? "Đang có yêu cầu. Bấm để HỦY." : "Yêu cầu chỉnh lý bản đồ"}
-                                            >
-                                                <Map size={14} className={r.needsMapCorrection ? "fill-orange-100" : ""} />
-                                                {r.needsMapCorrection && <span>CHỈNH LÝ</span>}
-                                            </button>
-                                        )}
-                                    </td>
+                                    return (
+                                        <tr key={r.id} className={`${rowClass} transition-colors`}>
+                                            <td className="p-3 text-center text-gray-400 text-xs align-middle">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                                            <td className="p-3 font-medium text-blue-600 align-middle text-center"><div className="truncate text-center" title={r.code || ''}>{r.code}</div></td>
+                                            <td className="p-3 font-medium text-gray-800 align-middle text-center"><div className="truncate text-center" title={r.customerName || ''}>{r.customerName}</div></td>
+                                            <td className="p-3 text-gray-600 align-middle text-left"><div className="truncate text-left" title={r.recordType || ''}>{getShortRecordType(r.recordType || undefined)}</div></td>
+                                            <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.assignedDate || undefined)}</td>
+                                            
+                                            {/* Conditional data cells for Ngày trình / Ngày trình kiểm tra */}
+                                            {activeTab === 'pending_check' && (
+                                                <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.pendingCheckDate || undefined)}</td>
+                                            )}
+                                            {activeTab === 'pending_sign' && (
+                                                <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.submissionDate || undefined)}</td>
+                                            )}
+                                            {activeTab === 'finished' && (
+                                                <>
+                                                    <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.pendingCheckDate || undefined)}</td>
+                                                    <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.submissionDate || undefined)}</td>
+                                                </>
+                                            )}
+                                            
+                                            <td className="p-3 align-middle text-center">
+                                                <div className="flex justify-center">
+                                                    {activeTab === 'reminder' ? (
+                                                        <div className="flex items-center gap-1.5 text-pink-700 font-bold bg-pink-100 px-2 py-1 rounded w-fit text-xs">
+                                                            <Bell size={12} className="fill-pink-700"/>
+                                                            {formatDateTime(r.reminderDate || undefined)}
+                                                        </div>
+                                                    ) : (
+                                                        <div className={`flex items-center gap-1.5 ${deadlineStatus.color}`}>
+                                                            {deadlineStatus.icon}
+                                                            <span>{formatDate(r.deadline || undefined)}</span>
+                                                            <span className="text-[10px] uppercase ml-1">{deadlineStatus.text}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
 
-                                    <td className="p-3 align-middle">
-                                        <div className="flex justify-center gap-2">
-                                            <button onClick={() => onViewRecord(r)} className="px-2 py-1.5 border border-gray-200 rounded-md text-gray-600 hover:bg-white hover:border-blue-300 hover:text-blue-600 text-xs font-medium transition-all shadow-sm">
+                                            {activeTab === 'pending_check' && (
+                                                <td className="p-3 text-gray-600 align-middle text-center">
+                                                    <div className="truncate text-center" title={r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : ''}>
+                                                        {r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : '---'}
+                                                    </div>
+                                                </td>
+                                            )}
+
+                                            <td className="p-3 text-center align-middle">
+                                                <StatusBadge status={r.status} recordType={r.recordType} record={r} />
+                                                {r.status === RecordStatus.REJECTED && (
+                                                    <span className="mt-1 block text-[10px] font-bold bg-red-100 text-red-800 px-1 py-0.5 rounded border border-red-200 text-center mx-auto max-w-[100px]">
+                                                        Hồ sơ bị trả
+                                                    </span>
+                                                )}
+                                                {(() => {
+                                                    if (r.notes) {
+                                                        try {
+                                                            const notesObj = JSON.parse(r.notes);
+                                                            if (notesObj.isStepReturned) {
+                                                                return (
+                                                                    <span className="mt-1 block text-[10px] font-bold bg-amber-100 text-amber-800 px-1 py-0.5 rounded border border-amber-200 text-center mx-auto max-w-[100px]" title={`Lý do: ${notesObj.stepReturnReason || ''}`}>
+                                                                        Yêu cầu sửa
+                                                                    </span>
+                                                                );
+                                                            }
+                                                        } catch (e) {}
+                                                    }
+                                                    return null;
+                                                })()}
+                                            </td>
+                                            
+                                            <td className="p-3 text-center align-middle">
+                                                {onMapCorrection && (
+                                                    <button 
+                                                        onClick={() => onMapCorrection(r)}
+                                                        className={`flex items-center justify-center gap-1 px-2 py-1 rounded border transition-all text-[10px] font-bold shadow-sm mx-auto ${
+                                                            r.needsMapCorrection 
+                                                            ? 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100 w-full' 
+                                                            : 'bg-white text-gray-400 border-gray-200 hover:text-gray-600 hover:bg-gray-50'
+                                                        }`}
+                                                        title={r.needsMapCorrection ? "Đang có yêu cầu. Bấm để HỦY." : "Yêu cầu chỉnh lý bản đồ"}
+                                                    >
+                                                        <Map size={14} className={r.needsMapCorrection ? "fill-orange-100" : ""} />
+                                                        {r.needsMapCorrection && <span>CHỈNH LÝ</span>}
+                                                    </button>
+                                                )}
+                                            </td>
+
+                                            <td className="p-3 align-middle">
+                                                <div className="flex justify-center gap-2">
+                                                    <button onClick={() => onViewRecord(r)} className="px-2 py-1.5 border border-gray-200 rounded-md text-gray-600 hover:bg-white hover:border-blue-300 hover:text-blue-600 text-xs font-medium transition-all shadow-sm">
+                                                        Chi tiết
+                                                    </button>
+                                                    
+                                                    {/* Logic nút chuyển trạng thái theo từng Tab */}
+                                                    {activeTab === 'pending' && (
+                                                        <>
+                                                            {r.status === RecordStatus.PENDING_CHECK || r.status === RecordStatus.CHECKED || r.status === RecordStatus.PENDING_SIGN ? (
+                                                                <button onClick={() => handleWithdraw(r)} title="Thu hồi hồ sơ" className="px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                                                                    <RotateCcw size={14} /> Thu hồi
+                                                                </button>
+                                                            ) : (
+                                                                <>
+                                                                    {(isArchiveType(r.recordType) || r.recordType === 'Sao lục' || r.recordType === 'Công văn' || r.recordType === '1.1 Công văn' || r.recordType === '1.2 Công văn') ? (
+                                                                        <button onClick={() => handleForwardToSign(r)} title="Trình ký duyệt" className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                                                                            <Send size={14} /> Trình ký
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button onClick={() => handleForwardToCheck(r)} title="Trình kiểm tra" className="px-3 py-1.5 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                                                                            <ClipboardList size={14} /> Trình KT
+                                                                        </button>
+                                                                    )}
+                                                                    <button onClick={() => handleOpenRejectModal(r)} title="Trả hồ sơ" className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                                                                        <AlertTriangle size={14} /> Trả HS
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                    {activeTab === 'pending_check' && (r.status === RecordStatus.PENDING_CHECK || r.status === RecordStatus.CHECKED) && (r.checkedBy === user.employeeId || r.checkedBy === effectiveId) && (
+                                                        <>
+                                                            <button onClick={() => handleForwardToSign(r)} title="Trình ký duyệt" className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                                                                <Send size={14} /> Trình ký
+                                                            </button>
+                                                            <button onClick={() => handleOpenReturnStepModal(r)} title="Trả về bước trước" className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                                                                <RotateCcw size={14} /> Trả về
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {activeTab === 'pending_check' && r.status === RecordStatus.PENDING_CHECK && r.assignedTo === user.employeeId && (
+                                                        <button onClick={() => handleWithdraw(r)} title="Thu hồi hồ sơ" className="px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                                                            <RotateCcw size={14} /> Thu hồi
+                                                        </button>
+                                                    )}
+                                                    {activeTab === 'pending_sign' && (r.submittedTo === user.employeeId || r.submittedTo === effectiveId) && (
+                                                        <>
+                                                            <button onClick={() => handleSignRecord(r)} title="Ký duyệt" className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                                                                <FileSignature size={14} /> Ký duyệt
+                                                            </button>
+                                                            <button onClick={() => handleOpenReturnStepModal(r)} title="Trả về bước trước" className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                                                                <RotateCcw size={14} /> Trả về
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile Cards View */}
+                    <div className="block md:hidden space-y-3 p-3 bg-slate-50/50">
+                        {paginatedDisplayRecords.map((r, index) => {
+                            const deadlineStatus = getDeadlineStatus(r);
+                            return (
+                                <div key={r.id} className="bg-white rounded-xl p-3.5 shadow-sm border border-slate-100 flex flex-col gap-3 text-left">
+                                    {/* Header: Index, Code, Status & Return markers */}
+                                    <div className="flex justify-between items-start gap-2 border-b border-slate-100/60 pb-2.5">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider font-mono">
+                                                    Mã: {r.code}
+                                                </span>
+                                                <span className="text-[10px] text-slate-400 font-mono">#{(currentPage - 1) * itemsPerPage + index + 1}</span>
+                                            </div>
+                                            <h3 className="font-extrabold text-slate-800 text-sm mt-1 leading-snug break-words">
+                                                {r.customerName}
+                                            </h3>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1 shrink-0">
+                                            <StatusBadge status={r.status} recordType={r.recordType} record={r} />
+                                            {r.status === RecordStatus.REJECTED && (
+                                                <span className="text-[9px] font-bold bg-red-100 text-red-800 px-1.5 py-0.5 rounded border border-red-200">
+                                                    Hồ sơ bị trả
+                                                </span>
+                                            )}
+                                            {(() => {
+                                                if (r.notes) {
+                                                    try {
+                                                        const notesObj = JSON.parse(r.notes);
+                                                        if (notesObj.isStepReturned) {
+                                                            return (
+                                                                <span className="text-[9px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200" title={`Lý do: ${notesObj.stepReturnReason || ''}`}>
+                                                                    Yêu cầu sửa
+                                                                </span>
+                                                            );
+                                                        }
+                                                    } catch (e) {}
+                                                }
+                                                return null;
+                                            })()}
+                                        </div>
+                                    </div>
+
+                                    {/* Body info grid */}
+                                    <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 bg-slate-50/55 p-2 rounded-lg border border-slate-100/50">
+                                        <div>
+                                            <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Loại hồ sơ</span>
+                                            <span className="font-semibold text-slate-700 truncate block" title={r.recordType || ''}>
+                                                {getShortRecordType(r.recordType || undefined)}
+                                            </span>
+                                        </div>
+                                        
+                                        <div>
+                                            <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Ngày nhận việc</span>
+                                            <span className="font-semibold text-slate-700 block">
+                                                {formatDate(r.assignedDate || undefined)}
+                                            </span>
+                                        </div>
+
+                                        <div>
+                                            <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">
+                                                {activeTab === 'reminder' ? 'Thời gian nhắc' : 'Hẹn trả'}
+                                            </span>
+                                            <div className="flex items-center gap-1">
+                                                {activeTab === 'reminder' ? (
+                                                    <div className="flex items-center gap-1 text-pink-700 font-bold bg-pink-100 px-1.5 py-0.5 rounded text-[10px]">
+                                                        <Bell size={10} className="fill-pink-700"/>
+                                                        {formatDateTime(r.reminderDate || undefined)}
+                                                    </div>
+                                                ) : (
+                                                    <div className={`flex items-center gap-1 font-bold ${deadlineStatus.color}`}>
+                                                        {deadlineStatus.icon && React.cloneElement(deadlineStatus.icon as React.ReactElement, { size: 11 })}
+                                                        <span className="text-xs">{formatDate(r.deadline || undefined)}</span>
+                                                        <span className="text-[9px] uppercase ml-0.5">{deadlineStatus.text}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {activeTab === 'pending_check' && (
+                                            <div>
+                                                <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Người kiểm tra</span>
+                                                <span className="font-semibold text-slate-700 truncate block" title={r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : ''}>
+                                                    {r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : '---'}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {activeTab === 'pending_check' && r.pendingCheckDate && (
+                                            <div>
+                                                <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Ngày trình KT</span>
+                                                <span className="font-semibold text-slate-700 block">
+                                                    {formatDate(r.pendingCheckDate || undefined)}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {activeTab === 'pending_sign' && r.submissionDate && (
+                                            <div>
+                                                <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Ngày trình ký</span>
+                                                <span className="font-semibold text-slate-700 block">
+                                                    {formatDate(r.submissionDate || undefined)}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {activeTab === 'finished' && (
+                                            <>
+                                                {r.pendingCheckDate && (
+                                                    <div>
+                                                        <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Ngày trình KT</span>
+                                                        <span className="font-semibold text-slate-700 block">
+                                                            {formatDate(r.pendingCheckDate || undefined)}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {r.submissionDate && (
+                                                    <div>
+                                                        <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Ngày trình ký</span>
+                                                        <span className="font-semibold text-slate-700 block">
+                                                            {formatDate(r.submissionDate || undefined)}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* Action row footer */}
+                                    <div className="flex items-center justify-between gap-1.5 border-t border-slate-100/60 pt-2.5 mt-1">
+                                        <div className="flex gap-1.5 flex-wrap">
+                                            <button 
+                                                onClick={() => onViewRecord(r)} 
+                                                className="px-2.5 py-1.5 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all bg-white shadow-2xs"
+                                            >
                                                 Chi tiết
                                             </button>
-                                            
-                                            {/* Logic nút chuyển trạng thái theo từng Tab */}
+
+                                            {onMapCorrection && (
+                                                <button 
+                                                    onClick={() => onMapCorrection(r)}
+                                                    className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border transition-all text-xs font-bold shadow-2xs ${
+                                                        r.needsMapCorrection 
+                                                        ? 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100' 
+                                                        : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:bg-slate-50'
+                                                    }`}
+                                                    title={r.needsMapCorrection ? "Đang có yêu cầu. Bấm để HỦY." : "Yêu cầu chỉnh lý bản đồ"}
+                                                >
+                                                    <Map size={12} className={r.needsMapCorrection ? "fill-orange-100" : ""} />
+                                                    {r.needsMapCorrection && <span>Chỉnh lý</span>}
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Main flow actions aligned on the right */}
+                                        <div className="flex items-center gap-1.5 flex-wrap">
                                             {activeTab === 'pending' && (
                                                 <>
                                                     {r.status === RecordStatus.PENDING_CHECK || r.status === RecordStatus.CHECKED || r.status === RecordStatus.PENDING_SIGN ? (
-                                                        <button onClick={() => handleWithdraw(r)} title="Thu hồi hồ sơ" className="px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                            <RotateCcw size={14} /> Thu hồi
+                                                        <button 
+                                                            onClick={() => handleWithdraw(r)} 
+                                                            title="Thu hồi hồ sơ" 
+                                                            className="px-2.5 py-1.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-xs font-bold flex items-center gap-1 shadow-2xs transition-all"
+                                                        >
+                                                            <RotateCcw size={12} /> Thu hồi
                                                         </button>
                                                     ) : (
                                                         <>
                                                             {(isArchiveType(r.recordType) || r.recordType === 'Sao lục' || r.recordType === 'Công văn' || r.recordType === '1.1 Công văn' || r.recordType === '1.2 Công văn') ? (
-                                                                <button onClick={() => handleForwardToSign(r)} title="Trình ký duyệt" className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                                    <Send size={14} /> Trình ký
+                                                                <button 
+                                                                    onClick={() => handleForwardToSign(r)} 
+                                                                    title="Trình ký duyệt" 
+                                                                    className="px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs font-bold flex items-center gap-1 shadow-2xs transition-all"
+                                                                >
+                                                                    <Send size={12} /> Trình ký
                                                                 </button>
                                                             ) : (
-                                                                <button onClick={() => handleForwardToCheck(r)} title="Trình kiểm tra" className="px-3 py-1.5 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                                    <ClipboardList size={14} /> Trình KT
+                                                                <button 
+                                                                    onClick={() => handleForwardToCheck(r)} 
+                                                                    title="Trình kiểm tra" 
+                                                                    className="px-2.5 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-xs font-bold flex items-center gap-1 shadow-2xs transition-all"
+                                                                >
+                                                                    <ClipboardList size={12} /> Trình KT
                                                                 </button>
                                                             )}
-                                                            <button onClick={() => handleOpenRejectModal(r)} title="Trả hồ sơ" className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                                <AlertTriangle size={14} /> Trả HS
+                                                            <button 
+                                                                onClick={() => handleOpenRejectModal(r)} 
+                                                                title="Trả hồ sơ" 
+                                                                className="px-2.5 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs font-bold flex items-center gap-1 shadow-2xs transition-all"
+                                                            >
+                                                                <AlertTriangle size={12} /> Trả HS
                                                             </button>
                                                         </>
                                                     )}
                                                 </>
                                             )}
+                                            
                                             {activeTab === 'pending_check' && (r.status === RecordStatus.PENDING_CHECK || r.status === RecordStatus.CHECKED) && (r.checkedBy === user.employeeId || r.checkedBy === effectiveId) && (
                                                 <>
-                                                    <button onClick={() => handleForwardToSign(r)} title="Trình ký duyệt" className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                        <Send size={14} /> Trình ký
+                                                    <button 
+                                                        onClick={() => handleForwardToSign(r)} 
+                                                        title="Trình ký duyệt" 
+                                                        className="px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs font-bold flex items-center gap-1 shadow-2xs transition-all"
+                                                    >
+                                                        <Send size={12} /> Trình ký
                                                     </button>
-                                                    <button onClick={() => handleOpenReturnStepModal(r)} title="Trả về bước trước" className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                        <RotateCcw size={14} /> Trả về
-                                                    </button>
-                                                    <button onClick={() => handleOpenRejectModal(r)} title="Trả hồ sơ" className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                        <AlertTriangle size={14} /> Trả HS
+                                                    <button 
+                                                        onClick={() => handleOpenReturnStepModal(r)} 
+                                                        title="Trả về bước trước" 
+                                                        className="px-2.5 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-xs font-bold flex items-center gap-1 shadow-2xs transition-all"
+                                                    >
+                                                        <RotateCcw size={12} /> Trả về
                                                     </button>
                                                 </>
                                             )}
+
                                             {activeTab === 'pending_check' && r.status === RecordStatus.PENDING_CHECK && r.assignedTo === user.employeeId && (
-                                                <button onClick={() => handleWithdraw(r)} title="Thu hồi hồ sơ" className="px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                    <RotateCcw size={14} /> Thu hồi
+                                                <button 
+                                                    onClick={() => handleWithdraw(r)} 
+                                                    title="Thu hồi hồ sơ" 
+                                                    className="px-2.5 py-1.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-xs font-bold flex items-center gap-1 shadow-2xs transition-all"
+                                                >
+                                                    <RotateCcw size={12} /> Thu hồi
                                                 </button>
                                             )}
+
                                             {activeTab === 'pending_sign' && (r.submittedTo === user.employeeId || r.submittedTo === effectiveId) && (
                                                 <>
-                                                    <button onClick={() => handleSignRecord(r)} title="Ký duyệt" className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                        <FileSignature size={14} /> Ký duyệt
+                                                    <button 
+                                                        onClick={() => handleSignRecord(r)} 
+                                                        title="Ký duyệt" 
+                                                        className="px-2.5 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-bold flex items-center gap-1 shadow-2xs transition-all"
+                                                    >
+                                                        <FileSignature size={12} /> Ký duyệt
                                                     </button>
-                                                    <button onClick={() => handleOpenReturnStepModal(r)} title="Trả về bước trước" className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                        <RotateCcw size={14} /> Trả về
-                                                    </button>
-                                                    <button onClick={() => handleOpenRejectModal(r)} title="Trả hồ sơ" className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
-                                                        <AlertTriangle size={14} /> Trả HS
+                                                    <button 
+                                                        onClick={() => handleOpenReturnStepModal(r)} 
+                                                        title="Trả về bước trước" 
+                                                        className="px-2.5 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-xs font-bold flex items-center gap-1 shadow-2xs transition-all"
+                                                    >
+                                                        <RotateCcw size={12} /> Trả về
                                                     </button>
                                                 </>
                                             )}
                                         </div>
-                                    </td>
-                                </tr>
+                                    </div>
+                                </div>
                             );
                         })}
-                    </tbody>
-                </table>
+                    </div>
+                </>
             ) : (
                 <div className="flex flex-col items-center justify-center h-64 text-gray-400">
                     <CheckCircle size={48} className="text-gray-200 mb-2" />
@@ -1581,9 +1871,18 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                           }
                       } else {
                           // Hồ sơ Đo đạc thường
-                          const updatedRecord = {
+                          let extraUpdates: any = {};
+                 if (isRegType(record.recordType)) {
+                     let currentStepIndex = record.currentStepIndex;
+                     if (currentStepIndex === undefined || currentStepIndex === null) {
+                         currentStepIndex = 0;
+                     }
+                     extraUpdates.currentStepIndex = currentStepIndex + 1;
+                 }
+
+                 const updatedRecord = {
                               ...record,
-                              status: RecordStatus.PENDING_CHECK,
+                              ...extraUpdates, status: RecordStatus.PENDING_CHECK,
                               assignedDate: record.assignedDate || (record.receivedDate || new Date().toISOString()),
                               completedWorkDate: record.completedWorkDate || (record.assignedDate || (record.receivedDate || new Date().toISOString())),
                               pendingCheckDate: new Date().toISOString(),

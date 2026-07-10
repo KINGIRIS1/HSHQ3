@@ -620,13 +620,6 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
             </button>
 
             <button
-              onClick={() => props.setCurrentView("registration_trinh_ky_thue")}
-              className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_trinh_ky_thue" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-            >
-              <FileSignature size={16} /> Trình ký Thuế
-            </button>
-
-            <button
               onClick={() => props.setCurrentView("registration_tbt")}
               className={`px-2 lg:px-3 xl:px-4 py-2.5 text-xs lg:text-sm font-bold flex items-center gap-1.5 xl:gap-2 border-b-2 transition-colors whitespace-nowrap ${currentView === "registration_tbt" ? "border-blue-600 text-blue-700 bg-white" : "border-transparent text-gray-500 hover:text-gray-700"}`}
             >

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Database, AlertTriangle, Cloud, Loader2, CheckCircle, Save, Globe, Calendar, Plus, Trash2, ShieldAlert, Key, Compass, FolderOpen, Award, FileCheck, Users } from 'lucide-react';
+import { Database, AlertTriangle, Cloud, Loader2, CheckCircle, Save, Globe, Calendar, Plus, Trash2, ShieldAlert, Key, Compass, FolderOpen, Award, FileCheck, Users, Clock, Timer, RefreshCw, Sliders, ChevronRight, HelpCircle } from 'lucide-react';
 import { Holiday, UserRole, RolePermissions, DepartmentPermissions, DEFAULT_ROLE_PERMISSIONS, AVAILABLE_PERMISSIONS, Employee } from '../types';
 import { fetchHolidays, saveHolidays, testDatabaseConnection, saveUpdateInfo, fetchUpdateInfo, getSystemSetting, saveSystemSetting } from '../services/api';
 import { APP_VERSION } from '../constants';
@@ -10,6 +10,7 @@ interface SystemSettingsViewProps {
   onDeleteAllData: () => Promise<boolean>;
   onHolidaysChanged?: () => void;
   employees: Employee[];
+  currentUserRole?: UserRole;
 }
 
 const TEAMS_PERM_LIST = [
@@ -109,12 +110,128 @@ const TEAM_ALLOWED_PERMISSIONS: Record<string, string[]> = {
   ]
 };
 
+const GCN_WORKFLOW_DEFAULTS = [
+  {
+    id: 'quy_trinh_1',
+    title: 'Quy trình 1: DNLIS',
+    steps: [
+      { label: "DNLIS", defaultDuration: "8 giờ" },
+      { label: "Phiếu chuyển Thuế", defaultDuration: "16 giờ" },
+      { label: "TBT", defaultDuration: "0 giờ" },
+      { label: "In GCN", defaultDuration: "5 ngày" },
+      { label: "Thẩm tra", defaultDuration: "8 giờ" },
+      { label: "Trình ký", defaultDuration: "4 giờ" },
+      { label: "Vô số GCN", defaultDuration: "4 giờ" },
+      { label: "Giao 1 cửa", defaultDuration: "4 giờ" }
+    ]
+  },
+  {
+    id: 'quy_trinh_2',
+    title: 'Quy trình 2: Phiếu Chuyển Thuế',
+    steps: [
+      { label: "DNLIS", defaultDuration: "0 giờ" },
+      { label: "Phiếu chuyển Thuế", defaultDuration: "24 giờ" },
+      { label: "TBT", defaultDuration: "0 giờ" },
+      { label: "In GCN", defaultDuration: "5 ngày" },
+      { label: "Thẩm tra", defaultDuration: "8 giờ" },
+      { label: "Trình ký", defaultDuration: "4 giờ" },
+      { label: "Vô số GCN", defaultDuration: "4 giờ" },
+      { label: "Giao 1 cửa", defaultDuration: "4 giờ" }
+    ]
+  },
+  {
+    id: 'quy_trinh_3',
+    title: 'Quy trình 3: In GCN',
+    steps: [
+      { label: "In GCN", defaultDuration: "5 ngày" },
+      { label: "Thẩm tra", defaultDuration: "8 giờ" },
+      { label: "Trình ký", defaultDuration: "4 giờ" },
+      { label: "Vô số GCN", defaultDuration: "4 giờ" },
+      { label: "Giao 1 cửa", defaultDuration: "4 giờ" }
+    ]
+  },
+  {
+    id: 'quy_trinh_4',
+    title: 'Quy trình 4: Cấp lại không thuế (Có đối chiếu SMK)',
+    steps: [
+      { label: "Đối chiếu Sổ mục kê, hồ sơ lưu, GCN, CSDL đất đai", defaultDuration: "1 ngày" },
+      { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", defaultDuration: "1 ngày" },
+      { label: "Lập biên bản xác minh đủ điều kiện cấp lại", defaultDuration: "1 ngày" },
+      { label: "Chuyển UBND xã niêm yết/đăng tin", defaultDuration: "1 ngày" },
+      { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", defaultDuration: "20 ngày" },
+      { label: "Tiếp nhận kết quả niêm yết", defaultDuration: "1 ngày" },
+      { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", defaultDuration: "3 ngày" },
+      { label: "Thẩm tra", defaultDuration: "2 ngày" },
+      { label: "Trình ký", defaultDuration: "1 ngày" },
+      { label: "Vô số - Đóng dấu", defaultDuration: "1 ngày" },
+      { label: "Chuyển Một cửa", defaultDuration: "1 ngày" },
+      { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
+    ]
+  },
+  {
+    id: 'quy_trinh_5',
+    title: 'Quy trình 5: Cấp lại không thuế (Đã đối chiếu SMK)',
+    steps: [
+      { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", defaultDuration: "1 ngày" },
+      { label: "Lập biên bản xác minh đủ điều kiện cấp lại", defaultDuration: "1 ngày" },
+      { label: "Chuyển UBND xã niêm yết/đăng tin", defaultDuration: "1 ngày" },
+      { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", defaultDuration: "20 ngày" },
+      { label: "Tiếp nhận kết quả niêm yết", defaultDuration: "1 ngày" },
+      { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", defaultDuration: "3 ngày" },
+      { label: "Thẩm tra", defaultDuration: "2 ngày" },
+      { label: "Trình ký", defaultDuration: "1 ngày" },
+      { label: "Vô số - Đóng dấu", defaultDuration: "1 ngày" },
+      { label: "Chuyển Một cửa", defaultDuration: "1 ngày" },
+      { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
+    ]
+  },
+  {
+    id: 'quy_trinh_6',
+    title: 'Quy trình 6: Cấp lại có thuế (Có đối chiếu SMK)',
+    steps: [
+      { label: "Đối chiếu Sổ mục kê, hồ sơ lưu, GCN, CSDL đất đai", defaultDuration: "1 ngày" },
+      { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", defaultDuration: "1 ngày" },
+      { label: "Lập biên bản xác minh đủ điều kiện cấp lại", defaultDuration: "1 ngày" },
+      { label: "Chuyển UBND xã niêm yết/đăng tin", defaultDuration: "1 ngày" },
+      { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", defaultDuration: "20 ngày" },
+      { label: "Tiếp nhận kết quả niêm yết", defaultDuration: "1 ngày" },
+      { label: "Lập Phiếu chuyển thông tin nghĩa vụ tài chính", defaultDuration: "2 ngày" },
+      { label: "Chờ Thông báo thuế (TBT)", defaultDuration: "---" },
+      { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", defaultDuration: "3 ngày" },
+      { label: "Thẩm tra", defaultDuration: "2 ngày" },
+      { label: "Trình ký - Vô số - Đóng dấu", defaultDuration: "1 ngày" },
+      { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
+    ]
+  },
+  {
+    id: 'quy_trinh_7',
+    title: 'Quy trình 7: Cấp lại có thuế (Đã đối chiếu SMK)',
+    steps: [
+      { label: "Kiểm tra tình trạng thế chấp/ngăn chặn", defaultDuration: "1 ngày" },
+      { label: "Lập biên bản xác minh đủ điều kiện cấp lại", defaultDuration: "1 ngày" },
+      { label: "Chuyển UBND xã niêm yết/đăng tin", defaultDuration: "1 ngày" },
+      { label: "Chờ niêm yết 15 ngày + tối đa 05 ngày nhận biên bản kết thúc", defaultDuration: "20 ngày" },
+      { label: "Tiếp nhận kết quả niêm yết", defaultDuration: "1 ngày" },
+      { label: "Lập Phiếu chuyển thông tin nghĩa vụ tài chính", defaultDuration: "2 ngày" },
+      { label: "Chờ Thông báo thuế (TBT)", defaultDuration: "---" },
+      { label: "Hủy GCN cũ, cập nhật DNLIS/CSDL, in GCN", defaultDuration: "3 ngày" },
+      { label: "Thẩm tra", defaultDuration: "2 ngày" },
+      { label: "Trình ký - Vô số - Đóng dấu", defaultDuration: "1 ngày" },
+      { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
+    ]
+  }
+];
+
 const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({ 
   onDeleteAllData,
   onHolidaysChanged,
-  employees
+  employees,
+  currentUserRole
 }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'holidays' | 'permissions' | 'data'>('general');
+  const isAdminOrSub = currentUserRole === UserRole.ADMIN || currentUserRole === UserRole.SUBADMIN;
+  const [activeTab, setActiveTab] = useState<'general' | 'holidays' | 'permissions' | 'data' | 'sla'>(
+      currentUserRole === UserRole.TEAM_LEADER ? 'sla' : 'general'
+  );
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [dbTestStatus, setDbTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [dbTestMsg, setDbTestMsg] = useState('');
@@ -142,10 +259,72 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [permissionTab, setPermissionTab] = useState<'role' | 'department'>('role');
   const [permissionSearch, setPermissionSearch] = useState('');
 
+  // SLA States
+  const [slaConfig, setSlaConfig] = useState<Record<string, Record<string, string>>>({});
+  const [selectedSlaWorkflow, setSelectedSlaWorkflow] = useState<string>('quy_trinh_1');
+  const [isSavingSla, setIsSavingSla] = useState(false);
+
+  const loadSlaConfig = () => {
+      try {
+          const savedSla = localStorage.getItem('sla_config_gcn');
+          if (savedSla) {
+              setSlaConfig(JSON.parse(savedSla));
+          }
+      } catch (e) {
+          console.error("Failed to load sla_config_gcn", e);
+      }
+  };
+
+  const handleSaveSlaConfig = async (newSlaConfig: Record<string, Record<string, string>>) => {
+      setIsSavingSla(true);
+      const strVal = JSON.stringify(newSlaConfig);
+      const success = await saveSystemSetting('sla_config_gcn', strVal);
+      setIsSavingSla(false);
+      if (success) {
+          localStorage.setItem('sla_config_gcn', strVal);
+          setSlaConfig(newSlaConfig);
+          alert('Đã lưu cấu hình SLA thành công! Hệ thống cảnh báo sẽ cập nhật thời hạn chính xác hơn.');
+          if (onHolidaysChanged) {
+              onHolidaysChanged(); // Triggers app-wide data reload to update deadlines
+          }
+      } else {
+          localStorage.setItem('sla_config_gcn', strVal);
+          setSlaConfig(newSlaConfig);
+          alert('Đã lưu cấu hình SLA tạm thời tại máy (Chế độ Ngoại tuyến).');
+          if (onHolidaysChanged) {
+              onHolidaysChanged();
+          }
+      }
+  };
+
+  const handleUpdateStepSla = (workflowId: string, stepLabel: string, num: number, unit: string, isDefault: boolean) => {
+      setSlaConfig(prev => {
+          const next = { ...prev };
+          if (!next[workflowId]) next[workflowId] = {};
+          
+          if (isDefault) {
+              delete next[workflowId][stepLabel];
+              if (Object.keys(next[workflowId]).length === 0) {
+                  delete next[workflowId];
+              }
+          } else {
+              if (unit === '---') {
+                  next[workflowId][stepLabel] = '---';
+              } else if (unit === '0 giờ') {
+                  next[workflowId][stepLabel] = '0 giờ';
+              } else {
+                  next[workflowId][stepLabel] = `${num} ${unit}`;
+              }
+          }
+          return next;
+      });
+  };
+
   useEffect(() => {
       loadHolidays();
       loadUpdateConfig();
       loadPermissions();
+      loadSlaConfig();
   }, []);
 
   const loadPermissions = async () => {
@@ -344,30 +523,44 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200 bg-gray-50 px-2 overflow-x-auto no-scrollbar shrink-0">
+            {isAdminOrSub && (
+                <button 
+                    onClick={() => setActiveTab('general')}
+                    className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'general' ? 'border-blue-600 text-blue-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                >
+                    <Database size={16} /> Chung
+                </button>
+            )}
+            {isAdminOrSub && (
+                <button 
+                    onClick={() => setActiveTab('holidays')}
+                    className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'holidays' ? 'border-orange-600 text-orange-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                >
+                    <Calendar size={16} /> Ngày nghỉ lễ
+                </button>
+            )}
+            {isAdminOrSub && (
+                <button 
+                    onClick={() => setActiveTab('permissions')}
+                    className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-600 text-purple-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                >
+                    <Key size={16} /> Phân quyền
+                </button>
+            )}
             <button 
-                onClick={() => setActiveTab('general')}
-                className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'general' ? 'border-blue-600 text-blue-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                onClick={() => setActiveTab('sla')}
+                className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'sla' ? 'border-emerald-600 text-emerald-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
-                <Database size={16} /> Chung
+                <Clock size={16} /> Cấu hình SLA
             </button>
-            <button 
-                onClick={() => setActiveTab('holidays')}
-                className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'holidays' ? 'border-orange-600 text-orange-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-            >
-                <Calendar size={16} /> Ngày nghỉ lễ
-            </button>
-            <button 
-                onClick={() => setActiveTab('permissions')}
-                className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-600 text-purple-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-            >
-                <Key size={16} /> Phân quyền
-            </button>
-            <button 
-                onClick={() => setActiveTab('data')}
-                className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'data' ? 'border-red-600 text-red-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-            >
-                <AlertTriangle size={16} /> Dữ liệu
-            </button>
+            {isAdminOrSub && (
+                <button 
+                    onClick={() => setActiveTab('data')}
+                    className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'data' ? 'border-red-600 text-red-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                >
+                    <AlertTriangle size={16} /> Dữ liệu
+                </button>
+            )}
         </div>
 
         <div className="p-4 md:p-6 overflow-y-auto flex-1 bg-slate-50/30">
@@ -867,6 +1060,210 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                     <p className="text-xs text-gray-450 mt-1">Vui lòng chọn một Vai trò hoặc một Phòng ban để gán quyền chi tiết.</p>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'sla' && (
+                <div className="max-w-6xl mx-auto space-y-6">
+                    {/* Header info */}
+                    <div className="bg-white border border-emerald-100 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row items-center gap-4">
+                        <div className="bg-emerald-50 text-emerald-600 p-4 rounded-2xl">
+                            <Sliders size={32} />
+                        </div>
+                        <div className="flex-1 text-center md:text-left">
+                            <h3 className="font-black text-gray-800 text-lg tracking-tight flex items-center justify-center md:justify-start gap-2 mb-1">
+                                Cấu hình thời hạn xử lý (SLA) quy trình GCN
+                            </h3>
+                            <p className="text-xs text-gray-500 leading-relaxed font-medium">
+                                Tùy chỉnh số ngày hoặc giờ quy định cho từng bước cụ thể của 7 quy trình cấp giấy chứng nhận (GCN). Hệ thống sẽ căn cứ vào đây để tính toán và cảnh báo trễ hạn chính xác, tự động trừ các ngày nghỉ lễ đã cấu hình.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        {/* Left List of 7 Workflows */}
+                        <div className="lg:col-span-4 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-2">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-gray-400 mb-3 px-2">Danh sách quy trình</h4>
+                            {GCN_WORKFLOW_DEFAULTS.map((wf) => {
+                                const customStepCount = Object.keys(slaConfig[wf.id] || {}).length;
+                                const isSelected = selectedSlaWorkflow === wf.id;
+                                return (
+                                    <button
+                                        key={wf.id}
+                                        onClick={() => setSelectedSlaWorkflow(wf.id)}
+                                        className={`w-full text-left p-3.5 rounded-xl transition-all flex items-center justify-between group border ${isSelected ? 'border-emerald-500 bg-emerald-50/40 text-emerald-800 font-bold shadow-sm' : 'border-transparent text-gray-600 hover:bg-gray-50'}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-lg transition-colors ${isSelected ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-50 text-gray-400 group-hover:bg-gray-100'}`}>
+                                                <Timer size={16} />
+                                            </div>
+                                            <div className="space-y-0.5">
+                                                <p className="text-xs font-bold leading-tight truncate max-w-[200px]">{wf.title}</p>
+                                                <p className="text-[10px] text-gray-400 font-medium">Có {wf.steps.length} bước xử lý</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            {customStepCount > 0 && (
+                                                <span className="bg-emerald-100 text-emerald-700 font-black text-[9px] px-2 py-0.5 rounded-full border border-emerald-200">
+                                                    Chỉnh {customStepCount}
+                                                </span>
+                                            )}
+                                            <ChevronRight size={14} className={`text-gray-300 transition-transform ${isSelected ? 'translate-x-0.5 text-emerald-500' : 'group-hover:translate-x-0.5'}`} />
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Right Workflow Steps Details */}
+                        <div className="lg:col-span-8 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-6">
+                            {(() => {
+                                const activeWf = GCN_WORKFLOW_DEFAULTS.find(w => w.id === selectedSlaWorkflow);
+                                if (!activeWf) return null;
+
+                                return (
+                                    <>
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                                            <div>
+                                                <h4 className="font-black text-gray-800 text-base tracking-tight">{activeWf.title}</h4>
+                                                <p className="text-xs text-gray-400 font-medium mt-0.5">Cấu hình thời hạn của các bước xử lý thành phần</p>
+                                            </div>
+                                            <button
+                                                onClick={async () => {
+                                                    if (await confirmAction(`Bạn có chắc chắn muốn khôi phục tất cả bước trong "${activeWf.title}" về thời hạn mặc định ban đầu?`)) {
+                                                        const next = { ...slaConfig };
+                                                        delete next[activeWf.id];
+                                                        await handleSaveSlaConfig(next);
+                                                    }
+                                                }}
+                                                className="text-xs text-gray-500 hover:text-red-600 font-bold flex items-center gap-1 bg-gray-50 hover:bg-red-50 border border-gray-200 hover:border-red-100 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                                            >
+                                                <RefreshCw size={12} /> Khôi phục mặc định quy trình
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 no-scrollbar">
+                                            {activeWf.steps.map((step, idx) => {
+                                                const currentOverride = slaConfig[activeWf.id]?.[step.label];
+                                                const isCustom = currentOverride !== undefined;
+
+                                                // Parse override if exists
+                                                let numVal = 1;
+                                                let unitVal = 'ngày';
+                                                
+                                                if (isCustom) {
+                                                    if (currentOverride === '---') {
+                                                        unitVal = '---';
+                                                        numVal = 0;
+                                                    } else if (currentOverride === '0 giờ') {
+                                                        unitVal = '0 giờ';
+                                                        numVal = 0;
+                                                    } else {
+                                                        const match = currentOverride.match(/^(\d+)\s+(ngày|giờ)$/);
+                                                        if (match) {
+                                                            numVal = parseInt(match[1]) || 1;
+                                                            unitVal = match[2];
+                                                        }
+                                                    }
+                                                }
+
+                                                return (
+                                                    <div key={idx} className={`p-4 rounded-xl border transition-all ${isCustom ? 'bg-emerald-50/20 border-emerald-100 shadow-sm shadow-emerald-50/30' : 'bg-gray-50/40 border-gray-150'}`}>
+                                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                            <div className="space-y-1 flex-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md">
+                                                                        Bước {idx + 1}
+                                                                    </span>
+                                                                    <span className="font-bold text-gray-800 text-sm leading-tight">
+                                                                        {step.label}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-xs text-gray-400 font-medium">
+                                                                    Thời hạn gốc mặc định: <strong className="text-gray-500 font-bold">{step.defaultDuration}</strong>
+                                                                </p>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+                                                                {/* Mode Select toggle */}
+                                                                <div className="bg-gray-100/80 p-0.5 rounded-lg flex border border-gray-200">
+                                                                    <button
+                                                                        onClick={() => handleUpdateStepSla(activeWf.id, step.label, 1, 'ngày', true)}
+                                                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors ${!isCustom ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                    >
+                                                                        Mặc định
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleUpdateStepSla(activeWf.id, step.label, numVal, unitVal, false)}
+                                                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors ${isCustom ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                    >
+                                                                        Tùy chỉnh
+                                                                    </button>
+                                                                </div>
+
+                                                                {/* Custom input fields */}
+                                                                {isCustom && (
+                                                                    <div className="flex items-center gap-1.5 animate-fade-in">
+                                                                        {unitVal !== '---' && unitVal !== '0 giờ' && (
+                                                                            <input
+                                                                                type="number"
+                                                                                min={1}
+                                                                                value={numVal}
+                                                                                onChange={(e) => {
+                                                                                    const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                                                    handleUpdateStepSla(activeWf.id, step.label, val, unitVal, false);
+                                                                                }}
+                                                                                className="w-16 px-2 py-1.5 text-xs text-center font-bold border border-gray-250 bg-white rounded-lg focus:outline-none focus:border-emerald-500"
+                                                                            />
+                                                                        )}
+                                                                        <select
+                                                                            value={unitVal}
+                                                                            onChange={(e) => {
+                                                                                const u = e.target.value;
+                                                                                const n = (u === '---' || u === '0 giờ') ? 0 : (numVal === 0 ? 1 : numVal);
+                                                                                handleUpdateStepSla(activeWf.id, step.label, n, u, false);
+                                                                            }}
+                                                                            className="px-2 py-1.5 text-xs font-bold border border-gray-250 bg-white rounded-lg focus:outline-none focus:border-emerald-500"
+                                                                        >
+                                                                            <option value="ngày">ngày</option>
+                                                                            <option value="giờ">giờ</option>
+                                                                            <option value="0 giờ">0 giờ</option>
+                                                                            <option value="---">--- (Không hạn)</option>
+                                                                        </select>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                                            <button
+                                                onClick={async () => {
+                                                    if (await confirmAction("Bạn có chắc chắn muốn xóa TOÀN BỘ cấu hình SLA tùy chỉnh của mọi quy trình để trở về mặc định hệ thống?")) {
+                                                        await handleSaveSlaConfig({});
+                                                    }
+                                                }}
+                                                className="text-xs text-red-500 hover:text-red-700 font-bold px-3 py-2 hover:bg-red-50 rounded-xl transition-colors self-start sm:self-center"
+                                            >
+                                                Khôi phục tất cả quy trình về mặc định
+                                            </button>
+                                            <button
+                                                onClick={() => handleSaveSlaConfig(slaConfig)}
+                                                disabled={isSavingSla}
+                                                className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
+                                            >
+                                                {isSavingSla ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                                                {isSavingSla ? 'Đang lưu...' : 'Lưu cấu hình SLA'}
+                                            </button>
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
