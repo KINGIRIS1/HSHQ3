@@ -2,7 +2,7 @@
 import { supabase, isConfigured } from './supabaseClient';
 import { RecordFile } from '../types';
 import { MOCK_RECORDS, API_BASE_URL } from '../constants';
-import { logError, getFromCache, saveToCache, CACHE_KEYS, sanitizeData, normalizeCode, mapRecordFromDb } from './apiCore';
+import { logError, getFromCache, saveToCache, CACHE_KEYS, sanitizeData, normalizeCode, mapRecordFromDb, getDbColumns, mapPayloadToDb } from './apiCore';
 
 export const RECORD_DB_COLUMNS = [
     'id', 'code', 'customerName', 'phoneNumber', 'cccd', 'customerAddress', 'ward', 'landPlot', 'mapSheet', 
@@ -228,7 +228,9 @@ export const createRecordApi = async (record: RecordFile): Promise<RecordFile | 
         }
         
         const payload = sanitizeData(recordToSave, RECORD_DB_COLUMNS);
-        const { data, error } = await supabase.from('land_records').insert([payload]).select();
+        const actualCols = await getDbColumns('land_records');
+        const dbPayload = mapPayloadToDb(payload, actualCols);
+        const { data, error } = await supabase.from('land_records').insert([dbPayload]).select();
         
         if (error && (error.code === 'PGRST204' || String(error.code) === '42703' || (error.message && String(error.message).includes('does not exist')))) {
             console.warn("⚠️ [Fallback] Database is missing columns. Retrying without new columns...", error);
@@ -254,7 +256,9 @@ export const updateRecordApi = async (record: RecordFile): Promise<RecordFile | 
     if (!isConfigured) return record;
     try {
         const payload = sanitizeData(record, RECORD_DB_COLUMNS);
-        const { data, error } = await supabase.from('land_records').update(payload).eq('id', record.id).select();
+        const actualCols = await getDbColumns('land_records');
+        const dbPayload = mapPayloadToDb(payload, actualCols);
+        const { data, error } = await supabase.from('land_records').update(dbPayload).eq('id', record.id).select();
         
         if (error && (error.code === 'PGRST204' || String(error.code) === '42703' || (error.message && String(error.message).includes('does not exist')))) {
             console.warn("⚠️ [Fallback] Database is missing columns. Retrying without new columns...", error);
@@ -309,9 +313,10 @@ export const createRecordsBatchApi = async (records: RecordFile[], onProgress?: 
             payload.push(sanitizeData(recordPayload, RECORD_DB_COLUMNS));
         }
 
+        const actualCols = await getDbColumns('land_records');
         const CHUNK_SIZE = 500;
         for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
-            const chunk = payload.slice(i, i + CHUNK_SIZE);
+            const chunk = payload.slice(i, i + CHUNK_SIZE).map(p => mapPayloadToDb(p, actualCols));
             const { error } = await supabase.from('land_records').insert(chunk);
             
             if (error && (error.code === 'PGRST204' || String(error.code) === '42703' || (error.message && String(error.message).includes('does not exist')))) {
@@ -405,6 +410,7 @@ export const forceUpdateRecordsBatchApi = async (records: RecordFile[], onProgre
     };
 
     try {
+        const actualCols = await getDbColumns('land_records');
         const rawCodes = records.map(r => r.code).filter(c => c);
         if (rawCodes.length === 0) return { success: true, count: 0 };
 
@@ -476,7 +482,8 @@ export const forceUpdateRecordsBatchApi = async (records: RecordFile[], onProgre
             });
 
             if (updatesToPush.length > 0) {
-                const { error: upsertError } = await supabase.from('land_records').upsert(updatesToPush);
+                const dbUpdates = updatesToPush.map(p => mapPayloadToDb(p, actualCols));
+                const { error: upsertError } = await supabase.from('land_records').upsert(dbUpdates);
                 
                 if (upsertError && (upsertError.code === 'PGRST204' || String(upsertError.code) === '42703' || (upsertError.message && String(upsertError.message).includes('does not exist')))) {
                     console.warn(`⚠️ [Fallback] Retrying chunk target upsert without new columns...`, upsertError);
@@ -525,7 +532,8 @@ export const updateRecordsBatchById = async (updates: Partial<RecordFile>[], onP
     }
 
     try {
-        const rows = updates.map(u => sanitizeData(u, RECORD_DB_COLUMNS));
+        const actualCols = await getDbColumns('land_records');
+        const rows = updates.map(u => mapPayloadToDb(sanitizeData(u, RECORD_DB_COLUMNS), actualCols));
         const { error } = await supabase
             .from('land_records')
             .upsert(rows);

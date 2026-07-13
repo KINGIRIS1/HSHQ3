@@ -218,6 +218,13 @@ function App() {
       handleTransferPendingOneStopRecords
   } = useAppData(currentUser);
 
+  // Re-fetch data from database when user successfully logs in
+  useEffect(() => {
+    if (currentUser) {
+      loadData();
+    }
+  }, [currentUser, loadData]);
+
   const handleAddOrUpdateWithToast = useCallback(async (recordData: any, forceDeleteOnWithdrawn: boolean = false) => {
       const res = await handleAddOrUpdateRecord(recordData, forceDeleteOnWithdrawn);
       if (res) {
