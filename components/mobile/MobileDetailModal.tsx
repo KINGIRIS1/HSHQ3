@@ -1218,35 +1218,30 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     })() : undefined}
                   />
 
-                  {/* Ẩn mốc kiểm tra cho một số loại hồ sơ */}
-                  {!(record.recordType === 'Cung cấp tài liệu đất đai' || record.recordType === 'Sao lục' || record.recordType === 'Công văn') && (
-                    <>
-                      <TimelineItem 
-                        date={record.pendingCheckDate} 
-                        forceActive={isPendingCheckActive}
-                        label="TRÌNH KIỂM TRA" 
-                        icon={Send}
-                        colorClass={{text: 'text-orange-600', border: 'border-orange-600', bg: 'bg-orange-600'}}
-                        subText={record.pendingCheckDate ? (() => {
-                            const checker = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
-                            if (checker) return `Người kiểm tra: ${checker.name} (${checker.position || 'Tổ trưởng'})`;
-                            return undefined;
-                        })() : undefined}
-                      />
-                      <TimelineItem 
-                        date={record.checkedDate} 
-                        forceActive={isCheckedActive}
-                        label="ĐÃ KIỂM TRA" 
-                        icon={CheckSquare}
-                        colorClass={{text: 'text-orange-600', border: 'border-orange-600', bg: 'bg-orange-600'}}
-                        subText={record.checkedDate && record.checkedBy ? (() => {
-                            const checker = employees.find(e => e.id === record.checkedBy);
-                            if (!checker) return undefined;
-                            return `Người kiểm tra: ${checker.name} (${checker.position || 'Tổ trưởng'})`;
-                        })() : undefined}
-                      />
-                    </>
-                  )}
+                  <TimelineItem 
+                    date={record.pendingCheckDate} 
+                    forceActive={isPendingCheckActive}
+                    label="TRÌNH KIỂM TRA" 
+                    icon={Send}
+                    colorClass={{text: 'text-orange-600', border: 'border-orange-600', bg: 'bg-orange-600'}}
+                    subText={record.pendingCheckDate ? (() => {
+                        const checker = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
+                        if (checker) return `Người kiểm tra: ${checker.name} (${checker.position || 'Tổ trưởng'})`;
+                        return undefined;
+                    })() : undefined}
+                  />
+                  <TimelineItem 
+                    date={record.checkedDate} 
+                    forceActive={isCheckedActive}
+                    label="ĐÃ KIỂM TRA" 
+                    icon={CheckSquare}
+                    colorClass={{text: 'text-orange-600', border: 'border-orange-600', bg: 'bg-orange-600'}}
+                    subText={record.checkedDate && record.checkedBy ? (() => {
+                        const checker = employees.find(e => e.id === record.checkedBy);
+                        if (!checker) return undefined;
+                        return `Người kiểm tra: ${checker.name} (${checker.position || 'Tổ trưởng'})`;
+                    })() : undefined}
+                  />
 
                   <TimelineItem 
                     date={record.submissionDate} 

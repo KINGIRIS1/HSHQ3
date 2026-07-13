@@ -178,14 +178,20 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
        if (label.includes("in gcn") || label.includes("in giấy")) {
            return assignedName || "";
        }
+       if (label.includes("trình kiểm tra") || label.includes("trình thẩm tra")) {
+           return checkerName ? `Cán bộ kiểm tra: ${checkerName}` : "";
+       }
+       if (label.includes("đã kiểm tra") || label.includes("đã thẩm tra") || (label === "thẩm tra" && stepStatus === 'completed')) {
+           return checkerName ? `Người kiểm tra: ${checkerName}` : "";
+       }
        if (label.includes("thẩm tra") || label.includes("kiểm tra")) {
-           return checkerName || "";
+           return checkerName ? `Người kiểm tra: ${checkerName}` : "";
        }
        if (label.includes("trình ký") || label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
-           return directorName || "";
+           return directorName ? `Lãnh đạo trình ký: ${directorName}` : "";
        }
        if (label.includes("ký duyệt")) {
-           return directorName || "";
+           return directorName ? `Người ký duyệt: ${directorName}` : "";
        }
        if (label.includes("vô số")) {
            return assignedName || "";
@@ -2077,40 +2083,38 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                 text: "text-cyan-600"
                                             }
                                         },
-                                        ...((isLuuTru || isDoDac) ? [
-                                            {
-                                                label: "TRÌNH KIỂM TRA",
-                                                date: record.pendingCheckDate,
-                                                icon: Send,
-                                                forceActive: isPendingCheckActive,
-                                                subText: record.pendingCheckDate ? (() => {
-                                                    const checker = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
-                                                    if (checker) return `${checker.name}`;
-                                                    return undefined;
-                                                })() : undefined,
-                                                colorClass: {
-                                                    border: "border-orange-500 text-orange-600",
-                                                    bg: "bg-orange-500",
-                                                    text: "text-orange-600"
-                                                }
-                                            },
-                                            {
-                                                label: "ĐÃ KIỂM TRA",
-                                                date: record.checkedDate,
-                                                icon: CheckSquare,
-                                                forceActive: isCheckedActive,
-                                                subText: record.checkedDate && record.checkedBy ? (() => {
-                                                    const checker = employees.find(e => e.id === record.checkedBy);
-                                                    if (!checker) return undefined;
-                                                    return `${checker.name}`;
-                                                 })() : undefined,
-                                                colorClass: {
-                                                    border: "border-orange-500 text-orange-600",
-                                                    bg: "bg-orange-500",
-                                                    text: "text-orange-600"
-                                                }
+                                        {
+                                            label: "TRÌNH KIỂM TRA",
+                                            date: record.pendingCheckDate,
+                                            icon: Send,
+                                            forceActive: isPendingCheckActive,
+                                            subText: record.pendingCheckDate ? (() => {
+                                                const checker = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
+                                                if (checker) return `${checker.name}`;
+                                                return undefined;
+                                            })() : undefined,
+                                            colorClass: {
+                                                border: "border-orange-500 text-orange-600",
+                                                bg: "bg-orange-500",
+                                                text: "text-orange-600"
                                             }
-                                        ] : []),
+                                        },
+                                        {
+                                            label: "ĐÃ KIỂM TRA",
+                                            date: record.checkedDate,
+                                            icon: CheckSquare,
+                                            forceActive: isCheckedActive,
+                                            subText: record.checkedDate && record.checkedBy ? (() => {
+                                                const checker = employees.find(e => e.id === record.checkedBy);
+                                                if (!checker) return undefined;
+                                                return `${checker.name}`;
+                                             })() : undefined,
+                                            colorClass: {
+                                                border: "border-orange-500 text-orange-600",
+                                                bg: "bg-orange-500",
+                                                text: "text-orange-600"
+                                            }
+                                        },
                                         {
                                             label: "TRÌNH KÝ",
                                             date: record.submissionDate,

@@ -22,3 +22,12 @@ ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "hasDefect" boolean DEFAULT fa
 ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "defectReason" text;
 ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "defectDate" timestamp;
 ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "receiptPhoto" text;
+
+-- 1. Thêm cột trạng thái đồng bộ Một cửa về phòng chuyên môn
+ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "isDeptSynced" boolean DEFAULT false;
+
+-- 2. Thêm các cột bổ sung hữu ích khác để tối ưu tính năng biên lai và từ chối hồ sơ
+ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "receiptType" text;
+ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "paymentAmount" numeric;
+ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "rejectReason" text;
+ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "rejectDate" timestamp;

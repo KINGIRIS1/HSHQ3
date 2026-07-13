@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Employee, RecordFile } from '../types';
 import { X, Check, Search, Users, Compass, FolderOpen, Award, FileCheck, ArrowRight } from 'lucide-react';
 import { removeVietnameseTones } from '../utils/appHelpers';
-import { getEmployeeTeam } from './AssignModal';
+import { getEmployeeTeam, getRoleCategory } from './AssignModal';
 
 interface AssignNextStepModalProps {
   isOpen: boolean;
@@ -97,7 +97,31 @@ export const AssignNextStepModal: React.FC<AssignNextStepModalProps> = ({
 
   // Lọc danh sách nhân viên trong Tổ được chọn dưa theo thanh tìm kiếm
   const filteredEmployeesOfTeam = useMemo(() => {
-    const list = teamsData[selectedTeam] || [];
+    let list = teamsData[selectedTeam] || [];
+    
+    // NẾU khâu tiếp theo là "kiểm tra", "thẩm tra", "ký duyệt" -> Chỉ hiện Tổ trưởng / Tổ phó hoặc Ban Giám đốc tương ứng
+    const labelNorm = removeVietnameseTones(nextStepLabel || '').toLowerCase();
+    const isCheckStep = labelNorm.includes('kiem tra') || labelNorm.includes('tham tra') || labelNorm.includes('tham dinh') || labelNorm.includes('kiem soat') || labelNorm.includes('trinh kiem');
+    if (isCheckStep) {
+      list = list.filter(emp => {
+        const pos = (emp.position || '').toLowerCase().trim();
+        const posNorm = removeVietnameseTones(pos);
+        
+        // Quy ước: Chỉ tổ trưởng hoặc tổ phó
+        const isLeader = posNorm.includes('to truong') || posNorm.includes('truong nhom') || posNorm.includes('truong phong') || posNorm.includes('truong to');
+        const isViceLeader = posNorm.includes('to pho') || posNorm.includes('pho to') || posNorm.includes('pho nhom') || posNorm.includes('pho phong') || posNorm.includes('pho to');
+        
+        // Loại trừ rõ ràng nếu là nhân viên/chuyên viên thông thường nhưng được gán quyền
+        if (posNorm.includes('nhan vien') || posNorm.includes('chuyen vien') || posNorm.includes('can bo') || posNorm.includes('ky thuat vien')) {
+            if (!isLeader && !isViceLeader) {
+                return false;
+            }
+        }
+        
+        return isLeader || isViceLeader;
+      });
+    }
+
     if (!searchTerm.trim()) return list;
     
     return list.filter(e => 
@@ -105,7 +129,7 @@ export const AssignNextStepModal: React.FC<AssignNextStepModalProps> = ({
       (e.department || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (e.position || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [teamsData, selectedTeam, searchTerm]);
+  }, [teamsData, selectedTeam, searchTerm, nextStepLabel]);
 
   // Chia nhân viên trong Tổ thành: Đề xuất đúng địa bàn (Recommended) & Các nhân viên khác (Others)
   const { recommended, others } = useMemo(() => {

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { X, CheckCircle, AlertCircle, FileSignature } from 'lucide-react';
 import { RecordFile, UserRole, User, Employee } from '../../types';
 import { getEmployeeTeam, getRoleCategory } from '../AssignModal';
+import { removeVietnameseTones } from '../../utils/appHelpers';
 
 interface SubmitModalProps {
     isOpen: boolean;
@@ -75,8 +76,21 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ isOpen, onClose, records, onC
                 // Bắt buộc phải thuộc Tổ thụ lý tương ứng với hồ sơ
                 if (!recordTeams.includes(team)) return false;
                 
-                const cat = getRoleCategory(emp.position);
-                return cat.key === 'leader' || cat.key === 'vice_leader';
+                const pos = (emp.position || '').toLowerCase().trim();
+                const posNorm = removeVietnameseTones(pos);
+                
+                // Quy ước: Chỉ tổ trưởng hoặc tổ phó
+                const isLeader = posNorm.includes('to truong') || posNorm.includes('truong nhom') || posNorm.includes('truong phong') || posNorm.includes('truong to');
+                const isViceLeader = posNorm.includes('to pho') || posNorm.includes('pho to') || posNorm.includes('pho nhom') || posNorm.includes('pho phong') || posNorm.includes('pho to');
+                
+                // Loại trừ rõ ràng nếu là nhân viên/chuyên viên thông thường nhưng được gán quyền
+                if (posNorm.includes('nhan vien') || posNorm.includes('chuyen vien') || posNorm.includes('can bo') || posNorm.includes('ky thuat vien')) {
+                    if (!isLeader && !isViceLeader) {
+                        return false;
+                    }
+                }
+                
+                return isLeader || isViceLeader;
             });
             
             const checkersMap = new Map<string, { id: string; name: string; position: string; team: string }>();
@@ -94,9 +108,12 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ isOpen, onClose, records, onC
             return Array.from(checkersMap.values());
         } else {
             // Chế độ trình ký: CHỈ Ban Giám đốc (Huỳnh Duy, Ngô Thị Hồng, Nguyễn Viết Tính)
-            // Không hiện Admin/Subadmin dể gây nhầm lẫn.
+            // Hoặc bất kỳ ai thuộc team "Ban Giám đốc"
             const boardOfDirectorsNames = ['huỳnh duy', 'ngô thị hồng', 'nguyễn viết tính'];
             const eligibleEmployees = employees.filter(emp => {
+                const team = getEmployeeTeam(emp);
+                if (team === 'Ban Giám đốc') return true;
+                
                 const nameLower = (emp.name || '').toLowerCase().trim();
                 return boardOfDirectorsNames.some(name => nameLower.includes(name));
             });

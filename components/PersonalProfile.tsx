@@ -257,6 +257,28 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
       return emp.department?.toLowerCase().includes('đo đạc') || emp.department?.toLowerCase().includes('kỹ thuật') || emp.position?.toLowerCase().includes('đo đạc');
   }, [user.employeeId, employees]);
 
+  const findSubmittedToName = (idOrNameOrUsername: string | undefined | null): string => {
+      if (!idOrNameOrUsername) return "";
+      const query = idOrNameOrUsername.trim().toLowerCase();
+      let foundEmp = employees.find(e => e.id.toLowerCase() === query || e.name.toLowerCase() === query);
+      if (!foundEmp) {
+          const foundUser = users.find(u => 
+              (u.username && u.username.toLowerCase() === query) || 
+              (u.employeeId && u.employeeId.toLowerCase() === query)
+          );
+          if (foundUser && foundUser.employeeId) {
+              foundEmp = employees.find(e => e.id.toLowerCase() === foundUser.employeeId?.toLowerCase());
+          }
+          if (foundUser && !foundEmp) {
+              return foundUser.name;
+          }
+      }
+      if (foundEmp) {
+          return foundEmp.name;
+      }
+      return idOrNameOrUsername;
+  };
+
   // 1. Hồ sơ Đang thực hiện (ASSIGNED, IN_PROGRESS, COMPLETED_WORK, REJECTED, PENDING_SUPPLEMENT)
   const pendingRecords = useMemo(() => {
       let list = myRecords.filter(r => {
@@ -700,6 +722,18 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                         currentStepIndex = helper.currentStepIndex;
                     }
                     extraUpdates.currentStepIndex = currentStepIndex + 1;
+
+                    // Save step assignees history
+                    const stepAssignees = { ...(record.stepAssignees || {}) };
+                    const currentStep = helper.steps[currentStepIndex];
+                    if (currentStep) {
+                        stepAssignees[currentStep.label.toLowerCase().trim()] = record.checkedBy || user.employeeId || "";
+                    }
+                    const nextStep = helper.steps[currentStepIndex + 1];
+                    if (nextStep) {
+                        stepAssignees[nextStep.label.toLowerCase().trim()] = directorId;
+                    }
+                    extraUpdates.stepAssignees = stepAssignees;
                 }
 
                 const updatedRecord = {
@@ -1387,6 +1421,9 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                     {activeTab === 'pending_check' && (
                                         <th className="p-3 w-[150px] text-center">Người kiểm tra</th>
                                     )}
+                                    {activeTab === 'pending_sign' && (
+                                        <th className="p-3 w-[150px] text-center">Lãnh đạo ký duyệt</th>
+                                    )}
 
                                     <th className="p-3 text-center w-[120px]">Trạng thái</th>
                                     <th className="p-3 text-center w-[100px]">Chỉnh lý</th>
@@ -1441,6 +1478,13 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                                 <td className="p-3 text-gray-600 align-middle text-center">
                                                     <div className="truncate text-center" title={r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : ''}>
                                                         {r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : '---'}
+                                                    </div>
+                                                </td>
+                                            )}
+                                            {activeTab === 'pending_sign' && (
+                                                <td className="p-3 text-gray-600 align-middle text-center">
+                                                    <div className="truncate text-center" title={r.submittedTo ? findSubmittedToName(r.submittedTo) : ''}>
+                                                        {r.submittedTo ? findSubmittedToName(r.submittedTo) : '---'}
                                                     </div>
                                                 </td>
                                             )}
@@ -1654,6 +1698,15 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                                 <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Ngày trình ký</span>
                                                 <span className="font-semibold text-slate-700 block">
                                                     {formatDate(r.submissionDate || undefined)}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {activeTab === 'pending_sign' && (
+                                            <div>
+                                                <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Lãnh đạo ký duyệt</span>
+                                                <span className="font-semibold text-slate-700 truncate block font-medium" title={r.submittedTo ? findSubmittedToName(r.submittedTo) : ''}>
+                                                    {r.submittedTo ? findSubmittedToName(r.submittedTo) : '---'}
                                                 </span>
                                             </div>
                                         )}

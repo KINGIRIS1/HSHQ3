@@ -2023,6 +2023,16 @@ function App() {
 
                     if (nextStep.overallStatus === RecordStatus.PENDING_SIGN || nextStep.label.toLowerCase().includes("trình ký") || nextStep.label.toLowerCase().includes("ký duyệt")) {
                         updates.submittedTo = employeeId;
+                        if (!assignNextStepTargetRecord.submissionDate) {
+                            updates.submissionDate = nowStr;
+                        }
+                    }
+
+                    if (nextStep.overallStatus === RecordStatus.PENDING_CHECK || nextStep.label.toLowerCase().includes("trình kiểm tra") || nextStep.label.toLowerCase().includes("thẩm tra")) {
+                        if (!assignNextStepTargetRecord.pendingCheckDate) {
+                            updates.pendingCheckDate = nowStr;
+                        }
+                        updates.checkedBy = employeeId;
                     }
 
                     if (nextStep.overallStatus === RecordStatus.IN_PROGRESS && !assignNextStepTargetRecord.assignedDate) {
