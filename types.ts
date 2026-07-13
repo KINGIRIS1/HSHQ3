@@ -214,6 +214,7 @@ export interface RecordFile {
 
   // Lịch sử người thực hiện từng bước của quy trình
   stepAssignees?: Record<string, string> | null;
+  stepDates?: Record<string, string> | null;
 
   // Diện tích đất chi tiết đóng vai trò phụ
   clnArea?: number | null;

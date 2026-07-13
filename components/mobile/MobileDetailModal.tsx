@@ -966,7 +966,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                        return checkerName || "";
                    }
                    if (label.includes("trình ký gcn") || label.includes("trình ký giấy") || label.includes("trình ký")) {
-                       return directorName || "";
+                       return directorName || assignedName || "";
                    }
                    if (label.includes("vô số")) {
                        return assignedName || "";
@@ -980,7 +980,10 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
 
               const getExecutionDate = (stepLabel: string, stepStatus: RecordStatus) => {
                   if (!record) return null;
-                  const label = stepLabel.toLowerCase();
+                  const label = stepLabel.toLowerCase().trim();
+                  if (record.stepDates && record.stepDates[label]) {
+                      return record.stepDates[label];
+                  }
                   if (label.includes("ranh") || label.includes("dnlis")) {
                       return record.assignedDate;
                   }

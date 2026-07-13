@@ -2021,6 +2021,10 @@ function App() {
                         assignedTo: employeeId
                     };
 
+                    if (nextStep.overallStatus === RecordStatus.PENDING_SIGN || nextStep.label.toLowerCase().includes("trình ký") || nextStep.label.toLowerCase().includes("ký duyệt")) {
+                        updates.submittedTo = employeeId;
+                    }
+
                     if (nextStep.overallStatus === RecordStatus.IN_PROGRESS && !assignNextStepTargetRecord.assignedDate) {
                         updates.assignedDate = nowStr;
                     }

@@ -182,10 +182,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
            return checkerName || "";
        }
        if (label.includes("trình ký") || label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
-           return directorName || "";
+           return directorName || assignedName || "";
        }
        if (label.includes("ký duyệt")) {
-           return directorName || "";
+           return directorName || assignedName || "";
        }
        if (label.includes("vô số")) {
            return assignedName || "";
@@ -228,7 +228,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
 
   const getExecutionDate = (stepLabel: string, stepStatus: RecordStatus) => {
       if (!record) return null;
-      const label = stepLabel.toLowerCase();
+      const label = stepLabel.toLowerCase().trim();
+      
+      if (record.stepDates && record.stepDates[label]) {
+          return record.stepDates[label];
+      }
       
       let date: string | null | undefined = null;
       if (label.includes("ranh") || label.includes("dnlis")) {
@@ -268,53 +272,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
           else if (stepStatus === RecordStatus.RETURNED) date = record.resultReturnedDate;
       }
 
-      if (date) return date;
-
-      // Chronological fallback logic: if this step is active or completed, we interpolate a date
-      const statusOrder = [
-          RecordStatus.RECEIVED,
-          RecordStatus.ASSIGNED,
-          RecordStatus.IN_PROGRESS,
-          RecordStatus.COMPLETED_WORK,
-          RecordStatus.PENDING_CHECK,
-          RecordStatus.CHECKED,
-          RecordStatus.PENDING_SIGN,
-          RecordStatus.SIGNED,
-          RecordStatus.HANDOVER,
-          RecordStatus.RETURNED
-      ];
-      
-      const recordStatusIdx = statusOrder.indexOf(record.status);
-      const stepStatusIdx = statusOrder.indexOf(stepStatus);
-      
-      const isStepActive = stepStatusIdx !== -1 && recordStatusIdx !== -1 && stepStatusIdx <= recordStatusIdx;
-
-      if (!isStepActive) return null;
-
-      // Interpolate from other available dates
-      const actualDates: { [key: string]: string | null | undefined } = {
-          [RecordStatus.RECEIVED]: record.receivedDate,
-          [RecordStatus.ASSIGNED]: record.assignedDate,
-          [RecordStatus.IN_PROGRESS]: record.assignedDate,
-          [RecordStatus.COMPLETED_WORK]: record.completedWorkDate,
-          [RecordStatus.PENDING_CHECK]: record.pendingCheckDate,
-          [RecordStatus.CHECKED]: record.checkedDate,
-          [RecordStatus.PENDING_SIGN]: record.submissionDate,
-          [RecordStatus.SIGNED]: record.approvalDate,
-          [RecordStatus.HANDOVER]: record.completedDate,
-          [RecordStatus.RETURNED]: record.resultReturnedDate
-      };
-
-      if (stepStatusIdx !== -1) {
-          for (let i = stepStatusIdx + 1; i < statusOrder.length; i++) {
-              if (actualDates[statusOrder[i]]) return actualDates[statusOrder[i]];
-          }
-          for (let i = stepStatusIdx - 1; i >= 0; i--) {
-              if (actualDates[statusOrder[i]]) return actualDates[statusOrder[i]];
-          }
-      }
-
-      return record.assignedDate || record.receivedDate;
+      return date || null;
   };
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -1238,53 +1196,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                         else if (stepStatus === RecordStatus.RETURNED) date = record.resultReturnedDate;
                     }
 
-                    if (date) return date;
-
-                    // Chronological fallback logic: if this step is active or completed, we interpolate a date
-                    const statusOrder = [
-                        RecordStatus.RECEIVED,
-                        RecordStatus.ASSIGNED,
-                        RecordStatus.IN_PROGRESS,
-                        RecordStatus.COMPLETED_WORK,
-                        RecordStatus.PENDING_CHECK,
-                        RecordStatus.CHECKED,
-                        RecordStatus.PENDING_SIGN,
-                        RecordStatus.SIGNED,
-                        RecordStatus.HANDOVER,
-                        RecordStatus.RETURNED
-                    ];
-                    
-                    const recordStatusIdx = statusOrder.indexOf(record.status);
-                    const stepStatusIdx = statusOrder.indexOf(stepStatus);
-                    
-                    const isStepActive = stepStatusIdx !== -1 && recordStatusIdx !== -1 && stepStatusIdx <= recordStatusIdx;
-
-                    if (!isStepActive) return null;
-
-                    // Interpolate from other available dates
-                    const actualDates: { [key: string]: string | null | undefined } = {
-                        [RecordStatus.RECEIVED]: record.receivedDate,
-                        [RecordStatus.ASSIGNED]: record.assignedDate,
-                        [RecordStatus.IN_PROGRESS]: record.assignedDate,
-                        [RecordStatus.COMPLETED_WORK]: record.completedWorkDate,
-                        [RecordStatus.PENDING_CHECK]: record.pendingCheckDate,
-                        [RecordStatus.CHECKED]: record.checkedDate,
-                        [RecordStatus.PENDING_SIGN]: record.submissionDate,
-                        [RecordStatus.SIGNED]: record.approvalDate,
-                        [RecordStatus.HANDOVER]: record.completedDate,
-                        [RecordStatus.RETURNED]: record.resultReturnedDate
-                    };
-
-                    if (stepStatusIdx !== -1) {
-                        for (let i = stepStatusIdx + 1; i < statusOrder.length; i++) {
-                            if (actualDates[statusOrder[i]]) return actualDates[statusOrder[i]];
-                        }
-                        for (let i = stepStatusIdx - 1; i >= 0; i--) {
-                            if (actualDates[statusOrder[i]]) return actualDates[statusOrder[i]];
-                        }
-                    }
-
-                    return record.assignedDate || record.receivedDate;
+                    return date || null;
                 };
 
                 if (isGCN) {
@@ -2199,11 +2111,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             date: record.submissionDate,
                                             icon: Send,
                                             forceActive: isPendingSignActive,
-                                            subText: record.submissionDate && record.submittedTo ? (() => {
-                                                const director = users.find(u => u.employeeId === record.submittedTo) || employees.find(e => e.id === record.submittedTo);
-                                                if (!director) return undefined;
-                                                return `${director.name}`;
-                                            })() : undefined,
+                                            subText: record.submissionDate && record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : undefined,
                                             colorClass: {
                                                 border: "border-purple-500 text-purple-600",
                                                 bg: "bg-purple-500",
@@ -2215,11 +2123,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             date: record.approvalDate,
                                             icon: FileSignature,
                                             forceActive: isSignedActive,
-                                            subText: record.approvalDate && record.submittedTo ? (() => {
-                                                const director = users.find(u => u.employeeId === record.submittedTo) || employees.find(e => e.id === record.submittedTo);
-                                                if (!director) return undefined;
-                                                return `${director.name}`;
-                                            })() : undefined,
+                                            subText: record.approvalDate && record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : undefined,
                                             colorClass: {
                                                 border: "border-indigo-500 text-indigo-600",
                                                 bg: "bg-indigo-500",

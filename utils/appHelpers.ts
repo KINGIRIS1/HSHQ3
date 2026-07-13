@@ -667,6 +667,11 @@ export function recordStepAssigneeHistory(record: RecordFile, holidays: Holiday[
     } else {
         cloned.stepAssignees = { ...cloned.stepAssignees };
     }
+    if (!cloned.stepDates) {
+        cloned.stepDates = {};
+    } else {
+        cloned.stepDates = { ...cloned.stepDates };
+    }
 
     if (isRegType(cloned.recordType)) {
         const helper = getGcnWorkflowStepsHelper(cloned, holidays);
@@ -674,6 +679,12 @@ export function recordStepAssigneeHistory(record: RecordFile, holidays: Holiday[
         const currentStep = helper.steps[currentStepIdx];
         if (currentStep) {
             const label = currentStep.label.toLowerCase().trim();
+            
+            // Record current step completion/assignment date if not already recorded
+            if (!cloned.stepDates[label]) {
+                cloned.stepDates[label] = new Date().toISOString();
+            }
+
             if (label.includes("thẩm tra")) {
                 if (cloned.checkedBy) {
                     cloned.stepAssignees[label] = cloned.checkedBy;
@@ -681,6 +692,8 @@ export function recordStepAssigneeHistory(record: RecordFile, holidays: Holiday[
             } else if (label.includes("trình ký") || label.includes("ký duyệt")) {
                 if (cloned.submittedTo) {
                     cloned.stepAssignees[label] = cloned.submittedTo;
+                } else if (cloned.assignedTo) {
+                    cloned.stepAssignees[label] = cloned.assignedTo;
                 }
             } else if (label.includes("nhận hồ sơ") || label.includes("tiếp nhận")) {
                 if (cloned.receivedBy) {
@@ -692,6 +705,17 @@ export function recordStepAssigneeHistory(record: RecordFile, holidays: Holiday[
                 }
             }
         }
+
+        // Synchronize and back-fill dates for safety and backwards compatibility
+        if (cloned.receivedDate && !cloned.stepDates["tiếp nhận"]) cloned.stepDates["tiếp nhận"] = cloned.receivedDate;
+        if (cloned.assignedDate && !cloned.stepDates["giao nhân viên"]) cloned.stepDates["giao nhân viên"] = cloned.assignedDate;
+        if (cloned.completedWorkDate && !cloned.stepDates["đã thực hiện"]) cloned.stepDates["đã thực hiện"] = cloned.completedWorkDate;
+        if (cloned.pendingCheckDate && !cloned.stepDates["trình kiểm tra"]) cloned.stepDates["trình kiểm tra"] = cloned.pendingCheckDate;
+        if (cloned.checkedDate && !cloned.stepDates["đã kiểm tra"]) cloned.stepDates["đã kiểm tra"] = cloned.checkedDate;
+        if (cloned.submissionDate && !cloned.stepDates["trình ký"]) cloned.stepDates["trình ký"] = cloned.submissionDate;
+        if (cloned.approvalDate && !cloned.stepDates["vô số gcn"]) cloned.stepDates["vô số gcn"] = cloned.approvalDate;
+        if (cloned.completedDate && !cloned.stepDates["đã giao 1 cửa"]) cloned.stepDates["đã giao 1 cửa"] = cloned.completedDate;
+        if (cloned.resultReturnedDate && !cloned.stepDates["đã trả kết quả"]) cloned.stepDates["đã trả kết quả"] = cloned.resultReturnedDate;
     }
     return cloned;
 }
