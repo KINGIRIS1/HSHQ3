@@ -2,7 +2,7 @@
 import React from 'react';
 import { RecordFile, RecordStatus, Employee } from '../types';
 import { getNormalizedWard, getShortRecordType } from '../constants';
-import { isRecordOverdue, isRecordApproaching, toTitleCase, findArchiveStaffForWard } from '../utils/appHelpers';
+import { isRecordOverdue, isRecordApproaching, toTitleCase, findArchiveStaffForWard, isArchiveType, isRegType, isMeasurementType } from '../utils/appHelpers';
 import { getEmployeeTeam, getRoleCategory } from './AssignModal';
 import StatusBadge from './StatusBadge';
 import { CheckSquare, Square, AlertCircle, Clock, Eye, ArrowRight, Pencil, Trash2, Bell, FileCheck, Phone, Map, UserPlus } from 'lucide-react';
@@ -104,11 +104,13 @@ const RecordRow: React.FC<RecordRowProps> = ({
     return false;
   }, [currentUser, employees]);
 
+  const isArchived = !!record.archiveBatch || !!record.isArchived;
+
   // Class chung cho các ô: Căn trên (align-top)
   const cellClass = "p-3 align-top";
 
   return (
-    <tr className={`transition-all duration-200 group border-l-4 ${isOverdue ? 'bg-red-50 border-l-red-500 hover:bg-red-100' : isApproaching ? 'bg-orange-50 border-l-orange-500 hover:bg-orange-100' : isSelected ? 'bg-blue-50 border-l-blue-500 hover:bg-blue-100' : 'border-l-transparent hover:bg-blue-50/60 hover:shadow-sm'}`} onDoubleClick={() => onView(record)}>
+    <tr className={`transition-all duration-200 group border-l-4 ${isOverdue ? 'bg-red-50 border-l-red-500 hover:bg-red-100' : isApproaching ? 'bg-orange-50 border-l-orange-500 hover:bg-orange-100' : isSelected ? 'bg-blue-50 border-l-blue-500 hover:bg-blue-100' : isArchived ? 'bg-teal-50/30 border-l-teal-500 hover:bg-teal-100/60' : 'border-l-transparent hover:bg-blue-50/60 hover:shadow-sm'}`} onDoubleClick={() => onView(record)}>
       <td className={`${cellClass} text-center`}>
         <div className="mt-1">
             {canPerformAction ? (
@@ -260,7 +262,25 @@ const RecordRow: React.FC<RecordRowProps> = ({
       
       {visibleColumns.completed && (
         <td className={`${cellClass} text-center text-gray-600`}>
-          {record.exportBatch ? (
+          {record.archiveBatch ? (
+             <div className="flex flex-col items-center gap-1">
+                 <span className="inline-flex flex-col items-center px-2 py-1 rounded border bg-teal-50 text-teal-700 border-teal-200">
+                    <span className="text-[11px] font-bold">
+                      {isArchiveType(record.recordType) 
+                        ? 'Lưu kho L.Trữ' 
+                        : isRegType(record.recordType) 
+                        ? 'Lưu kho C.Giấy' 
+                        : 'Lưu kho Đ.Đạc'} - Đợt {record.archiveBatch}
+                    </span>
+                    <span className="text-[11px] font-medium whitespace-nowrap">{formatDate(record.archiveDate)}</span>
+                 </span>
+                 {record.exportBatch && (
+                     <span className="text-[10px] text-gray-500 font-medium bg-gray-50 px-1 rounded border border-gray-100">
+                         Giao 1C: Đợt {record.exportBatch} ({formatDate(record.exportDate)})
+                     </span>
+                 )}
+             </div>
+          ) : record.exportBatch ? (
              <span className={`inline-flex flex-col items-center px-2 py-1 rounded border ${record.status === RecordStatus.WITHDRAWN ? 'bg-slate-100 text-slate-700 border-slate-300' : (record.status === RecordStatus.REJECTED || record.hasDefect) ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
                 <span className="text-[11px] font-bold">{(record.status === RecordStatus.REJECTED || record.hasDefect) ? 'HS Trả - Đợt ' : 'Đợt '}{record.exportBatch}{record.status === RecordStatus.RETURNED ? ' (DD-LT)' : ''}</span>
                 <span className="text-[11px] font-medium whitespace-nowrap">{formatDate(record.exportDate || record.completedDate)}</span>
@@ -320,13 +340,27 @@ const RecordRow: React.FC<RecordRowProps> = ({
       {visibleColumns.status && (
         <td className={`${cellClass} text-center`}>
             {record.resultReturnedDate ? (
-                <span className="inline-flex flex-col items-center px-2 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 w-full leading-tight">
-                    <span>Đã trả KQ</span>
-                    <span className="text-[10px] font-normal">{resultReturnedDateStr}</span>
-                </span>
+                <div className="flex flex-col gap-1 items-center">
+                    <span className="inline-flex flex-col items-center px-2 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 w-full leading-tight">
+                        <span>Đã trả KQ</span>
+                        <span className="text-[10px] font-normal">{resultReturnedDateStr}</span>
+                    </span>
+                    {record.archiveBatch && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-teal-100 text-teal-800 border border-teal-200 px-1.5 py-0.5 rounded shadow-sm" title={`Đã chuyển lưu kho đợt ${record.archiveBatch}`}>
+                            <svg className="w-3.5 h-3.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                            <span>
+                              {isArchiveType(record.recordType) 
+                                ? 'LƯU KHO L.TRỮ' 
+                                : isRegType(record.recordType) 
+                                ? 'LƯU KHO C.GIẤY' 
+                                : 'LƯU KHO Đ.ĐẠC'} ĐỢT {record.archiveBatch}
+                            </span>
+                        </span>
+                    )}
+                </div>
             ) : (
                 <div className="transform origin-top pt-1">
-                    <StatusBadge status={displayStatus} recordType={record.recordType} record={record} />
+                    <StatusBadge status={displayStatus} recordType={record.recordType} record={record} employees={employees} />
                     {record.hasDefect && (
                         <span className="mt-1 block text-[10px] font-bold bg-red-50 text-red-700 px-1 py-0.5 rounded border border-red-200">
                             Có sai sót (Trả)
@@ -369,7 +403,9 @@ const RecordRow: React.FC<RecordRowProps> = ({
             {record.status !== RecordStatus.HANDOVER && record.status !== RecordStatus.WITHDRAWN && record.status !== RecordStatus.RETURNED && !record.resultReturnedDate && isStepProgressionAllowed && (
               <button onClick={() => onAdvanceStatus(record)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Chuyển bước"><ArrowRight size={16} /></button>
             )}
-            <button onClick={() => onEdit(record)} className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Sửa"><Pencil size={16} /></button>
+            {!(currentUser?.role === 'ONEDOOR' && (record.isDeptSynced === true || record.status !== RecordStatus.RECEIVED)) && (
+              <button onClick={() => onEdit(record)} className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Sửa"><Pencil size={16} /></button>
+            )}
             {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SUBADMIN') && (
                 <button onClick={() => onDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Xóa"><Trash2 size={16} /></button>
             )}

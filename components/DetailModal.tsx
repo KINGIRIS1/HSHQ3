@@ -503,9 +503,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isSubadmin = currentUser?.role === UserRole.SUBADMIN;
 
-  const canPerformAction = isAdmin || isSubadmin || isOneDoor; // Điều kiện để Sửa, Xóa
-  
-  // Điều kiện để In biên nhận: Chỉ Admin hoặc Một cửa mới được thấy nút này
+  const canPerformAction = isAdmin || isSubadmin || isOneDoor;
+  const isOneDoorAndSynced = currentUser?.role === UserRole.ONEDOOR && (record.isDeptSynced === true || record.status !== RecordStatus.RECEIVED);
+  const canEditRecord = canPerformAction && !isOneDoorAndSynced;
+
   const canPrintReceipt = isAdmin || isOneDoor;
 
   const formatDate = (dateStr?: string | null) => {
@@ -1095,7 +1096,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                     {record.code}
                 </span>
                 <h2 className="text-lg font-bold text-gray-800 uppercase">{record.recordType}</h2>
-                <StatusBadge status={displayStatus} recordType={record.recordType} record={record} />
+                <StatusBadge status={displayStatus} recordType={record.recordType} record={record} employees={employees} />
             </div>
             
             <div className="flex items-center gap-2">
@@ -1152,7 +1153,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                     </button>
                 )}
 
-                {canPerformAction && onEdit && (
+                {canEditRecord && onEdit && (
                     <button onClick={() => { onClose(); onEdit(record); }} className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
                         <Pencil size={20} />
                     </button>
@@ -1547,11 +1548,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                 )}
 
                                                 {/* Hiển thị cán bộ thực hiện/được giao */}
-                                                <div className="mt-1.5 px-1 py-0.5 bg-slate-100 rounded border border-slate-200/50 max-w-[110px] mx-auto">
-                                                    <p className="text-[9px] text-slate-600 font-bold truncate" title={`Cán bộ được giao: ${getStepAssigneeName(s.label, s.status)}`}>
-                                                        👤 {getStepAssigneeName(s.label, s.status) || "Chưa giao"}
-                                                    </p>
-                                                </div>
                                                 {/* Nếu trễ hạn thì hiển thị xuống dưới tên ghi rõ thời gian trễ */}
                                                 {s.isOverdue && s.deadlineDate && (
                                                     <p className="text-[9px] mt-1 text-red-600 font-bold bg-red-50 border border-red-100 rounded px-1 py-0.5 truncate max-w-[110px] mx-auto" title={getOverdueDurationStr(s.deadlineDate)}>
@@ -1582,11 +1578,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                     {/* KHÁCH HÀNG */}
                     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                         <h3 className="text-xs font-bold text-blue-600 uppercase mb-4 flex items-center gap-2 border-l-4 border-blue-600 pl-2">
-                            <UserIcon size={16}/> Thông tin chủ hồ sơ
+                            <UserIcon size={16}/> {record.recordType === '1.2 Công văn' ? 'Thông tin công văn' : 'Thông tin chủ hồ sơ'}
                         </h3>
                         <div className="grid grid-cols-1 gap-4">
                             <div>
-                                <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Chủ sử dụng</label>
+                                <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">
+                                    {record.recordType === '1.2 Công văn' ? 'Số công văn - Đơn vị phát hành' : 'Chủ sử dụng'}
+                                </label>
                                 <p className="text-base font-bold text-gray-800">{record.customerName}</p>
                             </div>
                             <div>
@@ -1629,7 +1627,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                 <div className="grid grid-cols-5 gap-1.5 mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100 text-center">
                                     {record.residentialArea ? (
                                         <div>
-                                            <span className="text-[9px] font-bold text-gray-500 uppercase block">ONT/ODT</span>
+                                            <span className="text-[9px] font-bold text-gray-500 uppercase block">{(record.ward || "").trim().toLowerCase().includes("tân khai") ? "ODT" : "ONT"}</span>
                                             <span className="text-xs font-bold text-slate-800">{record.residentialArea} m²</span>
                                         </div>
                                     ) : null}
@@ -1670,7 +1668,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                             <div className="mt-4 pt-4 border-t border-dashed border-gray-100 grid grid-cols-3 gap-4 animate-fade-in-up">
                                 {record.issueNumber && (
                                     <div>
-                                        <label className="text-[10px] text-emerald-600 uppercase font-bold block mb-1">Số phát hành GCN (Seri phôi)</label>
+                                        <label className="text-[10px] text-emerald-600 uppercase font-bold block mb-1">Số GCN</label>
                                         <p className="font-bold text-emerald-800 bg-emerald-50/50 px-2 py-1 rounded border border-emerald-200 text-center text-xs">{record.issueNumber}</p>
                                     </div>
                                 )}
@@ -1790,7 +1788,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                     {/* NỘI DUNG */}
                     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col">
                         <h3 className="text-xs font-bold text-purple-600 uppercase mb-4 flex items-center gap-2 border-l-4 border-purple-600 pl-2">
-                            <FileText size={16}/> {record.recordType === '1.2 Công văn' ? 'Số VB - Nội dung yêu cầu / Trích yếu' : 'Nội dung chi tiết'}
+                            <FileText size={16}/> {record.recordType === '1.2 Công văn' ? 'Trích yếu' : 'Nội dung chi tiết'}
                         </h3>
                         
                         <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 text-gray-800 text-sm font-medium mb-6 min-h-[80px]">
@@ -2054,9 +2052,18 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                     </div>
                                                     <div className="pb-6 flex-1">
                                                         {/* Line 1: Step Label */}
-                                                        <p className={`text-xs font-bold uppercase mb-0.5 ${isActive ? colorClass.text : 'text-gray-400'}`}>
-                                                            {step.label}
-                                                        </p>
+                                                        <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                                                            <p className={`text-xs font-bold uppercase ${isActive ? colorClass.text : 'text-gray-400'}`}>
+                                                                {step.label}
+                                                            </p>
+                                                            {(step.label.toLowerCase().includes("in gcn") || step.label.toLowerCase().includes("in giấy")) && (
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-bold border border-blue-100">
+                                                                    {['quy_trinh_4', 'quy_trinh_5', 'quy_trinh_6', 'quy_trinh_7'].includes(workflow.type) 
+                                                                        ? "Tính ngày theo quy trình bổ sung (3 ngày)" 
+                                                                        : "Tính ngày theo quy trình chuẩn (5 ngày)"}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         
                                                         {/* Line 2: Ngày giờ giao & Hạn giải quyết */}
                                                         <div className="flex flex-wrap items-center gap-x-3 text-xs text-gray-500 font-medium">

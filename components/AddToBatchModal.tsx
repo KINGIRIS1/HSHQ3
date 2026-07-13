@@ -98,15 +98,17 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
   const nextBatchInfo = useMemo(() => {
       let maxBatch = 0;
       filteredRecordsForBatches.forEach(r => {
-          if (r.exportBatch && r.exportDate && r.exportDate.startsWith(todayStr)) {
-              if (r.exportBatch > maxBatch) maxBatch = r.exportBatch;
+          const batchVal = isReturnedTab ? r.archiveBatch : r.exportBatch;
+          const dateVal = isReturnedTab ? r.archiveDate : r.exportDate;
+          if (batchVal && dateVal && dateVal.startsWith(todayStr)) {
+              if (batchVal > maxBatch) maxBatch = batchVal;
           }
       });
       return {
           batch: maxBatch + 1,
           date: new Date().toISOString() // Dùng ISO đầy đủ cho chính xác
       };
-  }, [filteredRecordsForBatches, todayStr]);
+  }, [filteredRecordsForBatches, todayStr, isReturnedTab]);
 
   // State quản lý danh sách hồ sơ để thay đổi cờ DNLis
   const [localRecords, setLocalRecords] = useState<RecordFile[]>([]);
@@ -189,16 +191,19 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
               ? (r.status === RecordStatus.RETURNED)
               : (r.status === RecordStatus.HANDOVER || r.status === RecordStatus.SIGNED || r.status === RecordStatus.WITHDRAWN || r.status === RecordStatus.REJECTED);
               
-          if (matchStatus && r.exportBatch && r.exportDate) {
-              const datePart = r.exportDate.split('T')[0];
-              const key = `${datePart}_${r.exportBatch}`;
+          const batchVal = isReturnedMode ? r.archiveBatch : r.exportBatch;
+          const dateVal = isReturnedMode ? r.archiveDate : r.exportDate;
+          
+          if (matchStatus && batchVal && dateVal) {
+              const datePart = dateVal.split('T')[0];
+              const key = `${datePart}_${batchVal}`;
               
               if (!batches[key]) {
                   batches[key] = { 
                       date: datePart, 
-                      batch: r.exportBatch, 
+                      batch: batchVal, 
                       count: 0,
-                      fullDate: r.exportDate 
+                      fullDate: dateVal 
                   };
                }
                batches[key].count++;

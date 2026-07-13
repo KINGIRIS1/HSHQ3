@@ -4,7 +4,7 @@ import { STATUS_LABELS } from '../../constants';
 import { isMeasurementType, isRegType, isArchiveType } from '../../utils/appHelpers';
 import { canUserViewRecord } from './MobileSearchTab';
 import { getEmployeeTeam } from '../AssignModal';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { 
   Search, 
   Filter, 
@@ -109,7 +109,20 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
 
     setTimeout(async () => {
       try {
-        const html5QrCode = new Html5Qrcode(scannerId);
+        const html5QrCode = new Html5Qrcode(scannerId, {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODABAR
+          ],
+          verbose: false
+        });
         qrCodeInstanceRef.current = html5QrCode;
 
         const config = { 
@@ -199,10 +212,13 @@ const MobileRecordList: React.FC<MobileRecordListProps> = ({
       if (activeDept === 'luutru' && !isArchiveType(r.recordType)) return false;
       if (activeDept === 'other' && (isMeasurementType(r.recordType) || isRegType(r.recordType) || isArchiveType(r.recordType))) return false;
 
-      // 2. Lọc theo từ khóa tìm kiếm
+      // 2. Lọc theo từ khóa tìm kiếm (mở rộng thêm số biên nhận, số phát hành, số vào sổ)
       const matchesSearch = 
         r.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.receiptNumber && r.receiptNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (r.issueNumber && r.issueNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (r.entryNumber && r.entryNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (r.phoneNumber && r.phoneNumber.includes(searchTerm));
       
       // 3. Lọc theo xã phường

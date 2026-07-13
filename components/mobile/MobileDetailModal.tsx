@@ -166,6 +166,8 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isSubadmin = currentUser?.role === UserRole.SUBADMIN;
   const canPerformAction = isAdmin || isSubadmin || isOneDoor;
+  const isOneDoorAndSynced = currentUser?.role === UserRole.ONEDOOR && (record.isDeptSynced === true || record.status !== RecordStatus.RECEIVED);
+  const canEditRecord = canPerformAction && !isOneDoorAndSynced;
   const canPrintReceipt = isAdmin || isOneDoor;
 
   const formatDate = (dateStr?: string | null) => {
@@ -567,7 +569,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {canPerformAction && onEdit && (
+          {canEditRecord && onEdit && (
             <button onClick={() => { onClose(); onEdit(record); }} className="p-2 text-slate-400 active:text-blue-600">
               <Pencil size={20} />
             </button>
@@ -666,7 +668,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                       }
                       return r.status;
                   };
-                  return <StatusBadge status={getDisplayStatus(record)} recordType={record.recordType} record={record} />;
+                  return <StatusBadge status={getDisplayStatus(record)} recordType={record.recordType} record={record} employees={employees} />;
                 })()}
               </div>
               <div className="flex items-center gap-3">
@@ -1103,9 +1105,18 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                             </div>
                             <div className="pb-6 flex-1">
                               {/* Line 1: Step Label */}
-                              <p className={`text-xs font-bold uppercase mb-0.5 ${isActive ? colorClass.text : 'text-gray-400'}`}>
-                                {step.label}
-                              </p>
+                              <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                                <p className={`text-xs font-bold uppercase ${isActive ? colorClass.text : 'text-gray-400'}`}>
+                                  {step.label}
+                                </p>
+                                {(step.label.toLowerCase().includes("in gcn") || step.label.toLowerCase().includes("in giấy")) && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-bold border border-blue-100">
+                                    {['quy_trinh_4', 'quy_trinh_5', 'quy_trinh_6', 'quy_trinh_7'].includes(workflow.type) 
+                                      ? "Tính ngày theo quy trình bổ sung (3 ngày)" 
+                                      : "Tính ngày theo quy trình chuẩn (5 ngày)"}
+                                  </span>
+                                )}
+                              </div>
                             
                             {/* Line 2: Ngày giờ giao & Hạn giải quyết */}
                             <div className="flex flex-wrap items-center gap-x-3 text-xs text-gray-500 font-medium">

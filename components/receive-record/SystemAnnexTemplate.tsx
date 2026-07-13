@@ -72,7 +72,7 @@ const SystemAnnexTemplate: React.FC<SystemAnnexTemplateProps> = ({ data, employe
         return 'Xã';
     };
 
-    const [customerName, setCustomerName] = useState<string>((data.customerName || '').toUpperCase());
+    const [customerName, setCustomerName] = useState<string>(data.customerName || '');
     const [address, setAddress] = useState<string>(data.address || data.customerAddress || (data.ward ? `${getWardPrefix(data.ward)} ${getNormalizedWard(data.ward)}` : ''));
     const [phone, setPhone] = useState<string>(data.phoneNumber || '');
     const [contractCode, setContractCode] = useState<string>(data.code || '');
@@ -682,11 +682,11 @@ const SystemAnnexTemplate: React.FC<SystemAnnexTemplateProps> = ({ data, employe
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-600 mb-1">Đại diện Bên A (TÊN VIẾT HOA)</label>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">Đại diện Bên A</label>
                                 <input 
                                     type="text" 
                                     value={customerName} 
-                                    onChange={(e) => setCustomerName(e.target.value.toUpperCase())}
+                                    onChange={(e) => setCustomerName(e.target.value)}
                                     className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-pink-500"
                                 />
                             </div>

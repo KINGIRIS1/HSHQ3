@@ -10,7 +10,7 @@ import {
 import { useArchiveRealtime } from "../../hooks/useArchiveRealtime";
 import { User, RecordFile, RecordStatus } from "../../types";
 import { fetchRecords, updateRecordApi, createRecordApi } from "../../services/apiRecords";
-import { isRegType, getDisplayNotes } from "../../utils/appHelpers";
+import { isRegType, getDisplayNotes, updateNotesWithDisplayText } from "../../utils/appHelpers";
 import {
   Loader2,
   Plus,
@@ -210,6 +210,112 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
       ? new Date(record.issueDate).toISOString().split('T')[0] 
       : "";
 
+    // Parse extra data from notes if they exist
+    let ownerRows: any[] = [];
+    let receiverRows: any[] = [];
+    let landAreaRows: any[] = [];
+    let isApplicantOwner = false;
+    if (record.notes) {
+      try {
+        const parsed = JSON.parse(record.notes);
+        if (parsed.ownerRows && Array.isArray(parsed.ownerRows)) {
+          ownerRows = parsed.ownerRows;
+        }
+        if (parsed.receiverRows && Array.isArray(parsed.receiverRows)) {
+          receiverRows = parsed.receiverRows;
+        }
+        if (parsed.landAreaRows && Array.isArray(parsed.landAreaRows)) {
+          landAreaRows = parsed.landAreaRows;
+        }
+        if (parsed.isApplicantOwner !== undefined) {
+          isApplicantOwner = !!parsed.isApplicantOwner;
+        }
+      } catch (e) {
+        // notes is not JSON
+      }
+    }
+
+    // Determine target rows for owner details
+    const targetRows = (isApplicantOwner && receiverRows.length > 0) ? receiverRows : ownerRows;
+    let combinedOwner = "";
+    if (targetRows.length > 0) {
+      combinedOwner = targetRows
+        .filter((row: any) => row && row.name && row.name.trim() !== "")
+        .map((row: any) => {
+          let str = row.name.trim();
+          if (row.cccd) {
+            str += `\nCCCD: ${row.cccd.trim()}`;
+          }
+          const addr = (row.address || record.customerAddress || "").trim();
+          if (addr) {
+            str += `\nĐịa chỉ: ${addr}`;
+          }
+          return str;
+        })
+        .join("\n\n");
+    } else {
+      combinedOwner = record.customerName || "";
+      if (record.cccd) {
+        combinedOwner += `\nCCCD: ${record.cccd}`;
+      }
+      if (record.customerAddress) {
+        combinedOwner += `\nĐịa chỉ: ${record.customerAddress}`;
+      }
+    }
+
+    // Format land details
+    let landDetailsStr = "";
+    if (landAreaRows && landAreaRows.length > 0) {
+      landDetailsStr = landAreaRows
+        .filter((row: any) => row && row.area !== "" && parseFloat(row.area) > 0)
+        .map((row: any) => {
+          let type = row.type || "";
+          if (type === "ONT/ODT" || type.toLowerCase().includes("đất ở")) {
+            type = (record.ward || "").trim().toLowerCase().includes("tân khai") ? "ODT" : "ONT";
+          }
+          return `${type}: ${row.area} m²`;
+        })
+        .join(", ");
+    } else {
+      const parts = [];
+      const landType = (record.ward || "").trim().toLowerCase().includes("tân khai") ? "ODT" : "ONT";
+      if (record.residentialArea) parts.push(`${landType}: ${record.residentialArea} m²`);
+      if (record.clnArea) parts.push(`CLN: ${record.clnArea} m²`);
+      if (record.bhkArea) parts.push(`BHK: ${record.bhkArea} m²`);
+      if (record.lucArea) parts.push(`LUC: ${record.lucArea} m²`);
+      if (record.otherLandArea) parts.push(`Khác: ${record.otherLandArea} m²`);
+      landDetailsStr = parts.join(", ");
+    }
+
+    let areaVal = record.area ? String(record.area) : "";
+    let resAreaVal = record.residentialArea ? String(record.residentialArea) : "";
+
+    if ((!areaVal || areaVal === "0" || areaVal === "") && landDetailsStr) {
+      const matches = landDetailsStr.match(/[\d.]+/g);
+      if (matches) {
+        let sum = 0;
+        matches.forEach((m: string) => {
+          const val = parseFloat(m);
+          if (!isNaN(val)) sum += val;
+        });
+        if (sum > 0) areaVal = String(sum);
+      }
+    }
+    if ((!resAreaVal || resAreaVal === "0" || resAreaVal === "") && landDetailsStr) {
+      const parts = landDetailsStr.split(",");
+      let sumThoCu = 0;
+      parts.forEach((p: string) => {
+        if (p.toLowerCase().includes("ont") || p.toLowerCase().includes("odt") || p.toLowerCase().includes("đất ở") || p.toLowerCase().includes("đất ở")) {
+          const m = p.match(/[\d.]+/);
+          if (m) {
+            const val = parseFloat(m[0]);
+            if (!isNaN(val)) sumThoCu = val;
+          }
+        }
+      });
+      if (sumThoCu > 0) resAreaVal = String(sumThoCu);
+    }
+
     if (linkingRowId) {
       // Case 1: Linking an existing row
       setRecords((prev) =>
@@ -218,17 +324,18 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
             const updatedData = {
               ...r.data,
               ma_ho_so: record.code || "",
-              ten_chu_su_dung: record.customerName || "",
+              ten_chu_su_dung: combinedOwner,
               loai_bien_dong: record.recordType || "",
               ngay_nhan: formattedReceivedDate,
               so_to: record.mapSheet || "",
               so_thua: record.landPlot || "",
-              tong_dien_tich: record.area ? String(record.area) : "",
-              dien_tich_tho_cu: record.residentialArea ? String(record.residentialArea) : "",
+              tong_dien_tich: areaVal,
+              dien_tich_tho_cu: resAreaVal,
               dia_danh: record.ward || "",
               so_phat_hanh: record.issueNumber || "",
               ngay_ky_gcn: formattedIssueDate,
               ghi_chu: record.notes || "",
+              land_details: landDetailsStr,
             };
             
             // Save to database
@@ -253,19 +360,20 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
         data: {
           so_vao_so: "",
           ma_ho_so: record.code || "",
-          ten_chu_su_dung: record.customerName || "",
+          ten_chu_su_dung: combinedOwner,
           loai_bien_dong: record.recordType || "",
           loai_gcn: "GCN mới",
           ngay_nhan: formattedReceivedDate,
           so_to: record.mapSheet || "",
           so_thua: record.landPlot || "",
-          tong_dien_tich: record.area ? String(record.area) : "",
-          dien_tich_tho_cu: record.residentialArea ? String(record.residentialArea) : "",
+          tong_dien_tich: areaVal,
+          dien_tich_tho_cu: resAreaVal,
           dia_danh: record.ward || "",
           so_phat_hanh: record.issueNumber || "",
           ngay_ky_gcn: formattedIssueDate,
           ngay_ky_phieu_tk: "",
           ghi_chu: record.notes || "",
+          land_details: landDetailsStr,
         },
       };
 
@@ -381,11 +489,118 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
     }
   };
 
+  const getLandMap = (recordData: any) => {
+    const details = recordData?.land_details || "";
+    const thocu = recordData?.dien_tich_tho_cu || "";
+    const ward = recordData?.dia_danh || "";
+    const isTanKhai = (ward || "").trim().toLowerCase().includes("tân khai");
+    const resType = isTanKhai ? "ODT" : "ONT";
+
+    const result: { [key: string]: number } = {};
+
+    if (details && details.trim()) {
+      const parts = details.split(",");
+      parts.forEach((part: string) => {
+        const match = part.match(/([^:]+):\s*([\d.]+)/);
+        if (match) {
+          let type = match[1].trim().toUpperCase();
+          if (
+            type === "ONT/ODT" ||
+            type.includes("ĐẤT Ở") ||
+            type.includes("THỔ CƯ") ||
+            type === "ONT" ||
+            type === "ODT"
+          ) {
+            type = resType;
+          }
+          if (type === "LUC") {
+            type = "LUK";
+          }
+          const area = parseFloat(match[2].trim());
+          if (!isNaN(area) && area > 0) {
+            result[type] = (result[type] || 0) + area;
+          }
+        }
+      });
+    }
+
+    const thocuVal = parseFloat(thocu);
+    if (!isNaN(thocuVal) && thocuVal > 0) {
+      if (!result[resType]) {
+        result[resType] = thocuVal;
+      }
+    }
+
+    return result;
+  };
+
+  const handleLandTypeChange = (recordId: string, type: string, valueStr: string) => {
+    setRecords((prev) =>
+      prev.map((r) => {
+        if (r.id === recordId) {
+          const currentMap = getLandMap(r.data);
+          const isTanKhai = (r.data?.dia_danh || "").trim().toLowerCase().includes("tân khai");
+          const resType = isTanKhai ? "ODT" : "ONT";
+          
+          const cleanVal = parseFloat(valueStr);
+          if (isNaN(cleanVal) || cleanVal <= 0) {
+            delete currentMap[type];
+          } else {
+            currentMap[type] = cleanVal;
+          }
+
+          const parts: string[] = [];
+          let sumTotal = 0;
+          let thoCuVal = 0;
+
+          const sortedKeys = Object.keys(currentMap).sort((a, b) => {
+            const order = [resType, "CLN", "BHK", "LUK"];
+            const idxA = order.indexOf(a);
+            const idxB = order.indexOf(b);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return a.localeCompare(b);
+          });
+
+          sortedKeys.forEach((k) => {
+            const area = currentMap[k];
+            if (area > 0) {
+              parts.push(`${k}: ${area} m²`);
+              sumTotal += area;
+              if (k === "ONT" || k === "ODT") {
+                thoCuVal = area;
+              }
+            }
+          });
+
+          const newLandDetails = parts.join(", ");
+          const newTong = sumTotal > 0 ? String(parseFloat(sumTotal.toFixed(4))) : "";
+          const newThoCu = thoCuVal > 0 ? String(parseFloat(thoCuVal.toFixed(4))) : "";
+
+          return {
+            ...r,
+            data: {
+              ...r.data,
+              land_details: newLandDetails,
+              tong_dien_tich: newTong,
+              dien_tich_tho_cu: newThoCu
+            }
+          };
+        }
+        return r;
+      })
+    );
+  };
+
   const handleCellChange = (id: string, key: string, value: string) => {
     setRecords((prev) =>
       prev.map((r) => {
         if (r.id === id) {
-          return { ...r, data: { ...r.data, [key]: value } };
+          const newVal = key === "ghi_chu" 
+            ? updateNotesWithDisplayText(r.data?.ghi_chu, value) 
+            : value;
+          return { ...r, data: { ...r.data, [key]: newVal } };
         }
         return r;
       }),
@@ -394,7 +609,64 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
 
   const handleBlur = async (record: ArchiveRecord) => {
     setSavingId(record.id);
-    await saveArchiveRecord(record);
+
+    // Auto populate missing areas from land_details
+    let updatedRecord = { ...record };
+    let hasChanges = false;
+    
+    if (updatedRecord.data) {
+      const tong = updatedRecord.data.tong_dien_tich;
+      const thocu = updatedRecord.data.dien_tich_tho_cu;
+      const details = updatedRecord.data.land_details;
+      
+      let newTong = tong;
+      let newThoCu = thocu;
+      
+      if ((!tong || tong === "0" || tong === "") && details) {
+        const matches = details.match(/[\d.]+/g);
+        if (matches) {
+          let sum = 0;
+          matches.forEach((m: string) => {
+            const val = parseFloat(m);
+            if (!isNaN(val)) sum += val;
+          });
+          if (sum > 0) {
+            newTong = String(sum);
+            hasChanges = true;
+          }
+        }
+      }
+      
+      if ((!thocu || thocu === "0" || thocu === "") && details) {
+        const parts = details.split(",");
+        let sumThoCu = 0;
+        parts.forEach((p: string) => {
+          if (p.toLowerCase().includes("ont") || p.toLowerCase().includes("odt") || p.toLowerCase().includes("đất ở") || p.toLowerCase().includes("đất ở")) {
+            const m = p.match(/[\d.]+/);
+            if (m) {
+              const val = parseFloat(m[0]);
+              if (!isNaN(val)) sumThoCu = val;
+            }
+          }
+        });
+        if (sumThoCu > 0) {
+          newThoCu = String(sumThoCu);
+          hasChanges = true;
+        }
+      }
+      
+      if (hasChanges) {
+        updatedRecord.data = {
+          ...updatedRecord.data,
+          tong_dien_tich: newTong,
+          dien_tich_tho_cu: newThoCu
+        };
+        // Also update local state so UI is in sync
+        setRecords(prev => prev.map(r => r.id === record.id ? updatedRecord : r));
+      }
+    }
+
+    await saveArchiveRecord(updatedRecord);
     setSavingId(null);
   };
 
@@ -1012,7 +1284,7 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
     const parseOwners = (val: string) => {
       if (!val) return [{ name: "", cccd: "", address: "" }];
 
-      if (val.includes("\n\n") || val.includes("Địa chỉ:")) {
+      if (val.includes("\n\n") || val.includes("Địa chỉ:") || val.includes("CCCD:")) {
         return val.split("\n\n").map((block) => {
           const lines = block.split("\n");
           let name = lines[0] || "";
@@ -1549,10 +1821,16 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
                             );
                           }
                           if (col.key === "group_thua_dat") {
+                            const landMap = getLandMap(r.data);
+                            const isTanKhai = (r.data?.dia_danh || "").trim().toLowerCase().includes("tân khai");
+                            const resType = isTanKhai ? "ODT" : "ONT";
+                            const standardTypes = [resType, "CLN", "BHK", "LUK"];
+                            const allKeys = Array.from(new Set([...standardTypes, ...Object.keys(landMap)]));
+
                             return (
                               <td
                                 key={`${r.id}-${col.key}`}
-                                className="p-2 border-r border-gray-200 align-top"
+                                className="p-2 border-r border-gray-200 align-top min-w-[200px]"
                               >
                                 {isEditing ? (
                                   <div className="flex flex-col gap-2">
@@ -1594,43 +1872,56 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
                                         />
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex-1">
-                                        <div className="text-xs text-gray-500">
-                                          Tổng DT:
+
+                                    <div className="text-[10px] font-bold text-slate-600 mt-1 uppercase tracking-wider">
+                                      Diện tích theo loại đất:
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-1.5 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                                      {allKeys.map((key) => (
+                                        <div key={key} className="flex flex-col bg-white p-1 rounded border border-slate-150 shadow-sm">
+                                          <span className="text-[9px] font-extrabold text-indigo-700 block uppercase mb-0.5">{key}</span>
+                                          <input
+                                            type="number"
+                                            step="any"
+                                            className="w-full px-1 py-0.5 text-xs border border-gray-200 rounded outline-none focus:ring-1 focus:ring-indigo-500"
+                                            value={landMap[key] !== undefined ? landMap[key] : ""}
+                                            onChange={(e) => handleLandTypeChange(r.id, key, e.target.value)}
+                                            onBlur={() => handleBlur(r)}
+                                            placeholder="0"
+                                          />
                                         </div>
-                                        <input
-                                          type="text"
-                                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 outline-none"
-                                          value={r.data?.tong_dien_tich || ""}
-                                          onChange={(e) =>
-                                            handleCellChange(
-                                              r.id,
-                                              "tong_dien_tich",
-                                              e.target.value,
-                                            )
+                                      ))}
+                                    </div>
+
+                                    {/* Inline Add Custom Land Type */}
+                                    <div className="flex items-center gap-1.5 mt-1 bg-slate-100/80 p-1 rounded border border-slate-200/65">
+                                      <input
+                                        type="text"
+                                        id={`new-land-type-${r.id}`}
+                                        className="w-20 px-1.5 py-0.5 text-[10px] border border-gray-300 rounded uppercase font-bold"
+                                        placeholder="Mã đất mới"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const inputEl = document.getElementById(`new-land-type-${r.id}`) as HTMLInputElement;
+                                          if (inputEl && inputEl.value.trim()) {
+                                            const newType = inputEl.value.trim().toUpperCase();
+                                            handleLandTypeChange(r.id, newType, "0");
+                                            inputEl.value = "";
                                           }
-                                          onBlur={() => handleBlur(r)}
-                                        />
-                                      </div>
-                                      <div className="flex-1">
-                                        <div className="text-xs text-gray-500">
-                                          Đất ở:
-                                        </div>
-                                        <input
-                                          type="text"
-                                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 outline-none"
-                                          value={r.data?.dien_tich_tho_cu || ""}
-                                          onChange={(e) =>
-                                            handleCellChange(
-                                              r.id,
-                                              "dien_tich_tho_cu",
-                                              e.target.value,
-                                            )
-                                          }
-                                          onBlur={() => handleBlur(r)}
-                                        />
-                                      </div>
+                                        }}
+                                        className="px-2 py-0.5 text-[9px] bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold transition-all"
+                                      >
+                                        Thêm loại
+                                      </button>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-2 mt-1 pt-1.5 border-t border-dashed border-gray-200">
+                                      <span className="text-xs font-bold text-gray-700">Tổng diện tích:</span>
+                                      <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                        {r.data?.tong_dien_tich || "0"} m²
+                                      </span>
                                     </div>
                                   </div>
                                 ) : (
@@ -1643,21 +1934,23 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
                                         Thửa: <b>{r.data?.so_thua}</b>
                                       </span>
                                     </div>
-                                    <div className="text-xs text-gray-600 mb-1">
-                                      DT:{" "}
-                                      <b>
+                                    <div className="text-xs text-gray-600 mb-1.5">
+                                      DT (Tổng):{" "}
+                                      <span className="font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
                                         {r.data?.tong_dien_tich
                                           ? `${r.data.tong_dien_tich} m²`
-                                          : ""}
-                                      </b>
+                                          : "0 m²"}
+                                      </span>
                                     </div>
-                                    <div className="text-xs text-gray-600">
-                                      Đất ở:{" "}
-                                      <b>
-                                        {r.data?.dien_tich_tho_cu
-                                          ? `${r.data.dien_tich_tho_cu} m²`
-                                          : ""}
-                                      </b>
+                                    
+                                    {/* Display list of land types with area > 0 */}
+                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                      {Object.entries(landMap).map(([key, area]) => (
+                                        <div key={key} className="flex items-center bg-indigo-50 border border-indigo-100 rounded px-1.5 py-0.5 text-[11px] font-medium text-indigo-700">
+                                          <span className="font-bold uppercase mr-1">{key}:</span>
+                                          <span>{area} m²</span>
+                                        </div>
+                                      ))}
                                     </div>
                                   </>
                                 )}

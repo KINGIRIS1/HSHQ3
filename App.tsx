@@ -7,7 +7,7 @@ import MainLayout from './components/layout/MainLayout';
 import AppRoutes from './components/AppRoutes';
 import AppModals from './components/AppModals';
 
-import { DEFAULT_VISIBLE_COLUMNS, confirmAction, fillTimelineDatesForReturn, removeVietnameseTones, isDefaultTaxProcedure, isRegType, getGcnWorkflowStepsHelper, isArchiveType, isMeasurementType } from './utils/appHelpers';
+import { DEFAULT_VISIBLE_COLUMNS, confirmAction, fillTimelineDatesForReturn, removeVietnameseTones, isDefaultTaxProcedure, isRegType, getGcnWorkflowStepsHelper, isArchiveType, isMeasurementType, recordStepAssigneeHistory } from './utils/appHelpers';
 import { getEmployeeTeam } from './components/AssignModal';
 import { exportReportToExcel, exportReturnedListToExcel } from './utils/excelExport';
 import { generateReport } from './services/geminiService';
@@ -29,6 +29,7 @@ import SubmitModal from './components/receive-record/SubmitModal';
 import GlobalConfirmModal from './components/GlobalConfirmModal';
 import GlobalAlertModal from './components/GlobalAlertModal';
 import RejectReasonModal from './components/receive-record/RejectReasonModal';
+import { AssignNextStepModal } from './components/AssignNextStepModal';
 
 const getGcnWorkflowSteps = (record: RecordFile, holidays: Holiday[] = []) => {
     return getGcnWorkflowStepsHelper(record, holidays).steps;
@@ -101,11 +102,39 @@ function App() {
   const [foilTargetRecord, setFoilTargetRecord] = useState<RecordFile | null>(null);
   const [foilNumber, setFoilNumber] = useState('');
 
+  const [entryBookModalOpen, setEntryBookModalOpen] = useState(false);
+  const [entryBookTargetRecord, setEntryBookTargetRecord] = useState<RecordFile | null>(null);
+  const [entryBookValue, setEntryBookValue] = useState('');
+
+  const [isAssignNextStepModalOpen, setIsAssignNextStepModalOpen] = useState(false);
+  const [assignNextStepTargetRecord, setAssignNextStepTargetRecord] = useState<RecordFile | null>(null);
+  const [assignNextStepLabel, setAssignNextStepLabel] = useState('');
+
   // Helper to calculate the next sequence number for Vào sổ GCN (Sổ vô số cấp giấy)
   const calculateNextVaoSoNumber = async (): Promise<string> => {
       try {
-          const archiveRecords = await fetchArchiveRecords('vaoso');
           let maxNum = 0;
+          
+          // Check from GCN records in current state
+          if (records && records.length > 0) {
+              records.forEach(r => {
+                  const val = r.entryNumber || "";
+                  if (val.startsWith("CN ")) {
+                      const numPart = val.replace("CN ", "");
+                      const num = parseInt(numPart, 10);
+                      if (!isNaN(num) && num > maxNum) {
+                          maxNum = num;
+                      }
+                  } else {
+                      const num = parseInt(val, 10);
+                      if (!isNaN(num) && num > maxNum) {
+                          maxNum = num;
+                      }
+                  }
+              });
+          }
+
+          const archiveRecords = await fetchArchiveRecords('vaoso');
           if (archiveRecords && archiveRecords.length > 0) {
               archiveRecords.forEach(r => {
                   const val = r.data?.so_vao_so || "";
@@ -434,14 +463,17 @@ function App() {
       setRecords(prev => prev.map(r => {
           if (updatedIds.includes(r.id)) {
               const updates = getDynamicUpdates(r);
-              return { ...r, ...updates };
+              const merged = { ...r, ...updates };
+              return recordStepAssigneeHistory(merged, holidays || []);
           }
           return r;
       }));
 
       await Promise.all(assignTargetRecords.map(r => {
           const updates = getDynamicUpdates(r);
-          return updateRecordApi({ ...r, ...updates } as any);
+          const merged = { ...r, ...updates };
+          const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+          return updateRecordApi(withHistory as any);
       }));
 
       setIsAssignModalOpen(false); 
@@ -490,6 +522,16 @@ function App() {
               }
           }
           
+          // Fallback: Nếu không có địa bàn hoặc không tìm thấy cán bộ phụ trách địa bàn cụ thể trong tổ
+          if (!matchedEmp && teamEmployees.length > 0) {
+              // Ưu tiên tìm nhân viên phụ trách chung (managedWards rỗng) trong tổ chuyên môn
+              matchedEmp = teamEmployees.find(emp => !emp.managedWards || emp.managedWards.length === 0);
+              // Nếu không có ai phụ trách chung, lấy chuyên viên đầu tiên của tổ
+              if (!matchedEmp) {
+                  matchedEmp = teamEmployees[0];
+              }
+          }
+          
           if (matchedEmp) {
               let updates: any;
               if (isRegType(r.recordType) && r.currentStepIndex !== undefined && r.currentStepIndex !== null && r.currentStepIndex > 0) {
@@ -516,7 +558,9 @@ function App() {
                   };
               }
               
-              updatedRecords.push({ ...r, ...updates });
+              const merged = { ...r, ...updates };
+              const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+              updatedRecords.push(withHistory);
               assignedCount[matchedEmp.name] = (assignedCount[matchedEmp.name] || 0) + 1;
               autoAssignedCount++;
           } else {
@@ -811,7 +855,8 @@ function App() {
                       }
                   }
               }
-              return { ...r, ...recordUpdates };
+              const merged = { ...r, ...recordUpdates };
+              return recordStepAssigneeHistory(merged, holidays || []);
           });
 
       setRecords(prev => prev.map(r => {
@@ -858,9 +903,11 @@ function App() {
           }
       }
 
-      setRecords(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+      const merged = { ...record, ...updates };
+      const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+      setRecords(prev => prev.map(r => r.id === id ? withHistory : r));
       try { 
-          await updateRecordApi({ ...record, ...updates }); 
+          await updateRecordApi(withHistory); 
       } catch (e) { 
           console.error("Quick update failed", e); 
       }
@@ -893,8 +940,95 @@ function App() {
           const nextIdx = currentIdx + 1;
           if (nextIdx < stepConfigs.length) {
               const nextStep = stepConfigs[nextIdx];
-
               const nextStepLabelLower = nextStep.label.toLowerCase();
+              const currentStepLabelLower = currentStep?.label.toLowerCase() || '';
+
+              // Custom Rules Overrides
+              const isMocKeOrTheChap = currentStepLabelLower.includes("mộc kê") || 
+                                       currentStepLabelLower.includes("moc ke") || 
+                                       currentStepLabelLower.includes("thế chấp") || 
+                                       currentStepLabelLower.includes("the chap");
+
+              const isNiemYet = currentStepLabelLower.includes("niêm yết") || 
+                                currentStepLabelLower.includes("niem yet");
+
+              const isFromVoSoTo1Cua = (currentStepLabelLower.includes("vô số") || currentStepLabelLower.includes("vo so")) && 
+                                       (nextStepLabelLower.includes("1 cửa") || nextStepLabelLower.includes("một cửa") || nextStep.overallStatus === RecordStatus.HANDOVER);
+
+              if (isMocKeOrTheChap || isNiemYet || isFromVoSoTo1Cua) {
+                  const stepAssignees = { ...(record.stepAssignees || {}) };
+                  if (record.assignedTo && currentStep) {
+                      stepAssignees[currentStep.label.toLowerCase().trim()] = record.assignedTo;
+                  }
+
+                  let autoAssignee: string | null | undefined = null;
+                  let successMsg = `Đã chuyển hồ sơ sang bước: ${nextStep.label}`;
+
+                  if (isNiemYet) {
+                      if (currentIdx > 0) {
+                          for (let i = currentIdx - 1; i >= 0; i--) {
+                              const prevLabel = stepConfigs[i].label.toLowerCase().trim();
+                              if (record.stepAssignees?.[prevLabel]) {
+                                  autoAssignee = record.stepAssignees[prevLabel];
+                                  break;
+                              }
+                          }
+                      }
+                      if (!autoAssignee) {
+                          autoAssignee = record.assignedTo;
+                      }
+                      if (autoAssignee) {
+                          stepAssignees[nextStep.label.toLowerCase().trim()] = autoAssignee;
+                          const empName = employees.find(e => e.id === autoAssignee)?.name || "nhân viên thụ lý trước đó";
+                          successMsg = `Đã chuyển hồ sơ sang bước: ${nextStep.label} và tự động giao cho ${empName}`;
+                      } else {
+                          successMsg = `Đã chuyển hồ sơ sang bước: ${nextStep.label} (chưa có nhân viên thụ lý trước đó)`;
+                      }
+                  } else if (isMocKeOrTheChap) {
+                      successMsg = `Đã hoàn thành bước: ${currentStep?.label} và chuyển hồ sơ về trạng thái Chờ giao việc cho bước tiếp theo: ${nextStep.label}`;
+                  } else if (isFromVoSoTo1Cua) {
+                      successMsg = `Đã hoàn thành vô số, chuyển hồ sơ sang bước: ${nextStep.label}`;
+                  }
+
+                  const updates: any = {
+                      currentStepIndex: nextIdx,
+                      status: nextStep.overallStatus,
+                      stepAssignees,
+                      assignedTo: autoAssignee
+                  };
+
+                  if (nextStep.overallStatus === RecordStatus.IN_PROGRESS && !record.assignedDate && autoAssignee) {
+                      updates.assignedDate = nowStr;
+                  }
+                  if (nextStep.overallStatus === RecordStatus.COMPLETED_WORK && !record.completedWorkDate) {
+                      updates.completedWorkDate = nowStr;
+                  }
+                  if ((nextStep.overallStatus as any) === RecordStatus.PENDING_CHECK && !record.pendingCheckDate) {
+                      updates.pendingCheckDate = nowStr;
+                  }
+                  if (nextStep.overallStatus === RecordStatus.CHECKED) {
+                      updates.checkedDate = nowStr;
+                      updates.checkedBy = record.checkedBy || currentUser?.employeeId || null;
+                  }
+                  if ((nextStep.overallStatus as any) === RecordStatus.PENDING_SIGN && !record.submissionDate) {
+                      updates.submissionDate = nowStr;
+                  }
+                  if (nextStep.overallStatus === RecordStatus.SIGNED && !record.approvalDate) {
+                      updates.approvalDate = nowStr;
+                  }
+                  if (nextStep.overallStatus === RecordStatus.HANDOVER && !record.completedDate) {
+                      updates.completedDate = nowStr;
+                  }
+
+                  const merged = { ...record, ...updates };
+                  const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+                  setRecords(prev => prev.map(r => r.id === record.id ? withHistory : r));
+                  await updateRecordApi(withHistory);
+                  setToast({ type: 'success', message: successMsg });
+                  loadData();
+                  return;
+              }
+
               if (nextStep.overallStatus === RecordStatus.PENDING_CHECK && !nextStepLabelLower.includes("in gcn") && !nextStepLabelLower.includes("in giấy") && !nextStepLabelLower.includes("in giấy")) {
                   setSubmitTargetRecords([record]);
                   setIsSubmitCheckModalOpen(true);
@@ -906,11 +1040,27 @@ function App() {
                   return;
               }
 
-              const currentStepLabelLower = currentStep?.label.toLowerCase() || '';
               if (currentStep && (currentStepLabelLower.includes("in gcn") || currentStepLabelLower.includes("in giấy") || currentStepLabelLower.includes("in bản đồ"))) {
                   setFoilTargetRecord(record);
                   setFoilNumber(record.issueNumber || '');
                   setFoilModalOpen(true);
+                  return;
+              }
+
+              if (currentStep && (currentStepLabelLower.includes("vô số") || currentStepLabelLower.includes("vo so") || currentStepLabelLower.includes("vào sổ") || currentStepLabelLower.includes("vao so"))) {
+                  setEntryBookTargetRecord(record);
+                  const nextNum = await calculateNextVaoSoNumber();
+                  setEntryBookValue(record.entryNumber || nextNum);
+                  setEntryBookModalOpen(true);
+                  return;
+              }
+
+              const isTerminalStep = nextStep.overallStatus === RecordStatus.RETURNED || nextStepLabelLower.includes("đã trả") || nextStepLabelLower.includes("tra ket qua");
+
+              if (!isTerminalStep) {
+                  setAssignNextStepTargetRecord(record);
+                  setAssignNextStepLabel(nextStep.label);
+                  setIsAssignNextStepModalOpen(true);
                   return;
               }
 
@@ -952,8 +1102,10 @@ function App() {
                   updates.completedDate = nowStr;
               }
 
-              setRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
-              await updateRecordApi({ ...record, ...updates });
+              const merged = { ...record, ...updates };
+              const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+              setRecords(prev => prev.map(r => r.id === record.id ? withHistory : r));
+              await updateRecordApi(withHistory);
 
               setToast({ type: 'success', message: `Đã chuyển hồ sơ sang bước: ${nextStep.label}` });
           } else {
@@ -1012,8 +1164,10 @@ function App() {
               }
 
               const updates = getUpdatesForStatusChange(record, nextStatus);
-              setRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
-              await updateRecordApi({ ...record, ...updates });
+              const merged = { ...record, ...updates };
+              const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+              setRecords(prev => prev.map(r => r.id === record.id ? withHistory : r));
+              await updateRecordApi(withHistory);
               setToast({ type: 'success', message: `Đã chuyển trạng thái hồ sơ sang ${nextStatus}!` });
           }
       }
@@ -1035,8 +1189,11 @@ function App() {
           const updates = targets.map(r => ({
               ...r,
               status: isReturnedMode ? RecordStatus.RETURNED : RecordStatus.HANDOVER,
-              exportBatch: batch,
-              exportDate: date,
+              exportBatch: isReturnedMode ? r.exportBatch : batch,
+              exportDate: isReturnedMode ? r.exportDate : date,
+              archiveBatch: isReturnedMode ? batch : r.archiveBatch,
+              archiveDate: isReturnedMode ? date : r.archiveDate,
+              isArchived: isReturnedMode ? true : r.isArchived,
               completedDate: r.completedDate || nowStr,
               handoverWard: handoverWard || r.handoverWard || null
           }));
@@ -1045,9 +1202,9 @@ function App() {
           
           if (isReturnedMode) {
               await exportReturnedListToExcel(updates, String(batch), date);
-              setToast({ type: 'success', message: `Đã chốt đợt trả kết quả số ${batch} và xuất file excel thành công!` });
+              setToast({ type: 'success', message: `Đã chốt danh sách lưu kho đợt ${batch} và xuất file excel thành công!` });
           } else {
-              setToast({ type: 'success', message: `Đã chốt đợt giao nhận số ${batch} thành công!` });
+              setToast({ type: 'success', message: `Đã chốt đợt bàn giao số ${batch} thành công!` });
           }
           setIsAddToBatchModalOpen(false);
           setSelectedRecordIds(new Set());
@@ -1139,8 +1296,10 @@ function App() {
           paymentAmount: paymentAmount,
           completedDate: returnRecord.completedDate || nowStr
       };
-      setRecords(prev => prev.map(r => r.id === returnRecord.id ? { ...r, ...updates } : r));
-      await updateRecordApi({ ...returnRecord, ...updates });
+      const merged = { ...returnRecord, ...updates };
+      const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+      setRecords(prev => prev.map(r => r.id === returnRecord.id ? withHistory : r));
+      await updateRecordApi(withHistory);
       setToast({ type: 'success', message: `Hồ sơ ${returnRecord.code} đã được bàn giao kết quả và cập nhật biên lai/hóa đơn!` });
       setIsReturnModalOpen(false);
       setReturnRecord(null);
@@ -1252,8 +1411,10 @@ function App() {
                                                   submissionDate: nowStr
                                               };
                                               
-                                              setRecords(prev => prev.map(r => r.id === taxTargetRecord.id ? { ...r, ...updates } : r));
-                                              await updateRecordApi({ ...taxTargetRecord, ...updates });
+                                              const merged = { ...taxTargetRecord, ...updates };
+                                              const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+                                              setRecords(prev => prev.map(r => r.id === taxTargetRecord.id ? withHistory : r));
+                                              await updateRecordApi(withHistory);
                                               setToast({ type: 'success', message: `Đã chuyển trình ký thuế và trình lên lãnh đạo thành công!` });
                                               setTaxModalOpen(false);
                                               setTaxTargetRecord(null);
@@ -1324,13 +1485,88 @@ function App() {
                                               issueNumber: foilNumber,
                                               checkedDate: nowStr
                                           };
-                                          setRecords(prev => prev.map(r => r.id === foilTargetRecord.id ? { ...r, ...updates } : r));
-                                          await updateRecordApi({ ...foilTargetRecord, ...updates });
+                                          const merged = { ...foilTargetRecord, ...updates };
+                                          const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+                                          setRecords(prev => prev.map(r => r.id === foilTargetRecord.id ? withHistory : r));
+                                          await updateRecordApi(withHistory);
                                           setToast({ type: 'success', message: `Đã cập nhật số phôi GCN mới và chuyển sang Thẩm tra!` });
                                           setFoilModalOpen(false);
                                           setFoilTargetRecord(null);
                                       }}
                                       className="px-4 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors"
+                                  >
+                                      Xác nhận
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
+              {entryBookModalOpen && entryBookTargetRecord && (
+                  <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
+                      <div className="bg-white rounded-xl shadow-2xl border border-indigo-100 w-full max-w-md overflow-hidden animate-fade-in-up text-left">
+                          <div className="bg-indigo-600 px-5 py-3 text-white font-bold text-sm flex items-center justify-between">
+                               <span>VÀO SỔ CẤP GCN (VÔ SỐ)</span>
+                               <button onClick={() => { setEntryBookModalOpen(false); setEntryBookTargetRecord(null); }} className="text-white/80 hover:text-white font-bold">✕</button>
+                          </div>
+                          <div className="p-5 space-y-4">
+                              <p className="text-xs text-gray-600 leading-relaxed">
+                                  Hệ thống đã tự động tính số vào sổ tiếp theo. Vui lòng xác nhận hoặc điều chỉnh <strong>Số vào sổ cấp GCN</strong> cho hồ sơ <strong>{entryBookTargetRecord.code}</strong>:
+                              </p>
+                              <div>
+                                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Số vào sổ cấp GCN</label>
+                                  <input 
+                                      type="text" 
+                                      value={entryBookValue} 
+                                      onChange={e => setEntryBookValue(e.target.value)} 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-bold text-indigo-900"
+                                      placeholder="Ví dụ: CN 123456"
+                                  />
+                              </div>
+                              <div className="flex justify-end gap-2 pt-2">
+                                  <button
+                                      onClick={() => { setEntryBookModalOpen(false); setEntryBookTargetRecord(null); }}
+                                      className="px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                                  >
+                                      Hủy bỏ
+                                  </button>
+                                  <button
+                                      onClick={async () => {
+                                          if (!entryBookTargetRecord) return;
+                                          if (!entryBookValue || !entryBookValue.trim()) {
+                                              setToast({ type: 'error', message: 'Vui lòng nhập Số vào sổ cấp GCN!' });
+                                              return;
+                                          }
+                                          const nowStr = new Date().toISOString();
+                                          const stepConfigs = getGcnWorkflowSteps(entryBookTargetRecord, holidays);
+                                          let currentStepIndex = entryBookTargetRecord.currentStepIndex;
+                                          if (currentStepIndex === undefined || currentStepIndex === null) {
+                                              const foundIdx = stepConfigs.findIndex(s => {
+                                                  const l = s.label.toLowerCase();
+                                                  return l.includes("vô số") || l.includes("vo so") || l.includes("vào sổ") || l.includes("vao so");
+                                              });
+                                              currentStepIndex = foundIdx !== -1 ? foundIdx : 0;
+                                          }
+                                          const nextStepIndex = currentStepIndex + 1;
+                                          const nextStep = stepConfigs[nextStepIndex];
+                                          const nextStatus = nextStep ? nextStep.overallStatus : RecordStatus.HANDOVER;
+
+                                          const updates = {
+                                              status: nextStatus,
+                                              currentStepIndex: nextStepIndex,
+                                              entryNumber: entryBookValue,
+                                              approvalDate: nowStr
+                                          };
+                                          const merged = { ...entryBookTargetRecord, ...updates };
+                                          const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+                                          setRecords(prev => prev.map(r => r.id === entryBookTargetRecord.id ? withHistory : r));
+                                          await updateRecordApi(withHistory);
+                                          setToast({ type: 'success', message: `Đã hoàn thành Vô số (Số vào sổ: ${entryBookValue}) và chuyển sang bước tiếp theo!` });
+                                          setEntryBookModalOpen(false);
+                                          setEntryBookTargetRecord(null);
+                                      }}
+                                      className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
                                   >
                                       Xác nhận
                                   </button>
@@ -1744,6 +1980,78 @@ function App() {
             onClose={() => { setIsRejectReasonModalOpen(false); setRejectRecordsTarget([]); }}
             record={rejectRecordsTarget}
             onConfirm={(reason) => handleConfirmRejectRecords(rejectRecordsTarget, reason)}
+        />
+
+        <AssignNextStepModal
+            isOpen={isAssignNextStepModalOpen}
+            onClose={() => {
+                setIsAssignNextStepModalOpen(false);
+                setAssignNextStepTargetRecord(null);
+                setAssignNextStepLabel('');
+            }}
+            employees={employees}
+            record={assignNextStepTargetRecord}
+            nextStepLabel={assignNextStepLabel}
+            onConfirm={async (employeeId) => {
+                if (!assignNextStepTargetRecord) return;
+                const nowStr = new Date().toISOString();
+                try {
+                    const helper = getGcnWorkflowStepsHelper(assignNextStepTargetRecord, holidays || []);
+                    const stepConfigs = helper.steps;
+                    let currentIdx = assignNextStepTargetRecord.currentStepIndex;
+                    if (currentIdx === undefined || currentIdx === null || currentIdx >= stepConfigs.length) {
+                        currentIdx = helper.currentStepIndex;
+                    }
+                    const currentStep = stepConfigs[currentIdx];
+                    const nextIdx = currentIdx + 1;
+                    const nextStep = stepConfigs[nextIdx];
+
+                    const stepAssignees = { ...(assignNextStepTargetRecord.stepAssignees || {}) };
+                    if (assignNextStepTargetRecord.assignedTo && currentStep) {
+                        stepAssignees[currentStep.label.toLowerCase().trim()] = assignNextStepTargetRecord.assignedTo;
+                    }
+                    if (nextStep) {
+                        stepAssignees[nextStep.label.toLowerCase().trim()] = employeeId;
+                    }
+
+                    const updates: any = {
+                        currentStepIndex: nextIdx,
+                        status: nextStep.overallStatus,
+                        stepAssignees,
+                        assignedTo: employeeId
+                    };
+
+                    if (nextStep.overallStatus === RecordStatus.IN_PROGRESS && !assignNextStepTargetRecord.assignedDate) {
+                        updates.assignedDate = nowStr;
+                    }
+                    if (nextStep.overallStatus === RecordStatus.COMPLETED_WORK && !assignNextStepTargetRecord.completedWorkDate) {
+                        updates.completedWorkDate = nowStr;
+                    }
+                    if (nextStep.overallStatus === RecordStatus.CHECKED) {
+                        updates.checkedDate = nowStr;
+                        updates.checkedBy = assignNextStepTargetRecord.checkedBy || currentUser?.employeeId || null;
+                    }
+                    if (nextStep.overallStatus === RecordStatus.SIGNED && !assignNextStepTargetRecord.approvalDate) {
+                        updates.approvalDate = nowStr;
+                    }
+                    if (nextStep.overallStatus === RecordStatus.HANDOVER && !assignNextStepTargetRecord.completedDate) {
+                        updates.completedDate = nowStr;
+                    }
+
+                    const merged = { ...assignNextStepTargetRecord, ...updates };
+                    const withHistory = recordStepAssigneeHistory(merged, holidays || []);
+                    setRecords(prev => prev.map(r => r.id === assignNextStepTargetRecord.id ? withHistory : r));
+                    await updateRecordApi(withHistory);
+                    setToast({ type: 'success', message: `Đã chuyển hồ sơ sang bước: ${nextStep.label} và giao cho ${employees.find(e => e.id === employeeId)?.name}` });
+                    setIsAssignNextStepModalOpen(false);
+                    setAssignNextStepTargetRecord(null);
+                    setAssignNextStepLabel('');
+                    loadData();
+                } catch (error) {
+                    console.error("Lỗi khi chuyển bước với nhân viên thụ lý:", error);
+                    setToast({ type: 'error', message: 'Có lỗi xảy ra khi chuyển bước.' });
+                }
+            }}
         />
 
         {toast && (

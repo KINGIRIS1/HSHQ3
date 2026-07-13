@@ -414,7 +414,25 @@ export const useAppData = (currentUser: User | null) => {
         } else {
             const generatedId = recordData.id || (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9));
             const finalCode = recordData.code || `${new Date().getFullYear().toString().slice(-2)}${('0' + (new Date().getMonth() + 1)).slice(-2)}${('0' + new Date().getDate()).slice(-2)}-TEMP${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`;
-            const offlineNewRec = { ...recordData, id: generatedId, code: finalCode };
+            
+            let statusToSet = recordData.status || RecordStatus.RECEIVED;
+            let stepIndexToSet = recordData.currentStepIndex ?? 0;
+            let assignedDateToSet = recordData.assignedDate;
+
+            if (isRegType(recordData.recordType) && statusToSet === RecordStatus.RECEIVED) {
+                statusToSet = RecordStatus.IN_PROGRESS;
+                stepIndexToSet = 1;
+                assignedDateToSet = recordData.receivedDate || new Date().toISOString().split('T')[0];
+            }
+
+            const offlineNewRec = { 
+                ...recordData, 
+                id: generatedId, 
+                code: finalCode,
+                status: statusToSet,
+                currentStepIndex: stepIndexToSet,
+                assignedDate: assignedDateToSet
+            };
             
             const newRecord = await createRecordApi(offlineNewRec);
             if (newRecord) {

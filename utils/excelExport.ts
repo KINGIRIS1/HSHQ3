@@ -2,7 +2,7 @@
 import * as XLSX from 'xlsx-js-style';
 import { RecordFile, RecordStatus, Employee } from '../types';
 import { getNormalizedWard, getShortRecordType, STATUS_LABELS } from '../constants';
-import { isRecordOverdue, removeVietnameseTones, getDisplayNotes } from './appHelpers';
+import { isRecordOverdue, removeVietnameseTones, getDisplayNotes, isArchiveType, isRegType, isMeasurementType } from './appHelpers';
 import { fetchContracts } from '../services/api';
 
 export const exportReportToExcel = async (
@@ -502,8 +502,30 @@ export const exportReturnedListToExcel = (records: RecordFile[], fromDateStr?: s
         getDisplayNotes(r.notes)
     ]);
 
+    // Tự động nhận diện nhóm chuyên môn từ danh sách hồ sơ để phân tách
+    const firstRec = sortedRecords[0];
+    let deptName = "";
+    let deptCode = "Tat_Ca";
+    if (firstRec) {
+        if (isArchiveType(firstRec.recordType)) {
+            deptName = "TỔ LƯU TRỮ";
+            deptCode = "Luu_Tru";
+        } else if (isRegType(firstRec.recordType)) {
+            deptName = "TỔ CẤP GIẤY";
+            deptCode = "Cap_Giay";
+        } else if (isMeasurementType(firstRec.recordType)) {
+            deptName = "TỔ ĐO ĐẠC";
+            deptCode = "Do_Dac";
+        }
+    }
+
+    const isBatchExport = records.every(r => r.archiveBatch !== undefined && r.archiveBatch !== null);
+
     let displayDate = "";
-    if (fromDateStr && toDateStr && fromDateStr !== toDateStr) {
+    if (isBatchExport) {
+        const batchNum = records[0]?.archiveBatch || fromDateStr || "1";
+        displayDate = `ĐỢT CHỐT: ĐỢT ${batchNum} (${formatDate(records[0]?.archiveDate || toDateStr || new Date().toISOString())})`;
+    } else if (fromDateStr && toDateStr && fromDateStr !== toDateStr) {
         displayDate = `TỪ NGÀY ${formatDate(fromDateStr)} ĐẾN NGÀY ${formatDate(toDateStr)}`;
     } else if (fromDateStr) {
         displayDate = `NGÀY ${formatDate(fromDateStr)}`;
@@ -511,7 +533,13 @@ export const exportReturnedListToExcel = (records: RecordFile[], fromDateStr?: s
         displayDate = `TÍNH ĐẾN NGÀY ${new Date().toLocaleDateString('vi-VN')}`;
     }
 
-    let title = "DANH SÁCH HỒ SƠ ĐÃ TRẢ KẾT QUẢ";
+    let title = isBatchExport 
+        ? "DANH SÁCH BÀN GIAO HỒ SƠ GỐC VỀ KHO LƯU TRỮ" 
+        : "DANH SÁCH HỒ SƠ ĐÃ TRẢ KẾT QUẢ";
+
+    if (deptName) {
+        title += ` - ${deptName}`;
+    }
     if (wardName && wardName !== 'all') {
         title += ` - ${wardName.toUpperCase()}`;
     }
@@ -602,13 +630,20 @@ export const exportReturnedListToExcel = (records: RecordFile[], fromDateStr?: s
     if(ws[leftTitle]) ws[leftTitle].s = footerTitleStyle;
     if(ws[rightTitle]) ws[rightTitle].s = footerTitleStyle;
 
-    XLSX.utils.book_append_sheet(wb, ws, "DS_Tra_KQ");
+    const sheetName = isBatchExport ? `Dot_${records[0]?.archiveBatch || fromDateStr || "1"}` : "DS_Tra_KQ";
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
     
-    let safeName = 'Tat_Ca';
-    if (wardName && wardName !== 'all') {
-        safeName = wardName.replace(/\s+/g, '_');
+    let fileName = "";
+    if (isBatchExport) {
+        const batchNum = records[0]?.archiveBatch || fromDateStr || "1";
+        fileName = `BanGiaoHoSoGoc_${deptCode}_Dot_${batchNum}_${new Date().getTime()}.xlsx`;
+    } else {
+        let safeName = deptCode;
+        if (wardName && wardName !== 'all') {
+            safeName = `${deptCode}_${wardName.replace(/\s+/g, '_')}`;
+        }
+        fileName = `DS_Tra_KQ_${safeName}.xlsx`;
     }
-    const fileName = `DS_Tra_KQ_${safeName}.xlsx`;
     
     XLSX.writeFile(wb, fileName);
 };

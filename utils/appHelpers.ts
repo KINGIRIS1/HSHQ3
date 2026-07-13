@@ -908,15 +908,21 @@ export function fillTimelineDatesForReturn(record: RecordFile, nowStr: string): 
 }
 
 export function findArchiveStaffForWard(wardName: string | null | undefined, employees: Employee[]): Employee | null {
-  if (!wardName) return null;
-  
-  const normWard = removeVietnameseTones(wardName).toLowerCase().trim();
-  
   // Lọc nhân viên Tổ Lưu trữ
   const archiveStaff = employees.filter(emp => {
     const d = removeVietnameseTones(emp.department || '').toLowerCase();
     return d.includes('luu tru') || d.includes('archive');
   });
+
+  if (archiveStaff.length === 0) return null;
+
+  if (!wardName) {
+    // Nếu không có địa bàn (ví dụ: Công văn), giao cho nhân viên Tổ Lưu trữ có managedWards rỗng (chuyên trách chung)
+    const generalStaff = archiveStaff.find(emp => !emp.managedWards || emp.managedWards.length === 0);
+    return generalStaff || archiveStaff[0] || null;
+  }
+  
+  const normWard = removeVietnameseTones(wardName).toLowerCase().trim();
   
   // Tìm nhân viên phụ trách địa bàn này
   const matched = archiveStaff.find(emp => 
@@ -925,7 +931,8 @@ export function findArchiveStaffForWard(wardName: string | null | undefined, emp
     )
   );
   
-  return matched || null;
+  // Nếu không tìm thấy ai cụ thể cho địa bàn này, giao cho nhân viên phụ trách chung hoặc nhân viên đầu tiên
+  return matched || archiveStaff.find(emp => !emp.managedWards || emp.managedWards.length === 0) || archiveStaff[0] || null;
 }
 
 export function getDisplayNotes(notes: string | null | undefined): string {
@@ -952,6 +959,40 @@ export function getDisplayNotes(notes: string | null | undefined): string {
     } else {
       resultLines.push(line);
     }
+  }
+
+  return resultLines.join('\n');
+}
+
+export function updateNotesWithDisplayText(originalNotes: string | null | undefined, newDisplayText: string): string {
+  if (!originalNotes) return newDisplayText;
+  const trimmed = originalNotes.trim();
+  if (!trimmed) return newDisplayText;
+
+  const lines = trimmed.split('\n');
+  const resultLines: string[] = [];
+  let updatedJson = false;
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
+
+    if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmedLine);
+        parsed.generalNotes = newDisplayText;
+        resultLines.push(JSON.stringify(parsed));
+        updatedJson = true;
+      } catch (e) {
+        resultLines.push(line);
+      }
+    } else {
+      resultLines.push(line);
+    }
+  }
+
+  if (!updatedJson) {
+    return newDisplayText;
   }
 
   return resultLines.join('\n');

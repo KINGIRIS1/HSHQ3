@@ -149,7 +149,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
   const [applicantEmail, setApplicantEmail] = useState('');
 
   const handleApplicantChange = (field: 'name' | 'cccd' | 'phone' | 'email', value: string) => {
-      if (field === 'name') setApplicantName(value);
+      if (field === 'name') {
+          const isCongVan = formData.recordType === '1.2 Công văn';
+          setApplicantName(isCongVan ? value : value.toUpperCase());
+      }
       else if (field === 'cccd') setApplicantCccd(value);
       else if (field === 'phone') setApplicantPhone(value);
       else if (field === 'email') setApplicantEmail(value);
@@ -182,12 +185,14 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
   ]);
 
   // Dynamic Receiver Rows Table
-  const [receiverRows, setReceiverRows] = useState<Array<{ name: string; cccd: string; phone: string; email: string; note: string }>>([]);
+  const [receiverRows, setReceiverRows] = useState<Array<{ name: string; cccd: string; phone: string; email: string; address?: string; note: string }>>([]);
 
   const handleOwnerRowChange = (index: number, field: string, value: string) => {
       setOwnerRows(prev => {
           const next = [...prev];
-          next[index] = { ...next[index], [field]: value };
+          const isCongVan = formData.recordType === '1.2 Công văn';
+          const finalVal = (field === 'name' && !isCongVan) ? value.toUpperCase() : value;
+          next[index] = { ...next[index], [field]: finalVal };
           return next;
       });
   };
@@ -203,13 +208,15 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
   const handleReceiverRowChange = (index: number, field: string, value: string) => {
       setReceiverRows(prev => {
           const next = [...prev];
-          next[index] = { ...next[index], [field]: value };
+          const isCongVan = formData.recordType === '1.2 Công văn';
+          const finalVal = (field === 'name' && !isCongVan) ? value.toUpperCase() : value;
+          next[index] = { ...next[index], [field]: finalVal };
           return next;
       });
   };
 
   const addReceiverRow = () => {
-      setReceiverRows(prev => [...prev, { name: '', cccd: '', phone: '', email: '', note: '' }]);
+      setReceiverRows(prev => [...prev, { name: '', cccd: '', phone: '', email: '', address: '', note: '' }]);
   };
 
   const removeReceiverRow = (index: number) => {
@@ -448,7 +455,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
               setIsApplicantOwner(false);
               setShowAuthSection(!!initialData.authorizedBy);
               setOwnerRows([
-                  { name: '', cccd: '', phone: '', email: '', note: '' }
+                  { name: '', cccd: '', phone: '', email: '', address: '', note: '' }
               ]);
               setReceiverRows([]);
 
@@ -493,21 +500,6 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
   }, [notification]);
 
   useEffect(() => {
-    // We no longer pre-generate record codes here to prevent duplication and support manual entries.
-    prevRecordTypeRef.current = formData.recordType || '';
-  }, [formData.recordType]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
     if (!isDropdownOpen) {
         const currentLabel = formData.recordType === 'Đăng ký' ? 'Cấp Giấy' : (formData.recordType || '');
         setSearchTerm(currentLabel);
@@ -536,8 +528,64 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
 
   const isMeasOrArch = isMeasurementType(formData.recordType) || isArchiveType(formData.recordType);
 
+  const hasReceiverSection = (type: string | null | undefined): boolean => {
+      const t = (type || '').toLowerCase();
+      return t.includes('chuyển nhượng') || t.includes('thừa kế') || t.includes('tặng cho') || t.includes('thỏa thuận') || t.includes('3.1') || t.includes('3.2') || t.includes('3.3') || t.includes('3.4');
+  };
+
   useEffect(() => {
-      if (isApplicantOwner || isMeasOrArch) {
+      if (isApplicantOwner) {
+          const isReceiver = hasReceiverSection(formData.recordType);
+          if (isReceiver) {
+              setReceiverRows(prev => {
+                  const next = [...prev];
+                  if (next.length === 0) {
+                      next.push({ name: '', cccd: '', phone: '', email: '', note: '' });
+                  }
+                  if (
+                      next[0].name !== applicantName ||
+                      next[0].cccd !== applicantCccd ||
+                      next[0].phone !== applicantPhone ||
+                      next[0].email !== applicantEmail
+                  ) {
+                      next[0] = {
+                          ...next[0],
+                          name: applicantName,
+                          cccd: applicantCccd,
+                          phone: applicantPhone,
+                          email: applicantEmail
+                      };
+                      return next;
+                  }
+                  return prev;
+              });
+          } else {
+              setOwnerRows(prev => {
+                  const next = [...prev];
+                  if (next.length === 0) {
+                      next.push({ name: '', cccd: '', phone: '', email: '', address: '', note: '' });
+                  }
+                  if (
+                      next[0].name !== applicantName ||
+                      next[0].cccd !== applicantCccd ||
+                      next[0].phone !== applicantPhone ||
+                      next[0].email !== applicantEmail ||
+                      next[0].address !== (formData.customerAddress || '')
+                  ) {
+                      next[0] = {
+                          ...next[0],
+                          name: applicantName,
+                          cccd: applicantCccd,
+                          phone: applicantPhone,
+                          email: applicantEmail,
+                          address: formData.customerAddress || ''
+                      };
+                      return next;
+                  }
+                  return prev;
+              });
+          }
+      } else if (isMeasOrArch) {
           setOwnerRows(prev => {
               const next = [...prev];
               if (next.length === 0) {
@@ -562,18 +610,19 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
               }
               return prev;
           });
-      } else {
-          setReceiverRows(prev => {
-              const next = [...prev];
-              if (next.length === 0) {
-                  next.push({ name: '', cccd: '', phone: '', email: '', note: '' });
-              }
-              if (
-                  next[0].name !== applicantName ||
-                  next[0].cccd !== applicantCccd ||
-                  next[0].phone !== applicantPhone ||
-                  next[0].email !== applicantEmail
-              ) {
+      }
+  }, [isApplicantOwner, isMeasOrArch, applicantName, applicantCccd, applicantPhone, applicantEmail, formData.customerAddress, formData.recordType]);
+
+  const handleApplicantOwnerChange = (checked: boolean) => {
+      setIsApplicantOwner(checked);
+      if (checked) {
+          const isReceiver = hasReceiverSection(formData.recordType);
+          if (isReceiver) {
+              setReceiverRows(prev => {
+                  const next = [...prev];
+                  if (next.length === 0) {
+                      next.push({ name: '', cccd: '', phone: '', email: '', note: '' });
+                  }
                   next[0] = {
                       ...next[0],
                       name: applicantName,
@@ -582,58 +631,54 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                       email: applicantEmail
                   };
                   return next;
-              }
-              return prev;
-          });
-      }
-  }, [isApplicantOwner, isMeasOrArch, applicantName, applicantCccd, applicantPhone, applicantEmail, formData.customerAddress]);
-
-  const handleApplicantOwnerChange = (checked: boolean) => {
-      setIsApplicantOwner(checked);
-      if (checked) {
+              });
+              // Clear applicant's name from ownerRows[0] if it was synced
+              setOwnerRows(prev => {
+                  const next = [...prev];
+                  if (next.length > 0 && next[0].name === applicantName) {
+                      next[0] = { ...next[0], name: '', cccd: '', phone: '', email: '' };
+                  }
+                  return next;
+              });
+          } else {
+              setOwnerRows(prev => {
+                  const next = [...prev];
+                  if (next.length === 0) {
+                      next.push({ name: '', cccd: '', phone: '', email: '', address: '', note: '' });
+                  }
+                  next[0] = {
+                      ...next[0],
+                      name: applicantName,
+                      cccd: applicantCccd,
+                      phone: applicantPhone,
+                      email: applicantEmail,
+                      address: formData.customerAddress || ''
+                  };
+                  return next;
+              });
+              // Clear applicant's name from receiverRows[0] if it was synced
+              setReceiverRows(prev => {
+                  const next = [...prev];
+                  if (next.length > 0 && next[0].name === applicantName) {
+                      next[0] = { ...next[0], name: '', cccd: '', phone: '', email: '' };
+                  }
+                  return next;
+              });
+          }
+      } else {
+          // If unchecked, clear applicant's name from both row[0] so they can enter manually
           setOwnerRows(prev => {
               const next = [...prev];
-              if (next.length === 0) {
-                  next.push({ name: '', cccd: '', phone: '', email: '', address: '', note: '' });
-              }
-              next[0] = {
-                  ...next[0],
-                  name: applicantName,
-                  cccd: applicantCccd,
-                  phone: applicantPhone,
-                  email: applicantEmail,
-                  address: formData.customerAddress || ''
-              };
-              return next;
-          });
-          setReceiverRows(prev => {
-              const next = [...prev];
-              if (next.length > 0) {
+              if (next.length > 0 && next[0].name === applicantName) {
                   next[0] = { ...next[0], name: '', cccd: '', phone: '', email: '' };
               }
               return next;
           });
-      } else {
           setReceiverRows(prev => {
               const next = [...prev];
-              if (next.length === 0) {
-                  next.push({ name: '', cccd: '', phone: '', email: '', note: '' });
+              if (next.length > 0 && next[0].name === applicantName) {
+                  next[0] = { ...next[0], name: '', cccd: '', phone: '', email: '' };
               }
-              next[0] = {
-                  ...next[0],
-                  name: applicantName,
-                  cccd: applicantCccd,
-                  phone: applicantPhone,
-                  email: applicantEmail
-              };
-              return next;
-          });
-          setOwnerRows(prev => {
-              const next = [...prev];
-              if (next.length === 0) {
-                  next.push({ name: '', cccd: '', phone: '', email: '', note: '' });
-              }
-              next[0] = { ...next[0], name: '', cccd: '', phone: '', email: '' };
               return next;
           });
       }
@@ -641,7 +686,23 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
 
   const handleChange = (field: keyof RecordFile, value: any) => {
     setFormData(prev => {
-        let newData = { ...prev, [field]: value };
+        let finalVal = value;
+        const isCongVan = (field === 'recordType' ? value : prev.recordType) === '1.2 Công văn';
+        if (field === 'authorizedBy' && !isCongVan && value) {
+            finalVal = String(value).toUpperCase();
+        }
+        let newData = { ...prev, [field]: finalVal };
+        if (field === 'recordType') {
+            const isCongVanVal = value === '1.2 Công văn';
+            if (!isCongVanVal) {
+                setApplicantName(p => p.toUpperCase());
+                setOwnerRows(p => p.map(row => ({ ...row, name: row.name.toUpperCase() })));
+                setReceiverRows(p => p.map(row => ({ ...row, name: row.name.toUpperCase() })));
+                if (newData.authorizedBy) {
+                    newData.authorizedBy = newData.authorizedBy.toUpperCase();
+                }
+            }
+        }
         if (field === 'hasTax' && !value) {
             newData.transferToDNLis = false;
         }
@@ -848,14 +909,22 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
     }
 
     const isCongVan = formData.recordType === '1.2 Công văn';
-    if (!finalCode || !customerName || (!isCongVan && !formData.deadline) || !formData.recordType) { 
-        setNotification({ 
-            type: 'error', 
-            message: isCongVan 
-                ? "Vui lòng điền họ tên người nộp và chọn Loại hồ sơ." 
-                : "Vui lòng điền Mã hồ sơ (*), họ tên người nộp, hạn trả và chọn Loại hồ sơ." 
-        });
-        return; 
+    if (isCongVan) {
+        if (!finalCode || !customerName || !formData.content?.trim()) {
+            setNotification({ 
+                type: 'error', 
+                message: "Vui lòng nhập đầy đủ Số công văn - Đơn vị phát hành và Trích yếu đối với thủ tục 1.2 Công văn." 
+            });
+            return; 
+        }
+    } else {
+        if (!finalCode || !customerName || !formData.recordType || !formData.deadline || !cccd || !phoneNumber || !formData.customerAddress?.trim()) { 
+            setNotification({ 
+                type: 'error', 
+                message: "Vui lòng điền đầy đủ các thông tin bắt buộc: Mã hồ sơ, Họ tên người nộp, CCCD, SĐT, Địa chỉ thường trú, Hạn trả và Loại hồ sơ." 
+            });
+            return; 
+        }
     }
 
     let residentialArea = 0;
@@ -943,8 +1012,11 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
         }
     }
 
+    const firstRowAddress = (ownerRows[0]?.address || receiverRows[0]?.address || '').trim();
+
     const recordToSave: RecordFile = { 
         ...formData, 
+        customerAddress: firstRowAddress || formData.customerAddress || '',
         code: finalCode,
         customerName,
         cccd,
@@ -1021,7 +1093,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
       setHasTaxProcedure(false);
       setIsApplicantOwner(false);
       setShowAuthSection(false);
-      setOwnerRows([{ name: '', cccd: '', phone: '', email: '', note: '' }]);
+      setOwnerRows([{ name: '', cccd: '', phone: '', email: '', address: '', note: '' }]);
       setReceiverRows([]);
       setOtherDocRows([]);
       setLandAreaRows([{ type: 'ONT/ODT', area: '' }]);
@@ -1242,11 +1314,37 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             </div>
                         </div>
 
-                        {/* Row 3: Ngày trình ký */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {/* Row 3: Tiến trình thời gian (Ngày trình kiểm tra, Ngày trình ký, Ngày giao một cửa) */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-dashed border-slate-200 pt-4 mt-2">
+                            <div>
+                                <label className={`${labelClass} text-slate-600`}>Ngày trình kiểm tra</label>
+                                <input 
+                                    type="date" 
+                                    disabled={!hasAdminRights}
+                                    className={`${plainInputClass} disabled:bg-slate-100 disabled:text-slate-500 font-medium bg-white`} 
+                                    value={dateVal(formData.pendingCheckDate)} 
+                                    onChange={(e) => handleChange('pendingCheckDate', e.target.value)} 
+                                />
+                            </div>
                             <div>
                                 <label className={`${labelClass} text-purple-600`}>Ngày trình ký</label>
-                                <input type="date" className={`${plainInputClass} bg-purple-50 border-purple-200 text-purple-700 font-bold`} value={dateVal(formData.submissionDate)} onChange={(e) => handleChange('submissionDate', e.target.value)} />
+                                <input 
+                                    type="date" 
+                                    disabled={!hasAdminRights}
+                                    className={`${plainInputClass} disabled:bg-slate-100 disabled:text-slate-500 font-bold bg-purple-50 text-purple-700 border-purple-200`} 
+                                    value={dateVal(formData.submissionDate)} 
+                                    onChange={(e) => handleChange('submissionDate', e.target.value)} 
+                                />
+                            </div>
+                            <div>
+                                <label className={`${labelClass} text-emerald-600`}>Ngày giao một cửa</label>
+                                <input 
+                                    type="date" 
+                                    disabled={!hasAdminRights}
+                                    className={`${plainInputClass} disabled:bg-slate-100 disabled:text-slate-500 font-bold bg-emerald-50 text-emerald-700 border-emerald-200`} 
+                                    value={dateVal(formData.completedDate)} 
+                                    onChange={(e) => handleChange('completedDate', e.target.value)} 
+                                />
                             </div>
                         </div>
                     </div>
@@ -1393,10 +1491,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                 <div className="p-4 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <div className="md:col-span-4">
-                            <label className={labelClass}>Họ và tên người nộp {isNewRecord && <span className="text-red-500">*</span>}</label>
+                            <label className={labelClass}>Họ và tên người nộp <span className="text-red-500">*</span></label>
                             <input 
                                 type="text" 
-                                required={isNewRecord} 
+                                required 
                                 className={plainInputClass} 
                                 placeholder="Họ và tên..." 
                                 value={applicantName} 
@@ -1404,10 +1502,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             />
                         </div>
                         <div className="md:col-span-4">
-                            <label className={labelClass}>CCCD/Số Giấy {isNewRecord && <span className="text-red-500">*</span>}</label>
+                            <label className={labelClass}>CCCD/Số Giấy <span className="text-red-500">*</span></label>
                             <input 
                                 type="text" 
-                                required={isNewRecord} 
+                                required 
                                 className={plainInputClass} 
                                 placeholder="CCCD..." 
                                 value={applicantCccd} 
@@ -1415,10 +1513,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             />
                         </div>
                         <div className="md:col-span-4">
-                            <label className={labelClass}>SĐT người nộp {isNewRecord && <span className="text-red-500">*</span>}</label>
+                            <label className={labelClass}>SĐT người nộp <span className="text-red-500">*</span></label>
                             <input 
                                 type="text" 
-                                required={isNewRecord} 
+                                required 
                                 className={plainInputClass} 
                                 placeholder="Số điện thoại..." 
                                 value={applicantPhone} 
@@ -1426,10 +1524,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             />
                         </div>
                         <div className="md:col-span-12 mt-2">
-                            <label className={labelClass}>Địa chỉ thường trú {isNewRecord && <span className="text-red-500">*</span>}</label>
+                            <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
                             <input 
                                 type="text" 
-                                required={isNewRecord} 
+                                required 
                                 className={plainInputClass} 
                                 placeholder="Nhập địa chỉ thường trú..." 
                                 value={formData.customerAddress || ''} 
@@ -1447,13 +1545,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                     THÔNG TIN THỬA ĐẤT
                 </div>
                 <div className="p-4 space-y-5">
+                    {/* Hàng 1: phường/xã, Số thứ tự thửa, tờ bản đồ thành 1 hàng */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className={labelClass}>Tỉnh/Thành phố {isNewRecord && <span className="text-red-500">*</span>}</label>
-                            <select className={selectClass} disabled value="Thành Phố Đồng Nai">
-                                <option value="Thành Phố Đồng Nai">Thành Phố Đồng Nai</option>
-                            </select>
-                        </div>
                         <div>
                             <label className={labelClass}>Phường/xã {isNewRecord && formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
                             <select 
@@ -1467,13 +1560,6 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             </select>
                         </div>
                         <div>
-                            <label className={labelClass}>Địa chỉ chi tiết</label>
-                            <input type="text" className={plainInputClass} placeholder="Số nhà, tên đường, tổ/ấp..." value={formData.address || ''} onChange={(e) => handleChange('address', e.target.value)} />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
                             <label className={labelClass}>Số thứ tự thửa {isNewRecord && formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
                             <input type="text" required={isNewRecord && formData.recordType !== '1.2 Công văn'} className={plainInputClass} placeholder="Số thửa..." value={formData.landPlot || ''} onChange={(e) => handleChange('landPlot', e.target.value)} />
                         </div>
@@ -1481,13 +1567,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             <label className={labelClass}>Tờ bản đồ {isNewRecord && formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label>
                             <input type="text" required={isNewRecord && formData.recordType !== '1.2 Công văn'} className={plainInputClass} placeholder="Số tờ bản đồ..." value={formData.mapSheet || ''} onChange={(e) => handleChange('mapSheet', e.target.value)} />
                         </div>
-                        <div>
-                            <label className={labelClass}>Ngày cấp GCN</label>
-                            <input type="date" className={plainInputClass} value={dateVal(formData.issueDate)} onChange={(e) => handleChange('issueDate', e.target.value)} />
-                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Hàng 2: số vào sổ, số GCN, ngày cấp 1 hàng */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label className={labelClass}>Số vào sổ</label>
                             <input type="text" className={plainInputClass} placeholder="Số vào sổ cấp GCN..." value={formData.entryNumber || ''} onChange={(e) => handleChange('entryNumber', e.target.value)} />
@@ -1496,16 +1579,9 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             <label className={labelClass}>Số GCN</label>
                             <input type="text" className={plainInputClass} placeholder="Số phát hành GCN (Số seri)..." value={formData.issueNumber || ''} onChange={(e) => handleChange('issueNumber', e.target.value)} />
                         </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className={labelClass}>Số Trích đo</label>
-                            <input type="text" className={plainInputClass} placeholder="Số trích đo..." value={formData.measurementNumber || ''} onChange={(e) => handleChange('measurementNumber', e.target.value)} />
-                        </div>
-                        <div>
-                            <label className={labelClass}>Số Trích lục</label>
-                            <input type="text" className={plainInputClass} placeholder="Số trích lục..." value={formData.excerptNumber || ''} onChange={(e) => handleChange('excerptNumber', e.target.value)} />
+                            <label className={labelClass}>Ngày cấp GCN</label>
+                            <input type="date" className={plainInputClass} value={dateVal(formData.issueDate)} onChange={(e) => handleChange('issueDate', e.target.value)} />
                         </div>
                     </div>
 
@@ -1632,7 +1708,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                     </th>
                                     <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase w-48">Giấy CMND/ CCCD <span className="text-red-500">*</span></th>
                                     <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase w-40">Số điện thoại</th>
-                                    <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">Ghi chú</th>
+                                    <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">Địa chỉ thường trú</th>
                                     <th className="px-3 py-2 text-center text-xs font-bold text-slate-500 uppercase w-16">Xóa</th>
                                 </tr>
                             </thead>
@@ -1673,7 +1749,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                             />
                                         </td>
                                         <td className="px-3 py-1.5">
-                                            <input type="text" className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white focus:border-blue-500 outline-none" value={row.note} onChange={(e) => handleOwnerRowChange(index, 'note', e.target.value)} placeholder="Ghi chú..." />
+                                            <input type="text" className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white focus:border-blue-500 outline-none" value={row.address || ''} onChange={(e) => handleOwnerRowChange(index, 'address', e.target.value)} placeholder="Địa chỉ thường trú..." />
                                         </td>
                                         <td className="px-3 py-1.5 text-center">
                                             <button type="button" disabled={ownerRows.length <= 1} onClick={() => removeOwnerRow(index)} className="text-red-500 hover:text-red-700 disabled:opacity-30 p-1">
@@ -1715,7 +1791,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                         </th>
                                         <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase w-48">Giấy CMND/ CCCD</th>
                                         <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase w-40">Số điện thoại</th>
-                                        <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">Ghi chú</th>
+                                        <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">Địa chỉ thường trú</th>
                                         <th className="px-3 py-2 text-center text-xs font-bold text-slate-500 uppercase w-16">Xóa</th>
                                     </tr>
                                 </thead>
@@ -1754,7 +1830,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                                 />
                                             </td>
                                             <td className="px-3 py-1.5">
-                                                <input type="text" className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white focus:border-blue-500 outline-none" value={row.note} onChange={(e) => handleReceiverRowChange(index, 'note', e.target.value)} placeholder="Ghi chú..." />
+                                                <input type="text" className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white focus:border-blue-500 outline-none" value={row.address || ''} onChange={(e) => handleReceiverRowChange(index, 'address', e.target.value)} placeholder="Địa chỉ thường trú..." />
                                             </td>
                                             <td className="px-3 py-1.5 text-center">
                                                 <button type="button" onClick={() => removeReceiverRow(index)} className="text-red-500 hover:text-red-700 p-1">
@@ -1928,7 +2004,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                     formData={formData}
                     handleChange={handleChange}
                     applicantName={applicantName}
-                    setApplicantName={setApplicantName}
+                    setApplicantName={(v) => {
+                        const isCongVan = formData.recordType === '1.2 Công văn';
+                        setApplicantName(isCongVan ? v : v.toUpperCase());
+                    }}
                     applicantPhone={applicantPhone}
                     setApplicantPhone={setApplicantPhone}
                     applicantCccd={applicantCccd}
@@ -1971,7 +2050,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                         <div>
                             <label className={labelClass}>Giao nhân viên xử lý</label>
                             <select 
-                                className={selectClass} 
+                                disabled={currentUser?.role === UserRole.ONEDOOR}
+                                className={`${selectClass} disabled:bg-slate-100 disabled:text-slate-500`} 
                                 value={formData.assignedTo || ''} 
                                 onChange={(e) => {
                                     const empId = e.target.value;
@@ -2002,7 +2082,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 <label className={`${labelClass} text-blue-800`}>Đợt xuất (Batch)</label>
                                 <input 
                                     type="number" 
-                                    className={`${plainInputClass} border-blue-200 focus:border-blue-500`}
+                                    disabled={currentUser?.role === UserRole.ONEDOOR}
+                                    className={`${plainInputClass} border-blue-200 focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-500 bg-white`}
                                     placeholder="Nhập đợt xuất..."
                                     value={formData.exportBatch || ''} 
                                     onChange={(e) => handleChange('exportBatch', e.target.value ? parseInt(e.target.value) : null)} 
@@ -2012,7 +2093,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 <label className={`${labelClass} text-blue-800`}>Ngày xuất</label>
                                 <input 
                                     type="date" 
-                                    className={`${plainInputClass} border-blue-200 focus:border-blue-500`}
+                                    disabled={currentUser?.role === UserRole.ONEDOOR}
+                                    className={`${plainInputClass} border-blue-200 focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-500 bg-white`}
                                     value={dateVal(formData.exportDate)} 
                                     onChange={(e) => handleChange('exportDate', e.target.value)} 
                                 />
@@ -2031,7 +2113,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 <label className={`${labelClass} text-emerald-800`}>Ngày trả kết quả</label>
                                 <input 
                                     type="date" 
-                                    className={`${plainInputClass} border-emerald-200 focus:border-emerald-500 bg-white`}
+                                    disabled={currentUser?.role === UserRole.ONEDOOR}
+                                    className={`${plainInputClass} border-emerald-200 focus:border-emerald-500 bg-white disabled:bg-slate-100 disabled:text-slate-500`}
                                     value={dateVal(formData.resultReturnedDate)} 
                                     onChange={(e) => handleChange('resultReturnedDate', e.target.value)} 
                                 />
@@ -2040,7 +2123,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 <label className={`${labelClass} text-emerald-800`}>Số Biên lai/ Hóa đơn</label>
                                 <input 
                                     type="text" 
-                                    className={`${plainInputClass} border-emerald-200 focus:border-emerald-500 bg-white`}
+                                    disabled={currentUser?.role === UserRole.ONEDOOR}
+                                    className={`${plainInputClass} border-emerald-200 focus:border-emerald-500 bg-white disabled:bg-slate-100 disabled:text-slate-500`}
                                     placeholder="Nhập số biên lai/ hóa đơn..."
                                     value={formData.receiptNumber || ''} 
                                     onChange={(e) => handleChange('receiptNumber', e.target.value)} 
@@ -2050,7 +2134,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 <label className={`${labelClass} text-emerald-800`}>Số tiền (VNĐ)</label>
                                 <input 
                                     type="text" 
-                                    className={`${plainInputClass} border-emerald-200 focus:border-emerald-500 bg-white text-right font-mono font-bold`}
+                                    disabled={currentUser?.role === UserRole.ONEDOOR}
+                                    className={`${plainInputClass} border-emerald-200 focus:border-emerald-500 bg-white text-right font-mono font-bold disabled:bg-slate-100 disabled:text-slate-500`}
                                     placeholder="Nhập số tiền thực thu..."
                                     value={formData.paymentAmount !== null && formData.paymentAmount !== undefined ? formData.paymentAmount.toLocaleString('vi-VN') : ''} 
                                     onChange={(e) => {
@@ -2071,7 +2156,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                         <div className="p-4 bg-orange-50/10">
                             <textarea 
                                 rows={3} 
-                                className="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all font-medium text-gray-800"
+                                disabled={currentUser?.role === UserRole.ONEDOOR}
+                                className="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all font-medium text-gray-800 disabled:bg-slate-100 disabled:text-slate-500"
                                 placeholder="Nhập ghi chú nội bộ..."
                                 value={formData.privateNotes || ''} 
                                 onChange={(e) => handleChange('privateNotes', e.target.value)} 

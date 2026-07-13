@@ -3,7 +3,7 @@ import { RecordFile, Employee, Holiday, User, UserRole, RecordStatus } from '../
 import { removeVietnameseTones, getGcnWorkflowStepsHelper, isMeasurementType, isRegType, isArchiveType } from '../../utils/appHelpers';
 import { STATUS_LABELS } from '../../constants';
 import { getEmployeeTeam } from '../AssignModal';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { 
   Search, 
   Scan, 
@@ -115,7 +115,20 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
     // Chờ DOM render phần tử reader
     setTimeout(async () => {
       try {
-        const html5QrCode = new Html5Qrcode(scannerId);
+        const html5QrCode = new Html5Qrcode(scannerId, {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODABAR
+          ],
+          verbose: false
+        });
         qrCodeInstanceRef.current = html5QrCode;
 
         const config = { 
@@ -189,10 +202,25 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
     setQuery(cleanCode);
     stopScanning();
 
-    // Tìm hồ sơ tương ứng ngay lập tức
-    const found = records.find(
-      (r) => r.code.toLowerCase() === cleanCode.toLowerCase()
+    // Tìm hồ sơ tương ứng ngay lập tức theo mã hồ sơ hoặc số biên nhận/số biên lai
+    let found = records.find(
+      (r) => 
+        r.code.toLowerCase().trim() === cleanCode.toLowerCase() ||
+        (r.receiptNumber && r.receiptNumber.toLowerCase().trim() === cleanCode.toLowerCase()) ||
+        (r.issueNumber && r.issueNumber.toLowerCase().trim() === cleanCode.toLowerCase()) ||
+        (r.entryNumber && r.entryNumber.toLowerCase().trim() === cleanCode.toLowerCase())
     );
+
+    if (!found) {
+      // Thử tìm kiếm tương đối (chứa mã vạch vừa quét)
+      found = records.find(
+        (r) => 
+          r.code.toLowerCase().includes(cleanCode.toLowerCase()) ||
+          cleanCode.toLowerCase().includes(r.code.toLowerCase()) ||
+          (r.receiptNumber && r.receiptNumber.toLowerCase().includes(cleanCode.toLowerCase()))
+      );
+    }
+
     if (found) {
       setSelectedRecord(found);
     } else {
@@ -202,13 +230,28 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
 
   const handleManualSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    const cleanQuery = query.trim().toLowerCase();
+    if (!cleanQuery) return;
 
     // Tìm kiếm chính xác mã vạch/mã hồ sơ trước tiên
-    const exactMatch = records.find(
-      (r) => r.code.toLowerCase() === query.trim().toLowerCase()
+    let exactMatch = records.find(
+      (r) => 
+        r.code.toLowerCase().trim() === cleanQuery ||
+        (r.receiptNumber && r.receiptNumber.toLowerCase().trim() === cleanQuery) ||
+        (r.issueNumber && r.issueNumber.toLowerCase().trim() === cleanQuery) ||
+        (r.entryNumber && r.entryNumber.toLowerCase().trim() === cleanQuery)
     );
     
+    if (!exactMatch) {
+      // Tìm kiếm tương đối / chứa mã
+      exactMatch = records.find(
+        (r) => 
+          r.code.toLowerCase().includes(cleanQuery) ||
+          cleanQuery.includes(r.code.toLowerCase()) ||
+          (r.receiptNumber && r.receiptNumber.toLowerCase().includes(cleanQuery))
+      );
+    }
+
     if (exactMatch) {
       setSelectedRecord(exactMatch);
     } else {
@@ -228,11 +271,14 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
       // Lọc phân quyền chặt chẽ như bản PC
       if (!canUserViewRecord(r, currentUser, employees)) return false;
 
-      // Tìm theo Tên, SĐT, Mã hồ sơ
+      // Tìm theo Tên, SĐT, Mã hồ sơ, Số biên lai, Số phát hành, Số vào sổ
       const matchCode = r.code.toLowerCase().includes(query.toLowerCase());
+      const matchReceipt = r.receiptNumber && r.receiptNumber.toLowerCase().includes(query.toLowerCase());
+      const matchIssue = r.issueNumber && r.issueNumber.toLowerCase().includes(query.toLowerCase());
+      const matchEntry = r.entryNumber && r.entryNumber.toLowerCase().includes(query.toLowerCase());
       const matchName = removeVietnameseTones(r.customerName).includes(normQuery);
       const matchPhone = r.phoneNumber && r.phoneNumber.includes(query);
-      return matchCode || matchName || matchPhone;
+      return matchCode || matchReceipt || matchIssue || matchEntry || matchName || matchPhone;
     });
   }, [query, records, currentUser, employees]);
 

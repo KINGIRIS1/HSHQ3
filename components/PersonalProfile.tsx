@@ -1446,7 +1446,7 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                             )}
 
                                             <td className="p-3 text-center align-middle">
-                                                <StatusBadge status={r.status} recordType={r.recordType} record={r} />
+                                                <StatusBadge status={r.status} recordType={r.recordType} record={r} employees={employees} />
                                                 {r.status === RecordStatus.REJECTED && (
                                                     <span className="mt-1 block text-[10px] font-bold bg-red-100 text-red-800 px-1 py-0.5 rounded border border-red-200 text-center mx-auto max-w-[100px]">
                                                         Hồ sơ bị trả
@@ -1571,7 +1571,7 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                             </h3>
                                         </div>
                                         <div className="flex flex-col items-end gap-1 shrink-0">
-                                            <StatusBadge status={r.status} recordType={r.recordType} record={r} />
+                                            <StatusBadge status={r.status} recordType={r.recordType} record={r} employees={employees} />
                                             {r.status === RecordStatus.REJECTED && (
                                                 <span className="text-[9px] font-bold bg-red-100 text-red-800 px-1.5 py-0.5 rounded border border-red-200">
                                                     Hồ sơ bị trả

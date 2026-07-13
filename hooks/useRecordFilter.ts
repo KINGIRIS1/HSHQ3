@@ -37,6 +37,7 @@ export const useRecordFilter = (
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterEmployee, setFilterEmployee] = useState('all');
     const [warningFilter, setWarningFilter] = useState<'none' | 'overdue' | 'approaching'>('none');
+    const [filterArchive, setFilterArchive] = useState<'all' | 'not_archived' | 'archived'>('all');
 
     // Tự động xóa dữ liệu tìm kiếm và các bộ lọc khi chuyển view/tab (theo yêu cầu)
     useEffect(() => {
@@ -50,10 +51,15 @@ export const useRecordFilter = (
         setFilterFromDate('');
         setFilterToDate('');
         setWarningFilter('none');
+        setFilterArchive('all');
     }, [currentView]);
     
     // Cập nhật type cho handoverTab để hỗ trợ 'returned'
     const [handoverTab, setHandoverTab] = useState<'today' | 'history' | 'returned'>('today');
+
+    useEffect(() => {
+        setFilterArchive('all');
+    }, [handoverTab]);
 
     // Sorting & Pagination
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
@@ -66,7 +72,7 @@ export const useRecordFilter = (
     // Reset pagination when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [currentView, sortConfig, warningFilter, filterProcedure, filterStatus, filterEmployee, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, handoverTab, searchTerm]);
+    }, [currentView, sortConfig, warningFilter, filterProcedure, filterStatus, filterEmployee, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, handoverTab, searchTerm, filterArchive]);
 
     // --- WARNING CHECK LOGIC ---
     const checkWarningPermission = (r: RecordFile) => {
@@ -402,6 +408,12 @@ export const useRecordFilter = (
                         return true;
                     });
                 }
+                
+                if (filterArchive === 'not_archived') {
+                    result = result.filter(r => !r.archiveBatch);
+                } else if (filterArchive === 'archived') {
+                    result = result.filter(r => !!r.archiveBatch);
+                }
             } else if (handoverTab === 'history') {
                 if (filterDate) {
                     result = result.filter(r => {
@@ -454,7 +466,7 @@ export const useRecordFilter = (
         });
 
         return result;
-    }, [activeTabRecords, searchTerm, filterProcedure, filterStatus, filterEmployee, filterDate, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, showAdvancedDateFilter, warningFilter, currentView, sortConfig, handoverTab, currentUser]);
+    }, [activeTabRecords, searchTerm, filterProcedure, filterStatus, filterEmployee, filterDate, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, showAdvancedDateFilter, warningFilter, currentView, sortConfig, handoverTab, currentUser, filterArchive]);
 
     const paginatedRecords = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
@@ -503,6 +515,7 @@ export const useRecordFilter = (
         filterEmployee, setFilterEmployee,
         warningFilter, setWarningFilter,
         handoverTab, setHandoverTab,
+        filterArchive, setFilterArchive,
         sortConfig, setSortConfig,
         currentPage, setCurrentPage,
         itemsPerPage, setItemsPerPage

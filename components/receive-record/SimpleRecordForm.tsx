@@ -97,12 +97,12 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
           
           <div className="grid grid-cols-1 gap-4 mb-4">
             <div>
-              <label className={labelClass}>CƠ QUAN PHÁT HÀNH / NƠI GỬI NHẬN <span className="text-red-500">*</span></label>
+              <label className={labelClass}>SỐ CÔNG VĂN - ĐƠN VỊ PHÁT HÀNH <span className="text-red-500">*</span></label>
               <input 
                 type="text" 
                 required 
                 className={plainInputClass} 
-                placeholder="Nhập cơ quan phát hành, đơn vị gửi nhận..."
+                placeholder="Số công văn - Đơn vị phát hành..."
                 value={applicantName} 
                 onChange={(e) => setApplicantName(e.target.value)} 
               />
@@ -111,51 +111,19 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
 
           <div className="grid grid-cols-1 gap-4 mb-4">
             <div>
-              <label className={labelClass}>SỐ VB - NỘI DUNG YÊU CẦU / TRÍCH YẾU <span className="text-red-500">*</span></label>
+              <label className={labelClass}>TRÍCH YẾU <span className="text-red-500">*</span></label>
               <textarea 
                 rows={4} 
                 required 
                 className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-800"
-                placeholder="Nhập số văn bản và nội dung trích yếu của công văn..."
+                placeholder="Nhập trích yếu..."
                 value={formData.content || ''} 
                 onChange={(e) => handleChange('content', e.target.value)} 
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className={labelClass}>Địa bàn Phường/xã</label>
-              <select 
-                className={selectClass} 
-                value={formData.ward || ''} 
-                onChange={(e) => handleChange('ward', e.target.value)}
-              >
-                <option value="">-- Chọn phường/xã --</option>
-                {wards.map(w => <option key={w} value={w}>{w}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Tờ bản đồ</label>
-              <input 
-                type="text" 
-                className={plainInputClass} 
-                placeholder="Số tờ bản đồ..." 
-                value={formData.mapSheet || ''} 
-                onChange={(e) => handleChange('mapSheet', e.target.value)} 
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Thửa đất</label>
-              <input 
-                type="text" 
-                className={plainInputClass} 
-                placeholder="Số thửa đất..." 
-                value={formData.landPlot || ''} 
-                onChange={(e) => handleChange('landPlot', e.target.value)} 
-              />
-            </div>
-          </div>
+          {/* Removed Phường/xã and Tờ/Thửa fields for 1.2 Công văn as requested */}
         </div>
       </div>
     );
@@ -215,17 +183,17 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
               onChange={(e) => setApplicantPhone(e.target.value)} 
             />
           </div>
-          <div className="md:col-span-3 mt-2">
-            <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
-            <input 
-              type="text" 
-              required 
-              className={plainInputClass} 
-              placeholder="Nhập địa chỉ thường trú..."
-              value={formData.customerAddress || ''} 
-              onChange={(e) => handleChange('customerAddress', e.target.value)} 
-            />
-          </div>
+        </div>
+        <div className="mt-4">
+          <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
+          <input 
+            type="text" 
+            required 
+            className={plainInputClass} 
+            placeholder="Nhập địa chỉ thường trú..."
+            value={formData.customerAddress || ''} 
+            onChange={(e) => handleChange('customerAddress', e.target.value)} 
+          />
         </div>
       </div>
 
@@ -235,13 +203,8 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
           <MapPin size={16} /> THÔNG TIN THỬA ĐẤT
         </h3>
         <div className="space-y-5">
+          {/* Hàng 1: phường/xã, Số thứ tự thửa, tờ bản đồ thành 1 hàng */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className={labelClass}>Tỉnh/Thành phố <span className="text-red-500">*</span></label>
-              <select className={selectClass} disabled value="Thành Phố Đồng Nai">
-                <option value="Thành Phố Đồng Nai">Thành Phố Đồng Nai</option>
-              </select>
-            </div>
             <div>
               <label className={labelClass}>Phường/xã <span className="text-red-500">*</span></label>
               <select 
@@ -254,19 +217,6 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
                 {wards.map(w => <option key={w} value={w}>{w}</option>)}
               </select>
             </div>
-            <div>
-              <label className={labelClass}>Địa chỉ chi tiết</label>
-              <input 
-                type="text" 
-                className={plainInputClass} 
-                placeholder="Số nhà, tên đường, tổ/ấp..." 
-                value={formData.address || ''} 
-                onChange={(e) => handleChange('address', e.target.value)} 
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className={labelClass}>Số thứ tự thửa <span className="text-red-500">*</span></label>
               <input 
@@ -289,18 +239,10 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
                 onChange={(e) => handleChange('mapSheet', e.target.value)} 
               />
             </div>
-            <div>
-              <label className={labelClass}>Ngày cấp GCN</label>
-              <input 
-                type="date" 
-                className={plainInputClass} 
-                value={dateVal(formData.issueDate)} 
-                onChange={(e) => handleChange('issueDate', e.target.value)} 
-              />
-            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Hàng 2: số vào sổ, số GCN, ngày cấp 1 hàng */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className={labelClass}>Số vào sổ</label>
               <input 
@@ -319,6 +261,15 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
                 placeholder="Số phát hành GCN (Số seri)..." 
                 value={formData.issueNumber || ''} 
                 onChange={(e) => handleChange('issueNumber', e.target.value)} 
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Ngày cấp GCN</label>
+              <input 
+                type="date" 
+                className={plainInputClass} 
+                value={dateVal(formData.issueDate)} 
+                onChange={(e) => handleChange('issueDate', e.target.value)} 
               />
             </div>
           </div>

@@ -180,6 +180,8 @@ interface AppRoutesProps {
   setWarningFilter: React.Dispatch<React.SetStateAction<any>>;
   handoverTab: string;
   setHandoverTab: React.Dispatch<React.SetStateAction<any>>;
+  filterArchive?: 'all' | 'not_archived' | 'archived';
+  setFilterArchive?: React.Dispatch<React.SetStateAction<any>>;
 
   sortConfig: any;
   setSortConfig: (c: any) => void;
@@ -1017,6 +1019,24 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                       <X size={14} />
                     </button>
                   )}
+                </div>
+              )}
+
+            {isHandoverAny &&
+              props.handoverTab === "returned" && (
+                <div className="flex items-center gap-2 bg-white px-2 py-1.5 border border-gray-200 rounded-md shadow-sm">
+                  <span className="text-xs text-gray-500 font-bold uppercase">
+                    Lưu trữ kho:
+                  </span>
+                  <select
+                    value={props.filterArchive || 'all'}
+                    onChange={(e) => props.setFilterArchive?.(e.target.value as any)}
+                    className="text-sm outline-none bg-transparent text-gray-700 font-medium cursor-pointer border-none focus:ring-0"
+                  >
+                    <option value="all">Tất cả (Đã trả KQ)</option>
+                    <option value="not_archived">Chưa chuyển lưu kho</option>
+                    <option value="archived">Đã chuyển lưu kho</option>
+                  </select>
                 </div>
               )}
 

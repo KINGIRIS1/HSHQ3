@@ -172,6 +172,9 @@ export interface RecordFile {
 
   exportBatch?: number | null;   
   exportDate?: string | null;    
+  archiveBatch?: number | null;
+  archiveDate?: string | null;
+  isArchived?: boolean | null;
   handoverWard?: string | null; // Nơi giao trả kết quả (nếu khác địa chỉ thửa đất)
   
   measurementNumber?: string | null; 
