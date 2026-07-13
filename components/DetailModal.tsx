@@ -179,19 +179,19 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
            return assignedName || "";
        }
        if (label.includes("trình kiểm tra") || label.includes("trình thẩm tra")) {
-           return checkerName ? `Cán bộ kiểm tra: ${checkerName}` : "";
+           return checkerName || "";
        }
        if (label.includes("đã kiểm tra") || label.includes("đã thẩm tra") || (label === "thẩm tra" && stepStatus === 'completed')) {
-           return checkerName ? `Người kiểm tra: ${checkerName}` : "";
+           return checkerName || "";
        }
        if (label.includes("thẩm tra") || label.includes("kiểm tra")) {
-           return checkerName ? `Người kiểm tra: ${checkerName}` : "";
+           return checkerName || "";
        }
        if (label.includes("trình ký") || label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
-           return directorName ? `Lãnh đạo trình ký: ${directorName}` : "";
+           return directorName || "";
        }
        if (label.includes("ký duyệt")) {
-           return directorName ? `Người ký duyệt: ${directorName}` : "";
+           return directorName || "";
        }
        if (label.includes("vô số")) {
            return assignedName || "";
@@ -2017,21 +2017,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                         </div>
 
                                                         {/* Line 3: Tên người được giao */}
-                                                        {step.label.toLowerCase().includes("trình ký") ? (
-                                                            <div className="text-xs text-slate-600 mt-1 font-medium space-y-1">
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <UserIcon size={12} className="text-slate-400" />
-                                                                    <span>Người trình: <span className="font-semibold text-slate-800">{record.assignedTo ? findPersonNameAndTitle(record.assignedTo) : "Chưa giao"}</span></span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <UserIcon size={12} className="text-purple-400" />
-                                                                    <span>Lãnh đạo nhận trình: <span className="font-semibold text-purple-700">{record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}</span></span>
-                                                                </div>
-                                                            </div>
-                                                        ) : step.label.toLowerCase().includes("ký duyệt") ? (
+                                                        {step.label.toLowerCase().includes("trình ký") || step.label.toLowerCase().includes("ký duyệt") ? (
                                                             <div className="text-xs text-slate-600 mt-1 font-medium flex items-center gap-1.5">
                                                                 <UserIcon size={12} className="text-indigo-400" />
-                                                                <span>Lãnh đạo ký duyệt: <span className="font-semibold text-indigo-700">{record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}</span></span>
+                                                                <span><span className="font-semibold text-indigo-700">{record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}</span></span>
+                                                            </div>
+                                                        ) : step.label.toLowerCase().includes("thẩm tra") || step.label.toLowerCase().includes("kiểm tra") ? (
+                                                            <div className="text-xs text-slate-600 mt-1 font-medium flex items-center gap-1.5">
+                                                                <UserIcon size={12} className="text-slate-400" />
+                                                                <span><span className="font-semibold text-slate-800">{assignee || "Chưa giao"}</span></span>
                                                             </div>
                                                         ) : (
                                                             <div className="text-xs text-slate-600 mt-1 font-medium flex items-center gap-1.5">
@@ -2220,10 +2214,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                          return step.subText;
                                                      }
                                                      if (label.includes("trình ký")) {
-                                                         return `Người trình: ${record.assignedTo ? findPersonNameAndTitle(record.assignedTo) : "Chưa giao"} | Lãnh đạo nhận trình: ${record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}`;
+                                                         return record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn";
                                                      }
                                                      if (label.includes("ký duyệt")) {
-                                                         return `Lãnh đạo ký duyệt: ${record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}`;
+                                                         return record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn";
                                                      }
                                                      return getStepAssigneeName(step.label) || step.subText;
                                                  })()}

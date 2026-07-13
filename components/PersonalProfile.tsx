@@ -1388,7 +1388,7 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                 <>
                     {/* Desktop Table View */}
                     <div className="hidden md:block">
-                        <table className="w-full text-left table-fixed min-w-[1160px]">
+                        <table className={`w-full text-left table-fixed ${(activeTab === 'pending_check' || activeTab === 'pending_sign') ? 'min-w-[1450px]' : 'min-w-[1160px]'}`}>
                             <thead className="bg-white border-b border-gray-200 text-xs text-gray-500 uppercase sticky top-0 shadow-sm z-10">
                                 <tr>
                                     <th className="p-3 w-10 text-center">#</th>
@@ -1419,10 +1419,18 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                     </th>
                                     
                                     {activeTab === 'pending_check' && (
-                                        <th className="p-3 w-[150px] text-center">Người kiểm tra</th>
+                                        <>
+                                            <th className="p-3 w-[150px] text-center">Cán bộ trình</th>
+                                            <th className="p-3 w-[150px] text-center">Người kiểm tra</th>
+                                            <th className="p-3 w-[200px] text-center">Thông tin giải trình</th>
+                                        </>
                                     )}
                                     {activeTab === 'pending_sign' && (
-                                        <th className="p-3 w-[150px] text-center">Lãnh đạo ký duyệt</th>
+                                        <>
+                                            <th className="p-3 w-[150px] text-center">Cán bộ trình</th>
+                                            <th className="p-3 w-[150px] text-center">Lãnh đạo nhận trình</th>
+                                            <th className="p-3 w-[200px] text-center">Thông tin giải trình</th>
+                                        </>
                                     )}
 
                                     <th className="p-3 text-center w-[120px]">Trạng thái</th>
@@ -1475,18 +1483,42 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                             </td>
 
                                             {activeTab === 'pending_check' && (
-                                                <td className="p-3 text-gray-600 align-middle text-center">
-                                                    <div className="truncate text-center" title={r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : ''}>
-                                                        {r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : '---'}
-                                                    </div>
-                                                </td>
+                                                <>
+                                                    <td className="p-3 text-gray-600 align-middle text-center">
+                                                        <div className="truncate text-center" title={r.assignedTo ? employees.find(e => e.id === r.assignedTo)?.name : ''}>
+                                                            {r.assignedTo ? employees.find(e => e.id === r.assignedTo)?.name : '---'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-3 text-gray-600 align-middle text-center">
+                                                        <div className="truncate text-center" title={r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : ''}>
+                                                            {r.checkedBy ? employees.find(e => e.id === r.checkedBy)?.name : '---'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-3 text-gray-600 align-middle text-center">
+                                                        <div className="truncate text-center max-w-[190px] text-xs text-gray-500 italic mx-auto" title={getDisplayNotes(r.notes) || ''}>
+                                                            {getDisplayNotes(r.notes) || 'Chưa có'}
+                                                        </div>
+                                                    </td>
+                                                </>
                                             )}
                                             {activeTab === 'pending_sign' && (
-                                                <td className="p-3 text-gray-600 align-middle text-center">
-                                                    <div className="truncate text-center" title={r.submittedTo ? findSubmittedToName(r.submittedTo) : ''}>
-                                                        {r.submittedTo ? findSubmittedToName(r.submittedTo) : '---'}
-                                                    </div>
-                                                </td>
+                                                <>
+                                                    <td className="p-3 text-gray-600 align-middle text-center">
+                                                        <div className="truncate text-center" title={r.assignedTo ? employees.find(e => e.id === r.assignedTo)?.name : ''}>
+                                                            {r.assignedTo ? employees.find(e => e.id === r.assignedTo)?.name : '---'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-3 text-gray-600 align-middle text-center">
+                                                        <div className="truncate text-center" title={r.submittedTo ? findSubmittedToName(r.submittedTo) : ''}>
+                                                            {r.submittedTo ? findSubmittedToName(r.submittedTo) : '---'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-3 text-gray-600 align-middle text-center">
+                                                        <div className="truncate text-center max-w-[190px] text-xs text-gray-500 italic mx-auto" title={getDisplayNotes(r.notes) || ''}>
+                                                            {getDisplayNotes(r.notes) || 'Chưa có'}
+                                                        </div>
+                                                    </td>
+                                                </>
                                             )}
 
                                             <td className="p-3 text-center align-middle">

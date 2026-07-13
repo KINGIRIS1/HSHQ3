@@ -1153,21 +1153,15 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                             </div>
 
                             {/* Line 3: Tên người được giao */}
-                            {step.label.toLowerCase().includes("trình ký") ? (
-                              <div className="text-xs text-slate-600 mt-1 font-medium space-y-1">
-                                <div className="flex items-center gap-1.5">
-                                  <UserIcon size={12} className="text-slate-400" />
-                                  <span>Người trình: <span className="font-semibold text-slate-800">{record.assignedTo ? findPersonNameAndTitle(record.assignedTo) : "Chưa giao"}</span></span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <UserIcon size={12} className="text-purple-400" />
-                                  <span>Lãnh đạo nhận trình: <span className="font-semibold text-purple-700">{record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}</span></span>
-                                </div>
-                              </div>
-                            ) : step.label.toLowerCase().includes("ký duyệt") ? (
+                            {step.label.toLowerCase().includes("trình ký") || step.label.toLowerCase().includes("ký duyệt") ? (
                               <div className="text-xs text-slate-600 mt-1 font-medium flex items-center gap-1.5">
                                 <UserIcon size={12} className="text-indigo-400" />
-                                <span>Lãnh đạo ký duyệt: <span className="font-semibold text-indigo-700">{record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}</span></span>
+                                <span><span className="font-semibold text-indigo-700">{record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}</span></span>
+                              </div>
+                            ) : step.label.toLowerCase().includes("thẩm tra") || step.label.toLowerCase().includes("kiểm tra") ? (
+                              <div className="text-xs text-slate-600 mt-1 font-medium flex items-center gap-1.5">
+                                <UserIcon size={12} className="text-slate-400" />
+                                <span><span className="font-semibold text-slate-800">{assignee || "Chưa giao"}</span></span>
                               </div>
                             ) : (
                               <div className="text-xs text-slate-600 mt-1 font-medium flex items-center gap-1.5">
@@ -1271,7 +1265,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     label="TRÌNH KÝ" 
                     icon={Send}
                     colorClass={{text: 'text-purple-600', border: 'border-purple-600', bg: 'bg-purple-600'}}
-                    subText={`Người trình: ${record.assignedTo ? findPersonNameAndTitle(record.assignedTo) : "Chưa giao"} | Lãnh đạo nhận trình: ${record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}`}
+                    subText={record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}
                   />
                   
                   <TimelineItem 
@@ -1280,7 +1274,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     label="KÝ DUYỆT" 
                     icon={FileSignature}
                     colorClass={{text: 'text-indigo-600', border: 'border-indigo-600', bg: 'bg-indigo-600'}}
-                    subText={record.submittedTo ? `Lãnh đạo ký duyệt: ${findPersonNameAndTitle(record.submittedTo)}` : undefined}
+                    subText={record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}
                   />
 
                   <TimelineItem 
