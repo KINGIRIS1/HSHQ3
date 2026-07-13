@@ -1129,7 +1129,11 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                             <div className="flex flex-wrap items-center gap-x-3 text-xs text-gray-500 font-medium">
                               <span className="flex items-center gap-1">
                                 <CalendarClock size={12} className="text-slate-400" />
-                                <span>Giao: {execDate ? formatDate(execDate) : "---"}</span>
+                                <span>
+                                  {step.label.toLowerCase().includes("trình ký") ? "Ngày trình: " : 
+                                   step.label.toLowerCase().includes("ký duyệt") ? "Ngày ký duyệt: " : "Giao: "}
+                                  {execDate ? formatDate(execDate) : "---"}
+                                </span>
                               </span>
                               {step.deadlineDate && (
                                 <>
@@ -1149,10 +1153,28 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                             </div>
 
                             {/* Line 3: Tên người được giao */}
-                            <div className="text-xs text-slate-600 mt-1 font-medium flex items-center gap-1.5">
-                              <UserIcon size={12} className="text-slate-400" />
-                              <span>Người được giao: <span className="font-semibold text-slate-800">{assignee || "Chưa giao"}</span></span>
-                            </div>
+                            {step.label.toLowerCase().includes("trình ký") ? (
+                              <div className="text-xs text-slate-600 mt-1 font-medium space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <UserIcon size={12} className="text-slate-400" />
+                                  <span>Người trình: <span className="font-semibold text-slate-800">{record.assignedTo ? findPersonNameAndTitle(record.assignedTo) : "Chưa giao"}</span></span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <UserIcon size={12} className="text-purple-400" />
+                                  <span>Lãnh đạo nhận trình: <span className="font-semibold text-purple-700">{record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}</span></span>
+                                </div>
+                              </div>
+                            ) : step.label.toLowerCase().includes("ký duyệt") ? (
+                              <div className="text-xs text-slate-600 mt-1 font-medium flex items-center gap-1.5">
+                                <UserIcon size={12} className="text-indigo-400" />
+                                <span>Lãnh đạo ký duyệt: <span className="font-semibold text-indigo-700">{record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}</span></span>
+                              </div>
+                            ) : (
+                              <div className="text-xs text-slate-600 mt-1 font-medium flex items-center gap-1.5">
+                                <UserIcon size={12} className="text-slate-400" />
+                                <span>Người được giao: <span className="font-semibold text-slate-800">{assignee || "Chưa giao"}</span></span>
+                              </div>
+                            )}
 
                             {/* Line 4: Nếu trễ hạn thì hiển thị xuống dưới tên */}
                             {step.isOverdue && overdueDurationText && (
@@ -1249,7 +1271,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     label="TRÌNH KÝ" 
                     icon={Send}
                     colorClass={{text: 'text-purple-600', border: 'border-purple-600', bg: 'bg-purple-600'}}
-                    subText={record.submittedTo ? `Lãnh đạo trình ký: ${findPersonNameAndTitle(record.submittedTo)}` : undefined}
+                    subText={`Người trình: ${record.assignedTo ? findPersonNameAndTitle(record.assignedTo) : "Chưa giao"} | Lãnh đạo nhận trình: ${record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : "Chưa chọn"}`}
                   />
                   
                   <TimelineItem 
@@ -1258,7 +1280,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     label="KÝ DUYỆT" 
                     icon={FileSignature}
                     colorClass={{text: 'text-indigo-600', border: 'border-indigo-600', bg: 'bg-indigo-600'}}
-                    subText={record.submittedTo ? `Người ký duyệt: ${findPersonNameAndTitle(record.submittedTo)}` : undefined}
+                    subText={record.submittedTo ? `Lãnh đạo ký duyệt: ${findPersonNameAndTitle(record.submittedTo)}` : undefined}
                   />
 
                   <TimelineItem 
