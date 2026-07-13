@@ -188,6 +188,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
 
   const [formData, setFormData] = useState<Partial<RecordFile>>(defaultState);
   const hasAdminRights = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUBADMIN;
+  const canEditTimelineDates = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUBADMIN || currentUser.role === UserRole.TEAM_LEADER;
   const isOneDoor = React.useMemo(() => {
     if (currentUser.role === UserRole.ONEDOOR) return true;
     if (!currentUser.employeeId || !employees) return false;
@@ -601,7 +602,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                                 )}
                             </>
                         )}
-                        {!hasAdminRights && <div className="col-span-full p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 italic text-center">* Ngày tháng và trạng thái chỉ Admin/Subadmin được chỉnh sửa.</div>}
+                        {!hasAdminRights && <div className="col-span-full p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 italic text-center">* Ngày nhận, Hạn trả và Trạng thái chỉ Admin/Subadmin được sửa. Riêng các ngày Tiến trình thì Tổ trưởng cũng có quyền chỉnh sửa.</div>}
 
                         {/* Tiến trình thời gian (Luôn hiển thị rỏ) */}
                         <div className="col-span-full border-t border-dashed border-gray-200 pt-4 mt-2">
@@ -613,7 +614,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                                     <label className="block text-xs font-bold text-gray-700 mb-1">Ngày trình kiểm tra</label>
                                     <input 
                                         type="date" 
-                                        disabled={!hasAdminRights}
+                                        disabled={!canEditTimelineDates}
                                         className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 font-medium bg-white" 
                                         value={dateVal(formData.pendingCheckDate)} 
                                         onChange={(e) => handleChange('pendingCheckDate', e.target.value || null)} 
@@ -623,7 +624,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                                     <label className="block text-xs font-bold text-purple-700 mb-1">Ngày trình ký</label>
                                     <input 
                                         type="date" 
-                                        disabled={!hasAdminRights}
+                                        disabled={!canEditTimelineDates}
                                         className="w-full border border-purple-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 bg-purple-50 font-semibold text-purple-800" 
                                         value={dateVal(formData.submissionDate)} 
                                         onChange={(e) => handleChange('submissionDate', e.target.value || null)} 
@@ -633,7 +634,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                                     <label className="block text-xs font-bold text-green-700 mb-1">Ngày giao một cửa</label>
                                     <input 
                                         type="date" 
-                                        disabled={!hasAdminRights}
+                                        disabled={!canEditTimelineDates}
                                         className="w-full border border-green-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 bg-green-50 font-semibold text-green-800" 
                                         value={dateVal(formData.completedDate)} 
                                         onChange={(e) => handleChange('completedDate', e.target.value || null)} 

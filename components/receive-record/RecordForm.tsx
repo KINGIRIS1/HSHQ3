@@ -118,6 +118,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
     return currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUBADMIN;
   }, [currentUser]);
 
+  const canEditTimelineDates = React.useMemo(() => {
+    return currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUBADMIN || currentUser?.role === UserRole.TEAM_LEADER;
+  }, [currentUser]);
+
   const isNewRecord = !(initialData && initialData.id);
 
   const d = new Date();
@@ -918,7 +922,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
             return; 
         }
     } else {
-        if (!finalCode || !customerName || !formData.recordType || !formData.deadline || !cccd || !phoneNumber || !formData.customerAddress?.trim()) { 
+        const hasAddress = isMeasOrArch 
+            ? !!formData.customerAddress?.trim() 
+            : !!(formData.customerAddress?.trim() || ownerRows[0]?.address?.trim() || receiverRows[0]?.address?.trim());
+        if (!finalCode || !customerName || !formData.recordType || !formData.deadline || !cccd || !phoneNumber || !hasAddress) { 
             setNotification({ 
                 type: 'error', 
                 message: "Vui lòng điền đầy đủ các thông tin bắt buộc: Mã hồ sơ, Họ tên người nộp, CCCD, SĐT, Địa chỉ thường trú, Hạn trả và Loại hồ sơ." 
@@ -1320,7 +1327,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 <label className={`${labelClass} text-slate-600`}>Ngày trình kiểm tra</label>
                                 <input 
                                     type="date" 
-                                    disabled={!hasAdminRights}
+                                    disabled={!canEditTimelineDates}
                                     className={`${plainInputClass} disabled:bg-slate-100 disabled:text-slate-500 font-medium bg-white`} 
                                     value={dateVal(formData.pendingCheckDate)} 
                                     onChange={(e) => handleChange('pendingCheckDate', e.target.value)} 
@@ -1330,7 +1337,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 <label className={`${labelClass} text-purple-600`}>Ngày trình ký</label>
                                 <input 
                                     type="date" 
-                                    disabled={!hasAdminRights}
+                                    disabled={!canEditTimelineDates}
                                     className={`${plainInputClass} disabled:bg-slate-100 disabled:text-slate-500 font-bold bg-purple-50 text-purple-700 border-purple-200`} 
                                     value={dateVal(formData.submissionDate)} 
                                     onChange={(e) => handleChange('submissionDate', e.target.value)} 
@@ -1340,7 +1347,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 <label className={`${labelClass} text-emerald-600`}>Ngày giao một cửa</label>
                                 <input 
                                     type="date" 
-                                    disabled={!hasAdminRights}
+                                    disabled={!canEditTimelineDates}
                                     className={`${plainInputClass} disabled:bg-slate-100 disabled:text-slate-500 font-bold bg-emerald-50 text-emerald-700 border-emerald-200`} 
                                     value={dateVal(formData.completedDate)} 
                                     onChange={(e) => handleChange('completedDate', e.target.value)} 
@@ -1523,17 +1530,19 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 onChange={(e) => handleApplicantChange('phone', e.target.value)} 
                             />
                         </div>
-                        <div className="md:col-span-12 mt-2">
-                            <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
-                            <input 
-                                type="text" 
-                                required 
-                                className={plainInputClass} 
-                                placeholder="Nhập địa chỉ thường trú..." 
-                                value={formData.customerAddress || ''} 
-                                onChange={(e) => handleChange('customerAddress', e.target.value)} 
-                            />
-                        </div>
+                        {isMeasOrArch && (
+                            <div className="md:col-span-12 mt-2">
+                                <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
+                                <input 
+                                    type="text" 
+                                    required 
+                                    className={plainInputClass} 
+                                    placeholder="Nhập địa chỉ thường trú..." 
+                                    value={formData.customerAddress || ''} 
+                                    onChange={(e) => handleChange('customerAddress', e.target.value)} 
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

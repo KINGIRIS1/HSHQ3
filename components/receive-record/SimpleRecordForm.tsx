@@ -184,17 +184,19 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
             />
           </div>
         </div>
-        <div className="mt-4">
-          <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
-          <input 
-            type="text" 
-            required 
-            className={plainInputClass} 
-            placeholder="Nhập địa chỉ thường trú..."
-            value={formData.customerAddress || ''} 
-            onChange={(e) => handleChange('customerAddress', e.target.value)} 
-          />
-        </div>
+        {isMeasOrArch && (
+          <div className="mt-4">
+            <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
+            <input 
+              type="text" 
+              required 
+              className={plainInputClass} 
+              placeholder="Nhập địa chỉ thường trú..."
+              value={formData.customerAddress || ''} 
+              onChange={(e) => handleChange('customerAddress', e.target.value)} 
+            />
+          </div>
+        )}
       </div>
 
       {/* 2. THÔNG TIN THỬA ĐẤT */}
