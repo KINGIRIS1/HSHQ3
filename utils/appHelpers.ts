@@ -26,6 +26,56 @@ export function formatDateKey(date: Date): string {
     return `${y}-${m}-${d}`;
 }
 
+export function parseSafeDate(dateStr?: string | null): Date | null {
+    if (!dateStr) return null;
+    let d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+        return d;
+    }
+    const cleanStr = dateStr.trim();
+    if (cleanStr.match(/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/)) {
+        const parts = cleanStr.split(/[\/-]/);
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const yearPart = parts[2].trim();
+        const yearMatch = yearPart.match(/^(\d{4})/);
+        if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            const dateObj = new Date(year, month - 1, day);
+            const timeMatch = yearPart.match(/(\d{1,2}):(\d{1,2})/);
+            if (timeMatch) {
+                dateObj.setHours(parseInt(timeMatch[1], 10));
+                dateObj.setMinutes(parseInt(timeMatch[2], 10));
+            }
+            if (!isNaN(dateObj.getTime())) {
+                return dateObj;
+            }
+        }
+    }
+    return null;
+}
+
+export function formatDate(dateStr?: string | null): string {
+    if (!dateStr) return '';
+    const date = parseSafeDate(dateStr);
+    if (!date) {
+        if (dateStr.trim().match(/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/)) {
+            return dateStr.trim();
+        }
+        return '';
+    }
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    
+    if (dateStr.includes('T') || dateStr.includes(' ')) {
+        const h = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        return `${h}:${min} - ${d}/${m}/${y}`;
+    }
+    return `${d}/${m}/${y}`;
+}
+
 export function calculateDeadline(type: string, receivedDateStr: string, holidays: Holiday[] = [], hasTax?: boolean): string {
     if (!receivedDateStr) return '';
     let daysToAdd = 30; 
@@ -748,7 +798,8 @@ export const isRecordOverdue = (record: RecordFile): boolean => {
   if (!record.deadline) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const deadline = new Date(record.deadline);
+  const deadline = parseSafeDate(record.deadline);
+  if (!deadline) return false;
   deadline.setHours(0, 0, 0, 0);
   return deadline < today;
 };
@@ -772,7 +823,8 @@ export const isRecordApproaching = (record: RecordFile): boolean => {
   if (!record.deadline) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const deadline = new Date(record.deadline);
+  const deadline = parseSafeDate(record.deadline);
+  if (!deadline) return false;
   deadline.setHours(0, 0, 0, 0);
   const diffTime = deadline.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));

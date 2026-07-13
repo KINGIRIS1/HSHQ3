@@ -7,7 +7,7 @@ import { X, MapPin, FileText, User as UserIcon, Receipt, DollarSign, CheckCircle
 import { generateDocxBlobAsync, hasTemplate, STORAGE_KEYS } from '../services/docxService';
 import DocxPreviewModal from './DocxPreviewModal';
 import { updateRecordApi as rawUpdateRecordApi, fetchContracts } from '../services/api';
-import { calculateDeadline, isDefaultTaxProcedure, isRegType, getGcnWorkflowStepsHelper, isArchiveType, isMeasurementType, groupEmployeesByDepartment, isStepHiddenForWorkflow, recordStepAssigneeHistory } from '../utils/appHelpers';
+import { calculateDeadline, isDefaultTaxProcedure, isRegType, getGcnWorkflowStepsHelper, isArchiveType, isMeasurementType, groupEmployeesByDepartment, isStepHiddenForWorkflow, recordStepAssigneeHistory, parseSafeDate } from '../utils/appHelpers';
 import { getEmployeeTeam } from './AssignModal';
 import SystemReceiptTemplate from './receive-record/SystemReceiptTemplate';
 import SystemAnnexTemplate from './receive-record/SystemAnnexTemplate';
@@ -511,12 +511,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
 
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return '---';
-    const date = new Date(dateStr);
+    const date = parseSafeDate(dateStr);
+    if (!date) return '---';
     const d = String(date.getDate()).padStart(2, '0');
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const y = date.getFullYear();
     
-    if (dateStr.includes('T')) {
+    if (dateStr.includes('T') || dateStr.includes(' ')) {
         const h = String(date.getHours()).padStart(2, '0');
         const min = String(date.getMinutes()).padStart(2, '0');
         return `${h}:${min} - ${d}/${m}/${y}`;

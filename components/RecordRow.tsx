@@ -2,7 +2,7 @@
 import React from 'react';
 import { RecordFile, RecordStatus, Employee } from '../types';
 import { getNormalizedWard, getShortRecordType } from '../constants';
-import { isRecordOverdue, isRecordApproaching, toTitleCase, findArchiveStaffForWard, isArchiveType, isRegType, isMeasurementType } from '../utils/appHelpers';
+import { isRecordOverdue, isRecordApproaching, toTitleCase, findArchiveStaffForWard, isArchiveType, isRegType, isMeasurementType, formatDate } from '../utils/appHelpers';
 import { getEmployeeTeam, getRoleCategory } from './AssignModal';
 import StatusBadge from './StatusBadge';
 import { CheckSquare, Square, AlertCircle, Clock, Eye, ArrowRight, Pencil, Trash2, Bell, FileCheck, Phone, Map, UserPlus } from 'lucide-react';
@@ -24,12 +24,6 @@ interface RecordRowProps {
   onMapCorrection?: (record: RecordFile) => void; // New Handler
   isArchiveView?: boolean;
 }
-
-const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? '' : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear())}`;
-};
 
 const RecordRow: React.FC<RecordRowProps> = ({
   record,
