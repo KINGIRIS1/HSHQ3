@@ -184,7 +184,7 @@ const SimpleRecordForm: React.FC<SimpleRecordFormProps> = ({
             />
           </div>
         </div>
-        {isMeasOrArch && (
+        {formData.recordType !== '1.2 Công văn' && (
           <div className="mt-4">
             <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
             <input 

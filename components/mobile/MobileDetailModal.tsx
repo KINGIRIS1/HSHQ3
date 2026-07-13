@@ -104,6 +104,36 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'info' | 'timeline' | 'notes'>('info');
 
+  const findPersonNameAndTitle = (idOrNameOrUsername: string | undefined | null): string => {
+      if (!idOrNameOrUsername) return "";
+      const query = idOrNameOrUsername.trim().toLowerCase();
+      
+      let foundEmp = employees.find(e => e.id.toLowerCase() === query || e.name.toLowerCase() === query);
+      
+      if (!foundEmp) {
+          const foundUser = users.find(u => 
+              (u.username && u.username.toLowerCase() === query) || 
+              (u.employeeId && u.employeeId.toLowerCase() === query)
+          );
+          if (foundUser && foundUser.employeeId) {
+              foundEmp = employees.find(e => e.id.toLowerCase() === foundUser.employeeId?.toLowerCase());
+          }
+          if (foundUser && !foundEmp) {
+              const userRoleLabel = foundUser.role === UserRole.ADMIN ? 'Quản trị viên' : 
+                                    foundUser.role === UserRole.SUBADMIN ? 'Phó quản trị' : 
+                                    foundUser.role === UserRole.TEAM_LEADER ? 'Tổ trưởng/Tổ phó' : 
+                                    foundUser.role === UserRole.ONEDOOR ? 'Cán bộ Một cửa' : 'Cán bộ xử lý';
+              return userRoleLabel ? `${foundUser.name} (${userRoleLabel})` : foundUser.name;
+          }
+      }
+      
+      if (foundEmp) {
+          return foundEmp.position ? `${foundEmp.name} (${foundEmp.position})` : foundEmp.name;
+      }
+      
+      return idOrNameOrUsername;
+  };
+
   useEffect(() => {
     if (record) {
       setPersonalNote(record.personalNotes || '');
@@ -874,36 +904,6 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
             {isGCN ? (() => {
               const workflow = getGcnWorkflowStepsHelper(record, holidays || []);
 
-              const findPersonNameAndTitle = (idOrNameOrUsername: string | undefined | null): string => {
-                  if (!idOrNameOrUsername) return "";
-                  const query = idOrNameOrUsername.trim().toLowerCase();
-                  
-                  let foundEmp = employees.find(e => e.id.toLowerCase() === query || e.name.toLowerCase() === query);
-                  
-                  if (!foundEmp) {
-                      const foundUser = users.find(u => 
-                          (u.username && u.username.toLowerCase() === query) || 
-                          (u.employeeId && u.employeeId.toLowerCase() === query)
-                      );
-                      if (foundUser && foundUser.employeeId) {
-                          foundEmp = employees.find(e => e.id.toLowerCase() === foundUser.employeeId?.toLowerCase());
-                      }
-                      if (foundUser && !foundEmp) {
-                          const userRoleLabel = foundUser.role === UserRole.ADMIN ? 'Quản trị viên' : 
-                                                foundUser.role === UserRole.SUBADMIN ? 'Phó quản trị' : 
-                                                foundUser.role === UserRole.TEAM_LEADER ? 'Tổ trưởng/Tổ phó' : 
-                                                foundUser.role === UserRole.ONEDOOR ? 'Cán bộ Một cửa' : 'Cán bộ xử lý';
-                          return userRoleLabel ? `${foundUser.name} (${userRoleLabel})` : foundUser.name;
-                      }
-                  }
-                  
-                  if (foundEmp) {
-                      return foundEmp.position ? `${foundEmp.name} (${foundEmp.position})` : foundEmp.name;
-                  }
-                  
-                  return idOrNameOrUsername;
-              };
-
               const getStepAssigneeName = (stepLabel: string, stepStatus?: 'completed' | 'current' | 'upcoming') => {
                   if (!record) return "";
                   if (stepStatus === 'upcoming') return "";
@@ -1254,7 +1254,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     label="TRÌNH KÝ" 
                     icon={Send}
                     colorClass={{text: 'text-purple-600', border: 'border-purple-600', bg: 'bg-purple-600'}}
-                    subText={undefined}
+                    subText={record.submittedTo ? `Lãnh đạo trình ký: ${findPersonNameAndTitle(record.submittedTo)}` : undefined}
                   />
                   
                   <TimelineItem 
@@ -1263,11 +1263,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     label="KÝ DUYỆT" 
                     icon={FileSignature}
                     colorClass={{text: 'text-indigo-600', border: 'border-indigo-600', bg: 'bg-indigo-600'}}
-                    subText={record.approvalDate && record.submittedTo ? (() => {
-                        const director = users.find(u => u.employeeId === record.submittedTo) || employees.find(e => e.id === record.submittedTo);
-                        if (!director) return undefined;
-                        return `Người ký duyệt: ${director.name} (${(director as any).position || 'Lãnh đạo'})`;
-                    })() : undefined}
+                    subText={record.submittedTo ? `Người ký duyệt: ${findPersonNameAndTitle(record.submittedTo)}` : undefined}
                   />
 
                   <TimelineItem 

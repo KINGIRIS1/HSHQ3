@@ -304,7 +304,35 @@ export const useRecordFilter = (
 
         const isSpecializedView = isRegistrationView || isArchiveView || isCongVanView || isOtherView || isMeasurementView;
         if (isSpecializedView) {
-            result = result.filter(r => r.isDeptSynced !== false);
+            result = result.filter(r => {
+                // Nếu được đồng bộ rõ ràng (true) hoặc r.isDeptSynced chưa được định nghĩa (null/undefined), luôn hiển thị
+                if (r.isDeptSynced !== false) return true;
+
+                // Nếu isDeptSynced là false nhưng hồ sơ đã có người được phân công (assignedTo) 
+                // hoặc trạng thái đã tiến triển vượt qua Tiếp nhận (khác RECEIVED), thì đây chắc chắn là hồ sơ đang được xử lý chuyên môn.
+                if (r.assignedTo || r.status !== RecordStatus.RECEIVED) {
+                    return true;
+                }
+
+                // Nếu không có ngày tiếp nhận, hiển thị để tránh thất lạc
+                if (!r.receivedDate) return true;
+
+                // Nếu hồ sơ có ngày tiếp nhận cũ (hơn 3 ngày trước), hiển thị ở các tab chuyên môn để tránh việc
+                // hồ sơ cũ/hồ sơ import bị ẩn vĩnh viễn do giá trị mặc định của Database là false.
+                try {
+                    const receivedMs = new Date(r.receivedDate).getTime();
+                    const nowMs = new Date().getTime();
+                    const ageInDays = (nowMs - receivedMs) / (1000 * 60 * 60 * 24);
+                    if (ageInDays > 3) {
+                        return true;
+                    }
+                } catch (e) {
+                    return true;
+                }
+
+                // Chỉ ẩn khi đây là hồ sơ Một cửa mới tiếp nhận thực sự (RECEIVED, chưa gán người, dưới 3 ngày và isDeptSynced = false)
+                return false;
+            });
         }
 
         if (isArchiveView) {

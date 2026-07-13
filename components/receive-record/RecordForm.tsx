@@ -544,20 +544,22 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
               setReceiverRows(prev => {
                   const next = [...prev];
                   if (next.length === 0) {
-                      next.push({ name: '', cccd: '', phone: '', email: '', note: '' });
+                      next.push({ name: '', cccd: '', phone: '', email: '', address: '', note: '' });
                   }
                   if (
                       next[0].name !== applicantName ||
                       next[0].cccd !== applicantCccd ||
                       next[0].phone !== applicantPhone ||
-                      next[0].email !== applicantEmail
+                      next[0].email !== applicantEmail ||
+                      next[0].address !== (formData.customerAddress || '')
                   ) {
                       next[0] = {
                           ...next[0],
                           name: applicantName,
                           cccd: applicantCccd,
                           phone: applicantPhone,
-                          email: applicantEmail
+                          email: applicantEmail,
+                          address: formData.customerAddress || ''
                       };
                       return next;
                   }
@@ -1530,7 +1532,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                 onChange={(e) => handleApplicantChange('phone', e.target.value)} 
                             />
                         </div>
-                        {isMeasOrArch && (
+                        {formData.recordType !== '1.2 Công văn' && (
                             <div className="md:col-span-12 mt-2">
                                 <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
                                 <input 
@@ -1811,8 +1813,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                             <td className="px-3 py-1.5">
                                                 <input 
                                                     type="text" 
-                                                    readOnly={!isApplicantOwner && index === 0}
-                                                    className={`w-full border border-slate-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 ${!isApplicantOwner && index === 0 ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : 'bg-white text-slate-800'}`} 
+                                                    readOnly={isApplicantOwner && index === 0}
+                                                    className={`w-full border border-slate-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 ${isApplicantOwner && index === 0 ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : 'bg-white text-slate-800'}`} 
                                                     value={row.name} 
                                                     onChange={(e) => handleReceiverRowChange(index, 'name', e.target.value)} 
                                                     placeholder="Họ tên..." 
@@ -1821,8 +1823,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                             <td className="px-3 py-1.5">
                                                 <input 
                                                     type="text" 
-                                                    readOnly={!isApplicantOwner && index === 0}
-                                                    className={`w-full border border-slate-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 ${!isApplicantOwner && index === 0 ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : 'bg-white text-slate-800'}`} 
+                                                    readOnly={isApplicantOwner && index === 0}
+                                                    className={`w-full border border-slate-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 ${isApplicantOwner && index === 0 ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : 'bg-white text-slate-800'}`} 
                                                     value={row.cccd} 
                                                     onChange={(e) => handleReceiverRowChange(index, 'cccd', e.target.value)} 
                                                     placeholder="CCCD..." 
@@ -1831,15 +1833,22 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                                             <td className="px-3 py-1.5">
                                                 <input 
                                                     type="text" 
-                                                    readOnly={!isApplicantOwner && index === 0}
-                                                    className={`w-full border border-slate-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 ${!isApplicantOwner && index === 0 ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : 'bg-white text-slate-800'}`} 
+                                                    readOnly={isApplicantOwner && index === 0}
+                                                    className={`w-full border border-slate-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 ${isApplicantOwner && index === 0 ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : 'bg-white text-slate-800'}`} 
                                                     value={row.phone} 
                                                     onChange={(e) => handleReceiverRowChange(index, 'phone', e.target.value)} 
                                                     placeholder="SĐT..." 
                                                 />
                                             </td>
                                             <td className="px-3 py-1.5">
-                                                <input type="text" className="w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white focus:border-blue-500 outline-none" value={row.address || ''} onChange={(e) => handleReceiverRowChange(index, 'address', e.target.value)} placeholder="Địa chỉ thường trú..." />
+                                                <input 
+                                                    type="text" 
+                                                    readOnly={isApplicantOwner && index === 0}
+                                                    className={`w-full border border-slate-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 ${isApplicantOwner && index === 0 ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : 'bg-white text-slate-800'}`} 
+                                                    value={row.address || ''} 
+                                                    onChange={(e) => handleReceiverRowChange(index, 'address', e.target.value)} 
+                                                    placeholder="Địa chỉ thường trú..." 
+                                                />
                                             </td>
                                             <td className="px-3 py-1.5 text-center">
                                                 <button type="button" onClick={() => removeReceiverRow(index)} className="text-red-500 hover:text-red-700 p-1">

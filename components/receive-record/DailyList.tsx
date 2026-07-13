@@ -138,8 +138,9 @@ const DailyList: React.FC<DailyListProps> = ({
               if (!nameMatch && !codeMatch) return false;
           }
 
-          // 4. Lọc bỏ hồ sơ đã chuyển chuyên môn (isDeptSynced = true)
+          // 4. Lọc bỏ hồ sơ đã chuyển chuyên môn (isDeptSynced = true) hoặc đã được xử lý (đã gán người / trạng thái khác RECEIVED)
           if (r.isDeptSynced === true) return false;
+          if (r.assignedTo || r.status !== RecordStatus.RECEIVED) return false;
 
           return true;
       });

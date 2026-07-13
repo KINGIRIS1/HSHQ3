@@ -714,6 +714,30 @@ export function recordStepAssigneeHistory(record: RecordFile, holidays: Holiday[
         if (cloned.approvalDate && !cloned.stepDates["vô số gcn"]) cloned.stepDates["vô số gcn"] = cloned.approvalDate;
         if (cloned.completedDate && !cloned.stepDates["đã giao 1 cửa"]) cloned.stepDates["đã giao 1 cửa"] = cloned.completedDate;
         if (cloned.resultReturnedDate && !cloned.stepDates["đã trả kết quả"]) cloned.stepDates["đã trả kết quả"] = cloned.resultReturnedDate;
+
+        // Synchronize and back-fill assignees for safety and backwards compatibility
+        if (cloned.submittedTo) {
+            if (!cloned.stepAssignees["trình ký"]) cloned.stepAssignees["trình ký"] = cloned.submittedTo;
+            if (!cloned.stepAssignees["ký duyệt"]) cloned.stepAssignees["ký duyệt"] = cloned.submittedTo;
+        }
+        if (cloned.checkedBy) {
+            if (!cloned.stepAssignees["thẩm tra"]) cloned.stepAssignees["thẩm tra"] = cloned.checkedBy;
+            if (!cloned.stepAssignees["kiểm tra"]) cloned.stepAssignees["kiểm tra"] = cloned.checkedBy;
+            if (!cloned.stepAssignees["trình kiểm tra"]) cloned.stepAssignees["trình kiểm tra"] = cloned.checkedBy;
+            if (!cloned.stepAssignees["đã kiểm tra"]) cloned.stepAssignees["đã kiểm tra"] = cloned.checkedBy;
+        }
+        if (cloned.receivedBy) {
+            if (!cloned.stepAssignees["tiếp nhận"]) cloned.stepAssignees["tiếp nhận"] = cloned.receivedBy;
+            if (!cloned.stepAssignees["nhận hồ sơ"]) cloned.stepAssignees["nhận hồ sơ"] = cloned.receivedBy;
+        }
+        if (cloned.assignedTo) {
+            const assigneeSteps = ["giao nhân viên", "dnlis", "đã thực hiện", "in gcn", "vô số gcn"];
+            assigneeSteps.forEach(s => {
+                if (!cloned.stepAssignees![s]) {
+                    cloned.stepAssignees![s] = cloned.assignedTo!;
+                }
+            });
+        }
     }
     return cloned;
 }

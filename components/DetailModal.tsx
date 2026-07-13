@@ -2116,7 +2116,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             date: record.submissionDate,
                                             icon: Send,
                                             forceActive: isPendingSignActive,
-                                            subText: record.submissionDate && record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : undefined,
+                                            subText: record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : undefined,
                                             colorClass: {
                                                 border: "border-purple-500 text-purple-600",
                                                 bg: "bg-purple-500",
@@ -2128,7 +2128,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             date: record.approvalDate,
                                             icon: FileSignature,
                                             forceActive: isSignedActive,
-                                            subText: record.approvalDate && record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : undefined,
+                                            subText: record.submittedTo ? findPersonNameAndTitle(record.submittedTo) : undefined,
                                             colorClass: {
                                                 border: "border-indigo-500 text-indigo-600",
                                                 bg: "bg-indigo-500",

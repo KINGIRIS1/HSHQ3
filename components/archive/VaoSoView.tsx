@@ -397,10 +397,10 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
     // But here we use activeTab directly.
 
     if (activeTab === "all") {
-      // Danh sách tổng: Chỉ hiển thị các hồ sơ chưa chuyển bàn giao/scan (tối đa 1000 dòng)
+      // Danh sách tổng: Chỉ hiển thị các hồ sơ chưa chuyển bàn giao/scan
       filtered = records.filter(
         (r) => !r.data?.is_pending_scan && !r.data?.is_scanned
-      ).slice(0, 1000);
+      );
     } else if (activeTab === "pending") {
       // Chờ chuyển Scan: Đã được đánh dấu chuyển scan NHƯNG chưa có đợt scan (chưa scan xong)
       filtered = records.filter(
