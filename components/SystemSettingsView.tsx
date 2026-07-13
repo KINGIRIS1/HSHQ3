@@ -124,7 +124,8 @@ const GCN_WORKFLOW_DEFAULTS = [
       { label: "Thẩm tra", defaultDuration: "8 giờ" },
       { label: "Trình ký", defaultDuration: "4 giờ" },
       { label: "Vô số GCN", defaultDuration: "4 giờ" },
-      { label: "Giao 1 cửa", defaultDuration: "4 giờ" }
+      { label: "Đã giao 1 cửa", defaultDuration: "4 giờ" },
+      { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
     ]
   },
   {
@@ -138,7 +139,8 @@ const GCN_WORKFLOW_DEFAULTS = [
       { label: "Thẩm tra", defaultDuration: "8 giờ" },
       { label: "Trình ký", defaultDuration: "4 giờ" },
       { label: "Vô số GCN", defaultDuration: "4 giờ" },
-      { label: "Giao 1 cửa", defaultDuration: "4 giờ" }
+      { label: "Đã giao 1 cửa", defaultDuration: "4 giờ" },
+      { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
     ]
   },
   {
@@ -149,7 +151,8 @@ const GCN_WORKFLOW_DEFAULTS = [
       { label: "Thẩm tra", defaultDuration: "8 giờ" },
       { label: "Trình ký", defaultDuration: "4 giờ" },
       { label: "Vô số GCN", defaultDuration: "4 giờ" },
-      { label: "Giao 1 cửa", defaultDuration: "4 giờ" }
+      { label: "Đã giao 1 cửa", defaultDuration: "4 giờ" },
+      { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
     ]
   },
   {
@@ -162,8 +165,8 @@ const GCN_WORKFLOW_DEFAULTS = [
       { label: "In GCN", defaultDuration: "3 ngày" },
       { label: "Thẩm tra", defaultDuration: "2 ngày" },
       { label: "Trình ký", defaultDuration: "1 ngày" },
-      { label: "Vô số - Đóng dấu", defaultDuration: "1 ngày" },
-      { label: "Chuyển Một cửa", defaultDuration: "1 ngày" },
+      { label: "Vô số GCN", defaultDuration: "1 ngày" },
+      { label: "Đã giao 1 cửa", defaultDuration: "1 ngày" },
       { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
     ]
   },
@@ -176,8 +179,8 @@ const GCN_WORKFLOW_DEFAULTS = [
       { label: "In GCN", defaultDuration: "3 ngày" },
       { label: "Thẩm tra", defaultDuration: "2 ngày" },
       { label: "Trình ký", defaultDuration: "1 ngày" },
-      { label: "Vô số - Đóng dấu", defaultDuration: "1 ngày" },
-      { label: "Chuyển Một cửa", defaultDuration: "1 ngày" },
+      { label: "Vô số GCN", defaultDuration: "1 ngày" },
+      { label: "Đã giao 1 cửa", defaultDuration: "1 ngày" },
       { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
     ]
   },
@@ -189,10 +192,12 @@ const GCN_WORKFLOW_DEFAULTS = [
       { label: "BB Thế chấp", defaultDuration: "1 ngày" },
       { label: "Niêm yết", defaultDuration: "22 ngày" },
       { label: "Phiếu chuyển Thuế", defaultDuration: "2 ngày" },
-      { label: "Chờ Thông báo thuế (TBT)", defaultDuration: "---" },
+      { label: "TBT", defaultDuration: "---" },
       { label: "In GCN", defaultDuration: "3 ngày" },
       { label: "Thẩm tra", defaultDuration: "2 ngày" },
-      { label: "Trình ký - Vô số - Đóng dấu", defaultDuration: "1 ngày" },
+      { label: "Trình ký", defaultDuration: "1 ngày" },
+      { label: "Vô số GCN", defaultDuration: "1 ngày" },
+      { label: "Đã giao 1 cửa", defaultDuration: "1 ngày" },
       { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
     ]
   },
@@ -203,10 +208,12 @@ const GCN_WORKFLOW_DEFAULTS = [
       { label: "BB Thế chấp", defaultDuration: "1 ngày" },
       { label: "Niêm yết", defaultDuration: "22 ngày" },
       { label: "Phiếu chuyển Thuế", defaultDuration: "2 ngày" },
-      { label: "Chờ Thông báo thuế (TBT)", defaultDuration: "---" },
+      { label: "TBT", defaultDuration: "---" },
       { label: "In GCN", defaultDuration: "3 ngày" },
       { label: "Thẩm tra", defaultDuration: "2 ngày" },
-      { label: "Trình ký - Vô số - Đóng dấu", defaultDuration: "1 ngày" },
+      { label: "Trình ký", defaultDuration: "1 ngày" },
+      { label: "Vô số GCN", defaultDuration: "1 ngày" },
+      { label: "Đã giao 1 cửa", defaultDuration: "1 ngày" },
       { label: "Đã trả kết quả", defaultDuration: "0 giờ" }
     ]
   }

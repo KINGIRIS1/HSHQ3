@@ -338,7 +338,8 @@ export function getGcnWorkflowsList(): GcnWorkflow[] {
                 { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
                 { label: "Trình ký", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
                 { label: "Vô số GCN", duration: "4 giờ", overallStatus: RecordStatus.SIGNED },
-                { label: "Giao 1 cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER }
+                { label: "Đã giao 1 cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER },
+                { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
             ]
         },
         {
@@ -353,7 +354,8 @@ export function getGcnWorkflowsList(): GcnWorkflow[] {
                 { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
                 { label: "Trình ký", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
                 { label: "Vô số GCN", duration: "4 giờ", overallStatus: RecordStatus.SIGNED },
-                { label: "Giao 1 cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER }
+                { label: "Đã giao 1 cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER },
+                { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
             ]
         },
         {
@@ -365,7 +367,8 @@ export function getGcnWorkflowsList(): GcnWorkflow[] {
                 { label: "Thẩm tra", duration: "8 giờ", overallStatus: RecordStatus.PENDING_CHECK },
                 { label: "Trình ký", duration: "4 giờ", overallStatus: RecordStatus.PENDING_SIGN },
                 { label: "Vô số GCN", duration: "4 giờ", overallStatus: RecordStatus.SIGNED },
-                { label: "Giao 1 cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER }
+                { label: "Đã giao 1 cửa", duration: "4 giờ", overallStatus: RecordStatus.HANDOVER },
+                { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
             ]
         },
         {
@@ -379,8 +382,8 @@ export function getGcnWorkflowsList(): GcnWorkflow[] {
                 { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
                 { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
                 { label: "Trình ký", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
-                { label: "Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
-                { label: "Chuyển Một cửa", duration: "1 ngày", overallStatus: RecordStatus.HANDOVER },
+                { label: "Vô số GCN", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
+                { label: "Đã giao 1 cửa", duration: "1 ngày", overallStatus: RecordStatus.HANDOVER },
                 { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
             ]
         },
@@ -394,8 +397,8 @@ export function getGcnWorkflowsList(): GcnWorkflow[] {
                 { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
                 { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
                 { label: "Trình ký", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
-                { label: "Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
-                { label: "Chuyển Một cửa", duration: "1 ngày", overallStatus: RecordStatus.HANDOVER },
+                { label: "Vô số GCN", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
+                { label: "Đã giao 1 cửa", duration: "1 ngày", overallStatus: RecordStatus.HANDOVER },
                 { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
             ]
         },
@@ -408,10 +411,12 @@ export function getGcnWorkflowsList(): GcnWorkflow[] {
                 { label: "BB Thế chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
                 { label: "Niêm yết", duration: "22 ngày", overallStatus: RecordStatus.IN_PROGRESS },
                 { label: "Phiếu chuyển Thuế", duration: "2 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-                { label: "Chờ Thông báo thuế (TBT)", duration: "---", overallStatus: RecordStatus.TBT },
+                { label: "TBT", duration: "---", overallStatus: RecordStatus.TBT },
                 { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
                 { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
-                { label: "Trình ký - Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
+                { label: "Trình ký", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
+                { label: "Vô số GCN", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
+                { label: "Đã giao 1 cửa", duration: "1 ngày", overallStatus: RecordStatus.HANDOVER },
                 { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
             ]
         },
@@ -423,10 +428,12 @@ export function getGcnWorkflowsList(): GcnWorkflow[] {
                 { label: "BB Thế chấp", duration: "1 ngày", overallStatus: RecordStatus.IN_PROGRESS },
                 { label: "Niêm yết", duration: "22 ngày", overallStatus: RecordStatus.IN_PROGRESS },
                 { label: "Phiếu chuyển Thuế", duration: "2 ngày", overallStatus: RecordStatus.IN_PROGRESS },
-                { label: "Chờ Thông báo thuế (TBT)", duration: "---", overallStatus: RecordStatus.TBT },
+                { label: "TBT", duration: "---", overallStatus: RecordStatus.TBT },
                 { label: "In GCN", duration: "3 ngày", overallStatus: RecordStatus.IN_PROGRESS },
                 { label: "Thẩm tra", duration: "2 ngày", overallStatus: RecordStatus.PENDING_CHECK },
-                { label: "Trình ký - Vô số - Đóng dấu", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
+                { label: "Trình ký", duration: "1 ngày", overallStatus: RecordStatus.PENDING_SIGN },
+                { label: "Vô số GCN", duration: "1 ngày", overallStatus: RecordStatus.SIGNED },
+                { label: "Đã giao 1 cửa", duration: "1 ngày", overallStatus: RecordStatus.HANDOVER },
                 { label: "Đã trả kết quả", duration: "0 giờ", overallStatus: RecordStatus.RETURNED }
             ]
         }
@@ -537,13 +544,6 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
         const step = steps[index];
         if (!step) return false;
         
-        // Custom matching for quy_trinh_6 & 7 combined step "Trình ký - Vô số - Đóng dấu"
-        if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
-            if (step.label.includes("Trình ký - Vô số") && [RecordStatus.PENDING_SIGN, RecordStatus.SIGNED, RecordStatus.HANDOVER].includes(status)) {
-                return true;
-            }
-        }
-        
         if (step.overallStatus === status) return true;
         if (status === RecordStatus.RECEIVED && step.label.toLowerCase().includes("tiếp nhận")) return true;
         if (status === RecordStatus.IN_PROGRESS && step.overallStatus === RecordStatus.IN_PROGRESS) return true;
@@ -569,27 +569,11 @@ export function getGcnWorkflowStepsHelper(record: RecordFile, holidays: Holiday[
             } else if (status === RecordStatus.CHECKED) {
                 targetLabel = "Thẩm tra";
             } else if (status === RecordStatus.PENDING_SIGN) {
-                if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
-                    targetLabel = "Trình ký - Vô số";
-                } else if (['quy_trinh_4', 'quy_trinh_5'].includes(workflowType)) {
-                    targetLabel = "Trình ký";
-                } else {
-                    targetLabel = "Trình ký";
-                }
+                targetLabel = "Trình ký";
             } else if (status === RecordStatus.SIGNED) {
-                if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
-                    targetLabel = "Trình ký - Vô số";
-                } else if (['quy_trinh_4', 'quy_trinh_5'].includes(workflowType)) {
-                    targetLabel = "Vô số";
-                } else {
-                    targetLabel = "Vô số GCN";
-                }
+                targetLabel = "Vô số";
             } else if (status === RecordStatus.HANDOVER) {
-                if (['quy_trinh_6', 'quy_trinh_7'].includes(workflowType)) {
-                    targetLabel = "Trình ký - Vô số";
-                } else {
-                    targetLabel = "cửa";
-                }
+                targetLabel = "cửa";
             } else if (status === RecordStatus.IN_PROGRESS) {
                 const firstProgressIdx = stepConfigs.findIndex(s => s.overallStatus === RecordStatus.IN_PROGRESS);
                 currentStepIndex = firstProgressIdx !== -1 ? firstProgressIdx : 0;
