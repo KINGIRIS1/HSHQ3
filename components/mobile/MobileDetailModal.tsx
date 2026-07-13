@@ -170,14 +170,14 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
   const canEditRecord = canPerformAction && !isOneDoorAndSynced;
   const canPrintReceipt = isAdmin || isOneDoor;
 
-  const formatDate = (dateStr?: string | null) => {
+  const formatDate = (dateStr?: string | null, onlyDate?: boolean) => {
     if (!dateStr) return '---';
     const date = new Date(dateStr);
     const d = String(date.getDate()).padStart(2, '0');
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const y = date.getFullYear();
     
-    if (dateStr.includes('T')) {
+    if (!onlyDate && dateStr.includes('T')) {
         const h = String(date.getHours()).padStart(2, '0');
         const min = String(date.getMinutes()).padStart(2, '0');
         return `${h}:${min} - ${d}/${m}/${y}`;
@@ -966,7 +966,10 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                        return checkerName || "";
                    }
                    if (label.includes("trình ký gcn") || label.includes("trình ký giấy") || label.includes("trình ký")) {
-                       return directorName || assignedName || "";
+                       return directorName || "";
+                   }
+                   if (label.includes("ký duyệt")) {
+                       return directorName || "";
                    }
                    if (label.includes("vô số")) {
                        return assignedName || "";
@@ -1021,6 +1024,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                       return record.resultReturnedDate;
                   }
                   
+                  if (stepStatus === RecordStatus.RECEIVED) return record.receivedDate;
                   if (stepStatus === RecordStatus.IN_PROGRESS) return record.assignedDate;
                   if (stepStatus === RecordStatus.COMPLETED_WORK) return record.completedWorkDate;
                   if (stepStatus === RecordStatus.PENDING_CHECK) return record.pendingCheckDate;
@@ -1036,7 +1040,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                   <div className="flex flex-col items-center text-center mb-8 pb-6 border-b border-slate-50">
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Hạn trả kết quả</p>
-                    <p className="text-3xl font-black text-slate-800">{formatDate(record.deadline)}</p>
+                    <p className="text-3xl font-black text-slate-800">{formatDate(record.deadline, true)}</p>
                     <div className="mt-3 flex items-center gap-2 text-[10px] font-bold text-slate-500 bg-slate-50 px-3 py-1 rounded-full">
                       <Calendar size={12} /> Ngày nhận: {formatDate(record.receivedDate)}
                     </div>
@@ -1132,7 +1136,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                                   <span className="text-gray-300">|</span>
                                   <span className="flex items-center gap-1 font-semibold text-slate-700">
                                     <Clock size={12} className="text-slate-400" />
-                                    <span>Hạn giải quyết: {formatDate(step.deadlineDate.toISOString())}</span>
+                                    <span>Hạn giải quyết: {formatDate(step.deadlineDate.toISOString(), true)}</span>
                                   </span>
                                 </>
                               )}
@@ -1171,7 +1175,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div className="flex flex-col items-center text-center mb-8 pb-6 border-b border-slate-50">
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Hạn trả kết quả</p>
-                  <p className="text-3xl font-black text-slate-800">{formatDate(record.deadline)}</p>
+                  <p className="text-3xl font-black text-slate-800">{formatDate(record.deadline, true)}</p>
                   <div className="mt-3 flex items-center gap-2 text-[10px] font-bold text-slate-500 bg-slate-50 px-3 py-1 rounded-full">
                     <Calendar size={12} /> Ngày nhận: {formatDate(record.receivedDate)}
                   </div>

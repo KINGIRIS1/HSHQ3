@@ -164,14 +164,14 @@ const RecordRow: React.FC<RecordRowProps> = ({
           <div className="flex flex-col w-full bg-white/50 rounded border border-gray-100 overflow-hidden shadow-sm">
              <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-50/80 border-b border-gray-100" title="Ngày tiếp nhận">
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-tight mr-3">Nhận</span>
-                <span className="text-sm font-semibold text-slate-600 font-mono whitespace-nowrap">{formatDate(record.receivedDate)}</span>
+                <span className="text-sm font-semibold text-slate-600 font-mono whitespace-nowrap">{formatDate(record.receivedDate, true)}</span>
              </div>
              
              <div className={`flex items-center justify-between px-2.5 py-1.5 ${isOverdue ? 'bg-red-50' : isApproaching ? 'bg-orange-50' : 'bg-white'}`} title="Hẹn trả kết quả">
                 <span className={`text-[10px] font-extrabold uppercase tracking-tight mr-3 ${isOverdue ? 'text-red-500' : isApproaching ? 'text-orange-500' : 'text-blue-500'}`}>Trả</span>
                 <div className="flex items-center gap-1.5">
                     <span className={`text-sm font-bold font-mono whitespace-nowrap ${isOverdue ? 'text-red-600' : isApproaching ? 'text-orange-600' : 'text-blue-700'}`}>
-                        {formatDate(record.deadline)}
+                        {formatDate(record.deadline, true)}
                     </span>
                     {isOverdue && <AlertCircle size={13} className="text-red-500 animate-pulse shrink-0" />}
                     {isApproaching && <Clock size={13} className="text-orange-500 shrink-0" />}
@@ -201,7 +201,7 @@ const RecordRow: React.FC<RecordRowProps> = ({
           <td className={`${cellClass} text-center`}>
               {record.assignedDate ? (
                   <div className="flex flex-col items-center gap-1">
-                      <span className="text-sm text-gray-600">{formatDate(record.assignedDate)}</span>
+                      <span className="text-sm text-gray-600">{formatDate(record.assignedDate, true)}</span>
                       {employee && <span className="text-xs text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded break-words max-w-full leading-tight" title={employee.name}>{employee.name}</span>}
                       {isArchiveView && canPerformAction && (() => {
                           const matched = findArchiveStaffForWard(record.ward, employees);
@@ -266,31 +266,31 @@ const RecordRow: React.FC<RecordRowProps> = ({
                         ? 'Lưu kho C.Giấy' 
                         : 'Lưu kho Đ.Đạc'} - Đợt {record.archiveBatch}
                     </span>
-                    <span className="text-[11px] font-medium whitespace-nowrap">{formatDate(record.archiveDate)}</span>
+                    <span className="text-[11px] font-medium whitespace-nowrap">{formatDate(record.archiveDate, true)}</span>
                  </span>
                  {record.exportBatch && (
                      <span className="text-[10px] text-gray-500 font-medium bg-gray-50 px-1 rounded border border-gray-100">
-                         Giao 1C: Đợt {record.exportBatch} ({formatDate(record.exportDate)})
+                         Giao 1C: Đợt {record.exportBatch} ({formatDate(record.exportDate, true)})
                      </span>
                  )}
              </div>
           ) : record.exportBatch ? (
              <span className={`inline-flex flex-col items-center px-2 py-1 rounded border ${record.status === RecordStatus.WITHDRAWN ? 'bg-slate-100 text-slate-700 border-slate-300' : (record.status === RecordStatus.REJECTED || record.hasDefect) ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
                 <span className="text-[11px] font-bold">{(record.status === RecordStatus.REJECTED || record.hasDefect) ? 'HS Trả - Đợt ' : 'Đợt '}{record.exportBatch}{record.status === RecordStatus.RETURNED ? ' (DD-LT)' : ''}</span>
-                <span className="text-[11px] font-medium whitespace-nowrap">{formatDate(record.exportDate || record.completedDate)}</span>
+                <span className="text-[11px] font-medium whitespace-nowrap">{formatDate(record.exportDate || record.completedDate, true)}</span>
              </span>
           ) : record.status === RecordStatus.WITHDRAWN ? (
              <div className="flex flex-col items-center">
                 <span className="text-xs font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded mb-1">Rút HS</span>
-                <span className="text-sm font-bold text-slate-600">{formatDate(record.completedDate)}</span>
+                <span className="text-sm font-bold text-slate-600">{formatDate(record.completedDate, true)}</span>
              </div>
           ) : record.status === RecordStatus.REJECTED ? (
              <div className="flex flex-col items-center">
                 <span className="text-xs font-bold bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded mb-1">Hồ sơ trả</span>
-                <span className="text-sm font-bold text-red-700">{formatDate(record.completedDate)}</span>
+                <span className="text-sm font-bold text-red-700">{formatDate(record.completedDate, true)}</span>
              </div>
           ) : (
-             <span className="text-sm font-bold text-green-700">{formatDate(record.completedDate) || '--'}</span>
+             <span className="text-sm font-bold text-green-700">{formatDate(record.completedDate, true) || '--'}</span>
           )}
         </td>
       )}

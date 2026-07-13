@@ -55,7 +55,7 @@ export function parseSafeDate(dateStr?: string | null): Date | null {
     return null;
 }
 
-export function formatDate(dateStr?: string | null): string {
+export function formatDate(dateStr?: string | null, onlyDate?: boolean): string {
     if (!dateStr) return '';
     const date = parseSafeDate(dateStr);
     if (!date) {
@@ -68,7 +68,7 @@ export function formatDate(dateStr?: string | null): string {
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const y = date.getFullYear();
     
-    if (dateStr.includes('T') || dateStr.includes(' ')) {
+    if (!onlyDate && (dateStr.includes('T') || dateStr.includes(' '))) {
         const h = String(date.getHours()).padStart(2, '0');
         const min = String(date.getMinutes()).padStart(2, '0');
         return `${h}:${min} - ${d}/${m}/${y}`;
@@ -692,8 +692,6 @@ export function recordStepAssigneeHistory(record: RecordFile, holidays: Holiday[
             } else if (label.includes("trình ký") || label.includes("ký duyệt")) {
                 if (cloned.submittedTo) {
                     cloned.stepAssignees[label] = cloned.submittedTo;
-                } else if (cloned.assignedTo) {
-                    cloned.stepAssignees[label] = cloned.assignedTo;
                 }
             } else if (label.includes("nhận hồ sơ") || label.includes("tiếp nhận")) {
                 if (cloned.receivedBy) {

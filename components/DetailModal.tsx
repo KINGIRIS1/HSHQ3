@@ -182,10 +182,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
            return checkerName || "";
        }
        if (label.includes("trình ký") || label.includes("trình ký gcn") || label.includes("trình ký giấy")) {
-           return directorName || assignedName || "";
+           return directorName || "";
        }
        if (label.includes("ký duyệt")) {
-           return directorName || assignedName || "";
+           return directorName || "";
        }
        if (label.includes("vô số")) {
            return assignedName || "";
@@ -230,6 +230,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
       if (!record) return null;
       const label = stepLabel.toLowerCase().trim();
       
+      if (label.includes("tiếp nhận") || label.includes("nhận hồ sơ") || label === "nhận") {
+          return record.receivedDate;
+      }
+      
       if (record.stepDates && record.stepDates[label]) {
           return record.stepDates[label];
       }
@@ -262,7 +266,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
       }
       
       if (!date) {
-          if (stepStatus === RecordStatus.IN_PROGRESS) date = record.assignedDate;
+          if (stepStatus === RecordStatus.RECEIVED) date = record.receivedDate;
+          else if (stepStatus === RecordStatus.IN_PROGRESS) date = record.assignedDate;
           else if (stepStatus === RecordStatus.COMPLETED_WORK) date = record.completedWorkDate;
           else if (stepStatus === RecordStatus.PENDING_CHECK) date = record.pendingCheckDate;
           else if (stepStatus === RecordStatus.CHECKED) date = record.checkedDate;
@@ -467,7 +472,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
 
   const canPrintReceipt = isAdmin || isOneDoor;
 
-  const formatDate = (dateStr?: string | null) => {
+  const formatDate = (dateStr?: string | null, onlyDate?: boolean) => {
     if (!dateStr) return '---';
     const date = parseSafeDate(dateStr);
     if (!date) return '---';
@@ -475,7 +480,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const y = date.getFullYear();
     
-    if (dateStr.includes('T') || dateStr.includes(' ')) {
+    if (!onlyDate && (dateStr.includes('T') || dateStr.includes(' '))) {
         const h = String(date.getHours()).padStart(2, '0');
         const min = String(date.getMinutes()).padStart(2, '0');
         return `${h}:${min} - ${d}/${m}/${y}`;
@@ -1373,7 +1378,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                 ) : group.deadlineDate ? (
                                                     <div className="space-y-0.5">
                                                         <p className={`text-[10px] font-bold ${group.isOverdue ? "text-red-600 animate-pulse" : "text-blue-600"}`}>
-                                                            Hạn: {formatDate(group.deadlineDate.toISOString())}
+                                                            Hạn: {formatDate(group.deadlineDate.toISOString(), true)}
                                                         </p>
                                                         {group.isOverdue && (
                                                             <span className="text-[8px] font-extrabold text-red-600 uppercase tracking-widest bg-red-50 border border-red-100 px-1 py-0.2 rounded block text-center">
@@ -1448,8 +1453,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                         {formatDate(execDate)}
                                                     </p>
                                                 ) : s.deadlineDate ? (
-                                                    <p className={`text-[9px] font-bold mt-1 leading-none ${s.status === 'current' ? 'text-blue-600 animate-pulse' : 'text-gray-400'}`} title={`Hạn chót bước: ${formatDate(s.deadlineDate.toISOString())}`}>
-                                                        Hạn: {formatDate(s.deadlineDate.toISOString())}
+                                                    <p className={`text-[9px] font-bold mt-1 leading-none ${s.status === 'current' ? 'text-blue-600 animate-pulse' : 'text-gray-400'}`} title={`Hạn chót bước: ${formatDate(s.deadlineDate.toISOString(), true)}`}>
+                                                        Hạn: {formatDate(s.deadlineDate.toISOString(), true)}
                                                     </p>
                                                 ) : (
                                                     <p className="text-[9px] text-gray-400 mt-1 leading-none">---</p>
@@ -1889,7 +1894,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                 </div>
                                 <div className="flex items-center gap-2 text-[11px] text-gray-500">
                                     <span className="font-semibold">Hạn trả:</span>
-                                    <span className="font-extrabold text-gray-800">{formatDate(record.deadline)}</span>
+                                    <span className="font-extrabold text-gray-800">{formatDate(record.deadline, true)}</span>
                                     {record.receivedDate && (
                                         <span className="text-gray-400">| Nhận: {formatDate(record.receivedDate)}</span>
                                     )}
@@ -1989,7 +1994,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                                                     <span className="text-gray-300">|</span>
                                                                     <span className="flex items-center gap-1 font-semibold text-slate-700">
                                                                         <Clock size={12} className="text-slate-400" />
-                                                                        <span>Hạn giải quyết: {formatDate(step.deadlineDate.toISOString())}</span>
+                                                                        <span>Hạn giải quyết: {formatDate(step.deadlineDate.toISOString(), true)}</span>
                                                                     </span>
                                                                 </>
                                                             )}
