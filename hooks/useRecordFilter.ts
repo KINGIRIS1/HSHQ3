@@ -98,6 +98,14 @@ export const useRecordFilter = (
         return emp ? (emp.department?.trim().toLowerCase() === 'ban giám đốc' || emp.department?.trim().toLowerCase() === 'ban lãnh đạo') : false;
     }, [currentUser?.employeeId, employees]);
 
+    const isAssignView = [
+        'assign_tasks', 'registration_assign_tasks', 'archive_assign_tasks', 'congvan_assign_tasks', 'other_assign_tasks'
+    ].includes(currentView);
+
+    const isHandoverView = [
+        'handover_list', 'registration_handover_list', 'archive_handover_list', 'congvan_handover_list', 'other_handover_list'
+    ].includes(currentView);
+
     // --- FILTER LOGIC ---
     const activeTabRecords = useMemo(() => {
         const uniqueMap = new Map();
@@ -173,12 +181,6 @@ export const useRecordFilter = (
         const isDirectorCompletedView = [
             'director_completed', 'registration_director_completed', 'archive_director_completed', 'congvan_director_completed', 'other_director_completed'
         ].includes(currentView);
-        const isHandoverView = [
-            'handover_list', 'registration_handover_list', 'archive_handover_list', 'congvan_handover_list', 'other_handover_list'
-        ].includes(currentView);
-        const isAssignView = [
-            'assign_tasks', 'registration_assign_tasks', 'archive_assign_tasks', 'congvan_assign_tasks', 'other_assign_tasks'
-        ].includes(currentView);
 
         if (isCheckView) {
             if (isDirector) {
@@ -225,7 +227,7 @@ export const useRecordFilter = (
                 result = result.filter(r => r.status === RecordStatus.HANDOVER);
             }
         } else if (isAssignView) {
-            result = result.filter(r => r.status === RecordStatus.RECEIVED || !r.assignedTo);
+            result = result.filter(r => r.status === RecordStatus.RECEIVED && !r.assignedTo);
         } else if ([
             'registration_phieu_chuyen_thue',
             'registration_tbt',
@@ -409,15 +411,30 @@ export const useRecordFilter = (
                     if (filterStatus === 'withdrawn') return r.status === RecordStatus.WITHDRAWN;
                     if (filterStatus === 'rejected') return r.status === RecordStatus.REJECTED;
                     if (filterStatus === 'returned') return r.status === RecordStatus.RETURNED;
+                    if (filterStatus === RecordStatus.RECEIVED) {
+                        return r.status === RecordStatus.RECEIVED && !r.assignedTo;
+                    }
+                    if (filterStatus === RecordStatus.ASSIGNED) {
+                        return r.status === RecordStatus.ASSIGNED || (r.status === RecordStatus.RECEIVED && !!r.assignedTo);
+                    }
                     return r.status === filterStatus;
                 });
             } else {
-                result = result.filter(r => r.status === filterStatus);
+                if (filterStatus === RecordStatus.RECEIVED) {
+                    result = result.filter(r => r.status === RecordStatus.RECEIVED && !r.assignedTo);
+                } else if (filterStatus === RecordStatus.ASSIGNED) {
+                    result = result.filter(r => r.status === RecordStatus.ASSIGNED || (r.status === RecordStatus.RECEIVED && !!r.assignedTo));
+                } else {
+                    result = result.filter(r => r.status === filterStatus);
+                }
             }
         }
-        if (filterEmployee !== 'all' && currentView !== 'assign_tasks') {
-            if (filterEmployee === 'unassigned') result = result.filter(r => !r.assignedTo);
-            else result = result.filter(r => r.assignedTo === filterEmployee);
+        if (filterEmployee !== 'all' && !isAssignView) {
+            if (filterEmployee === 'unassigned') {
+                result = result.filter(r => !r.assignedTo && r.status !== RecordStatus.HANDOVER && r.status !== RecordStatus.RETURNED && r.status !== RecordStatus.WITHDRAWN);
+            } else {
+                result = result.filter(r => r.assignedTo === filterEmployee);
+            }
         }
 
         // Date Filters
