@@ -563,7 +563,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                                 </label>
                             </div>
                         )}
-                        {hasAdminRights && (
+                        {hasAdminRights ? (
                             <>
                                 <div><label className="block text-xs font-bold text-gray-700 mb-1">Ngày nhận</label><input type="date" required className="w-full border border-gray-300 rounded-md px-3 py-2" value={dateVal(formData.receivedDate)} onChange={(e) => handleChange('receivedDate', e.target.value)} /></div>
                                 <div><label className="block text-xs font-bold text-gray-700 mb-1">Hẹn trả {formData.recordType !== '1.2 Công văn' && <span className="text-red-500">*</span>}</label><input type="date" required={formData.recordType !== '1.2 Công văn'} className={`w-full border rounded-md px-3 py-2 font-semibold ${formData.recordType === '1.2 Công văn' ? 'border-gray-300 bg-white text-gray-700' : 'border-red-300 bg-red-50 text-red-600'}`} value={dateVal(formData.deadline)} onChange={(e) => handleChange('deadline', e.target.value)} /></div>
@@ -599,6 +599,33 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                                 
                                 {(formData.status === RecordStatus.SIGNED || formData.status === RecordStatus.HANDOVER || formData.status === RecordStatus.REJECTED || formData.status === RecordStatus.WITHDRAWN || !!formData.approvalDate) && (
                                     <div><label className="block text-xs font-bold text-indigo-700 mb-1">Ngày ký duyệt</label><input type="date" className="w-full border border-indigo-300 rounded-md px-3 py-2 bg-indigo-50 text-indigo-800" value={dateVal(formData.approvalDate)} onChange={(e) => handleChange('approvalDate', e.target.value)} /></div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <div><label className="block text-xs font-bold text-gray-500 mb-1">Ngày nhận</label><input type="date" disabled className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed" value={dateVal(formData.receivedDate)} /></div>
+                                <div><label className="block text-xs font-bold text-gray-500 mb-1">Hẹn trả</label><input type="date" disabled className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed font-semibold" value={dateVal(formData.deadline)} /></div>
+                                <div><label className="block text-xs font-bold text-gray-500 mb-1">Ngày giao NV</label><input type="date" disabled className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed" value={dateVal(formData.assignedDate)} /></div>
+                                <div><label className="block text-xs font-bold text-gray-500 mb-1">Trạng thái</label><select disabled className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed font-medium" value={val(formData.status)}><option value={val(formData.status)}>{getStatusLabel(formData.status || RecordStatus.RECEIVED, isRegistrationRecord ? 'đăng ký' : null)}</option></select></div>
+                                
+                                {(formData.status === RecordStatus.HANDOVER || formData.status === RecordStatus.WITHDRAWN || formData.status === RecordStatus.RETURNED || formData.status === RecordStatus.REJECTED || formData.exportBatch) && (
+                                    <div><label className="block text-xs font-bold text-gray-500 mb-1">{formData.status === RecordStatus.WITHDRAWN ? 'Ngày rút hồ sơ' : formData.status === RecordStatus.REJECTED ? 'Ngày trả hồ sơ' : 'Ngày hoàn thành'}</label><input type="date" disabled className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed font-semibold" value={dateVal(formData.completedDate)} /></div>
+                                )}
+                                
+                                {formData.status === RecordStatus.REJECTED && formData.rejectReason && (
+                                    <div className="col-span-full">
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">Lý do trả hồ sơ</label>
+                                        <textarea 
+                                            disabled
+                                            className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed font-medium" 
+                                            rows={2}
+                                            value={val(formData.rejectReason)} 
+                                        />
+                                    </div>
+                                )}
+                                
+                                {(formData.status === RecordStatus.SIGNED || formData.status === RecordStatus.HANDOVER || formData.status === RecordStatus.REJECTED || formData.status === RecordStatus.WITHDRAWN || !!formData.approvalDate) && (
+                                    <div><label className="block text-xs font-bold text-gray-500 mb-1">Ngày ký duyệt</label><input type="date" disabled className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed" value={dateVal(formData.approvalDate)} /></div>
                                 )}
                             </>
                         )}
@@ -776,7 +803,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                             </div>
                         )}
                         
-                        {canEditResult && (
+                        {canEditResult ? (
                             <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200 space-y-3">
                                 <h4 className="text-sm font-bold text-emerald-800 flex items-center gap-2 mb-1">
                                     <FileCheck size={16} /> TRẢ KẾT QUẢ CHO DÂN
@@ -815,6 +842,41 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                                                 handleChange('paymentAmount', val ? parseInt(val, 10) : null);
                                             }} 
                                             placeholder="Nhập số tiền..." 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-emerald-50/50 p-4 rounded-lg border border-emerald-100 space-y-3">
+                                <h4 className="text-sm font-bold text-emerald-700 flex items-center gap-2 mb-1">
+                                    <FileCheck size={16} /> TRẢ KẾT QUẢ CHO DÂN (Chỉ đọc)
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">Ngày trả kết quả</label>
+                                        <input 
+                                            type="date" 
+                                            disabled
+                                            className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed text-sm font-medium" 
+                                            value={dateVal(formData.resultReturnedDate)} 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">Số Biên lai/ Hóa đơn</label>
+                                        <input 
+                                            type="text" 
+                                            disabled
+                                            className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed text-sm" 
+                                            value={val(formData.receiptNumber)} 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">Số tiền (VNĐ)</label>
+                                        <input 
+                                            type="text" 
+                                            disabled
+                                            className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed text-sm text-right" 
+                                            value={typeof formData.paymentAmount === 'number' ? (formData.paymentAmount as number).toLocaleString('vi-VN') : ''} 
                                         />
                                     </div>
                                 </div>

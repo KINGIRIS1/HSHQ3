@@ -1728,6 +1728,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
           onHolidaysChanged={props.onRefreshData}
           records={props.records}
           onTransferPendingOneStopRecords={props.handleTransferPendingOneStopRecords}
+          onViewRecord={props.handleViewRecord}
         />
       );
     case "reports":

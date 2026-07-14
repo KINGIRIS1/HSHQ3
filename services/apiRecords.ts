@@ -116,6 +116,9 @@ export const getShortCode = (ward: string) => {
     return 'CT';
 };
 
+// Keep track of the highest generated sequence number for each datePrefix in the current execution/session
+const sessionSequenceMap = new Map<string, number>();
+
 export const getNextGlobalRecordCode = async (dateStr: string, wardName?: string): Promise<string> => {
     const d = new Date(dateStr);
     const yy = d.getFullYear().toString().slice(-2);
@@ -124,61 +127,77 @@ export const getNextGlobalRecordCode = async (dateStr: string, wardName?: string
     const datePrefix = `${yy}${mm}${dd}`;
     const prefix = datePrefix;
 
+    let suffix = '';
+    if (wardName) {
+        const abbr = getShortCode(wardName);
+        if (abbr && abbr !== 'CT') {
+            suffix = abbr;
+        }
+    }
+
     if (!isConfigured) {
-        return `${prefix}-${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`;
+        return `${prefix}-${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}${suffix}`;
+    }
+
+    // 1. Quét DB thực tế tìm số thứ tự lớn nhất đang tồn tại của ngày này (chống lệch bộ đếm do import Excel)
+    let maxDbSeq = 0;
+    try {
+        const { data: dbRecords, error: dbError } = await supabase
+            .from('land_records')
+            .select('code')
+            .like('code', `${prefix}-%`);
+            
+        if (!dbError && dbRecords) {
+            for (const r of dbRecords) {
+                if (r.code) {
+                    const match = r.code.match(/-(\d+)/);
+                    if (match) {
+                        const seq = parseInt(match[1], 10);
+                        if (!isNaN(seq) && seq > maxDbSeq) {
+                            maxDbSeq = seq;
+                        }
+                    }
+                }
+            }
+        }
+    } catch (dbErr) {
+        console.error("Lỗi khi tìm mã hồ sơ lớn nhất thực tế:", dbErr);
     }
 
     // Dùng key theo ngày để số thứ tự reset về 0001 mỗi ngày và tăng tuần tự một cách đồng bộ
     const key = `record_counter_${datePrefix}`;
-    let nextSeq = 1;
-    let success = false;
-    let attempts = 0;
-
-    while (!success && attempts < 5) {
-        attempts++;
-        try {
-            const { data } = await supabase.from('system_settings').select('value').eq('key', key).single();
-            
-            let currentVal = 0;
-            if (data && data.value) {
-                currentVal = parseInt(data.value, 10);
-                if (isNaN(currentVal)) currentVal = 0;
-            }
-
-            nextSeq = currentVal + 1;
-
-            if (data) {
-                const { data: updatedData, error } = await supabase
-                    .from('system_settings')
-                    .update({ value: nextSeq.toString() })
-                    .eq('key', key)
-                    .eq('value', data.value)
-                    .select();
-                    
-                if (!error && updatedData && updatedData.length > 0) {
-                    success = true;
-                }
-            } else {
-                const { data: insertedData, error } = await supabase
-                    .from('system_settings')
-                    .insert([{ key, value: nextSeq.toString() }])
-                    .select();
-                    
-                if (!error && insertedData && insertedData.length > 0) {
-                    success = true;
-                }
-            }
-        } catch (e) {
-            // Ignore and retry
+    let currentVal = 0;
+    try {
+        const { data } = await supabase.from('system_settings').select('value').eq('key', key).single();
+        if (data && data.value) {
+            currentVal = parseInt(data.value, 10);
+            if (isNaN(currentVal)) currentVal = 0;
         }
+    } catch (e) {
+        // ignore
+    }
 
-        if (!success) {
-            await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
+    const cachedSeq = sessionSequenceMap.get(datePrefix) || 0;
+    const baseVal = Math.max(currentVal, maxDbSeq, cachedSeq);
+    const nextSeq = baseVal + 1;
+
+    // Cập nhật session cache
+    sessionSequenceMap.set(datePrefix, nextSeq);
+
+    // Cập nhật lên cloud
+    try {
+        const { data: existing } = await supabase.from('system_settings').select('key').eq('key', key).single();
+        if (existing) {
+            await supabase.from('system_settings').update({ value: nextSeq.toString() }).eq('key', key);
+        } else {
+            await supabase.from('system_settings').insert([{ key, value: nextSeq.toString() }]);
         }
+    } catch (dbErr) {
+        console.error("Lỗi khi lưu counter vào system_settings:", dbErr);
     }
 
     const seqStr = nextSeq.toString().padStart(4, '0');
-    return `${prefix}-${seqStr}`;
+    return `${prefix}-${seqStr}${suffix}`;
 };
 
 export const createRecordApi = async (record: RecordFile): Promise<RecordFile | null> => {

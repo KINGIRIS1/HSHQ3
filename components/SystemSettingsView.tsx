@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { Database, AlertTriangle, Cloud, Loader2, CheckCircle, Save, Globe, Calendar, Plus, Trash2, ShieldAlert, Key, Compass, FolderOpen, Award, FileCheck, Users, Clock, Timer, RefreshCw, Sliders, ChevronRight, HelpCircle, X } from 'lucide-react';
+import { Database, AlertTriangle, Cloud, Loader2, CheckCircle, Save, Globe, Calendar, Plus, Trash2, ShieldAlert, Key, Compass, FolderOpen, Award, FileCheck, Users, Clock, Timer, RefreshCw, Sliders, ChevronRight, HelpCircle, X, Copy } from 'lucide-react';
 import { Holiday, UserRole, RolePermissions, DepartmentPermissions, DEFAULT_ROLE_PERMISSIONS, AVAILABLE_PERMISSIONS, Employee, RecordFile, RecordStatus } from '../types';
 import { fetchHolidays, saveHolidays, testDatabaseConnection, saveUpdateInfo, fetchUpdateInfo, getSystemSetting, saveSystemSetting } from '../services/api';
 import { APP_VERSION } from '../constants';
 import { confirmAction, getGcnWorkflowsList, GcnWorkflow } from '../utils/appHelpers';
+import DuplicateFinder from './DuplicateFinder';
 
 interface SystemSettingsViewProps {
   onDeleteAllData: () => Promise<boolean>;
@@ -13,6 +14,7 @@ interface SystemSettingsViewProps {
   currentUserRole?: UserRole;
   records?: RecordFile[];
   onTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
+  onViewRecord?: (record: RecordFile) => void;
 }
 
 const TEAMS_PERM_LIST = [
@@ -225,10 +227,11 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   employees,
   currentUserRole,
   records = [],
-  onTransferPendingOneStopRecords
+  onTransferPendingOneStopRecords,
+  onViewRecord
 }) => {
   const isAdminOrSub = currentUserRole === UserRole.ADMIN || currentUserRole === UserRole.SUBADMIN;
-  const [activeTab, setActiveTab] = useState<'general' | 'holidays' | 'permissions' | 'data' | 'sla'>(
+  const [activeTab, setActiveTab] = useState<'general' | 'holidays' | 'permissions' | 'data' | 'sla' | 'duplicates'>(
       currentUserRole === UserRole.TEAM_LEADER ? 'sla' : 'general'
   );
   const [isDeletingData, setIsDeletingData] = useState(false);
@@ -654,6 +657,14 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                     className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'data' ? 'border-red-600 text-red-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                 >
                     <AlertTriangle size={16} /> Dữ liệu
+                </button>
+            )}
+            {isAdminOrSub && (
+                <button 
+                    onClick={() => setActiveTab('duplicates')}
+                    className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'duplicates' ? 'border-amber-600 text-amber-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                >
+                    <Copy size={16} /> Trùng mã hồ sơ
                 </button>
             )}
         </div>
@@ -1618,6 +1629,12 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                             </div>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {activeTab === 'duplicates' && isAdminOrSub && (
+                <div className="max-w-4xl mx-auto h-full flex flex-col">
+                    <DuplicateFinder records={records} onViewRecord={onViewRecord || (() => {})} />
                 </div>
             )}
         </div>
