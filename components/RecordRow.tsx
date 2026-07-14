@@ -397,9 +397,7 @@ const RecordRow: React.FC<RecordRowProps> = ({
             {record.status !== RecordStatus.HANDOVER && record.status !== RecordStatus.WITHDRAWN && record.status !== RecordStatus.RETURNED && !record.resultReturnedDate && isStepProgressionAllowed && (
               <button onClick={() => onAdvanceStatus(record)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Chuyển bước"><ArrowRight size={16} /></button>
             )}
-            {!(currentUser?.role === 'ONEDOOR' && (record.isDeptSynced === true || record.status !== RecordStatus.RECEIVED)) && (
-              <button onClick={() => onEdit(record)} className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Sửa"><Pencil size={16} /></button>
-            )}
+            <button onClick={() => onEdit(record)} className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Sửa"><Pencil size={16} /></button>
             {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SUBADMIN') && (
                 <button onClick={() => onDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Xóa"><Trash2 size={16} /></button>
             )}

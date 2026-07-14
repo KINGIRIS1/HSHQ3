@@ -531,6 +531,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
   }, [landAreaRows]);
 
   const isMeasOrArch = isMeasurementType(formData.recordType) || isArchiveType(formData.recordType);
+  const isOneDoorAndSynced = currentUser?.role === UserRole.ONEDOOR && (initialData?.isDeptSynced === true || initialData?.status !== RecordStatus.RECEIVED);
 
   const hasReceiverSection = (type: string | null | undefined): boolean => {
       const t = (type || '').toLowerCase();
@@ -925,12 +926,14 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
         }
     } else {
         const hasAddress = isMeasOrArch 
-            ? !!formData.customerAddress?.trim() 
+            ? true 
             : !!(formData.customerAddress?.trim() || ownerRows[0]?.address?.trim() || receiverRows[0]?.address?.trim());
         if (!finalCode || !customerName || !formData.recordType || !formData.deadline || !cccd || !phoneNumber || !hasAddress) { 
             setNotification({ 
                 type: 'error', 
-                message: "Vui lòng điền đầy đủ các thông tin bắt buộc: Mã hồ sơ, Họ tên người nộp, CCCD, SĐT, Địa chỉ thường trú, Hạn trả và Loại hồ sơ." 
+                message: isMeasOrArch 
+                    ? "Vui lòng điền đầy đủ các thông tin bắt buộc: Mã hồ sơ, Họ tên người nộp, CCCD, SĐT, Hạn trả và Loại hồ sơ."
+                    : "Vui lòng điền đầy đủ các thông tin bắt buộc: Mã hồ sơ, Họ tên người nộp, CCCD, SĐT, Địa chỉ thường trú, Hạn trả và Loại hồ sơ." 
             });
             return; 
         }
@@ -1144,7 +1147,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
             {/* THÔNG TIN BIÊN NHẬN & THỜI GIAN TRÊN ĐẦU */}
             {initialData && initialData.id ? (
                 /* THÔNG TIN CHUNG CARD (EDIT MODE) */
-                <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+                <fieldset disabled={isOneDoorAndSynced} className="m-0 p-0 border-0 min-w-0 bg-white rounded-lg border border-slate-200 shadow-sm block">
                     <div className="bg-white text-[#007bff] border-b border-slate-200 px-4 py-2.5 rounded-t-lg font-bold uppercase text-sm flex items-center gap-2">
                         <Calendar size={16} />
                         THÔNG TIN CHUNG
@@ -1357,7 +1360,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             </div>
                         </div>
                     </div>
-                </div>
+                </fieldset>
             ) : (
                 /* DEFAULT BIÊN NHẬN (NEW MODE) WITH RECORD TYPE SELECTOR ON TOP */
                 <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
@@ -1479,7 +1482,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
             {isRegistration(formData.recordType) ? (
                 <>
                     {/* CARD 1: THÔNG TIN NGƯỜI NỘP HỒ SƠ */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+            <fieldset disabled={isOneDoorAndSynced} className="m-0 p-0 border-0 min-w-0 bg-white rounded-lg border border-slate-200 shadow-sm block">
                 <div className="bg-white text-[#007bff] border-b border-slate-200 px-4 py-2.5 rounded-t-lg font-bold uppercase text-sm flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <UserIcon size={16} />
@@ -1534,10 +1537,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                         </div>
                         {formData.recordType !== '1.2 Công văn' && (
                             <div className="md:col-span-12 mt-2">
-                                <label className={labelClass}>Địa chỉ thường trú <span className="text-red-500">*</span></label>
+                                <label className={labelClass}>Địa chỉ thường trú {!isMeasOrArch && <span className="text-red-500">*</span>}</label>
                                 <input 
                                     type="text" 
-                                    required 
+                                    required={!isMeasOrArch} 
                                     className={plainInputClass} 
                                     placeholder="Nhập địa chỉ thường trú..." 
                                     value={formData.customerAddress || ''} 
@@ -1547,10 +1550,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                         )}
                     </div>
                 </div>
-            </div>
+            </fieldset>
 
             {/* CARD 2: THÔNG TIN THỬA ĐẤT */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <fieldset disabled={isOneDoorAndSynced} className="m-0 p-0 border-0 min-w-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden block">
                 <div className="bg-white text-[#007bff] border-b border-slate-200 px-4 py-2.5 font-bold uppercase text-sm flex items-center gap-2">
                     <MapPin size={16} />
                     THÔNG TIN THỬA ĐẤT
@@ -1691,10 +1694,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                         </div>
                     </div>
                 </div>
-            </div>
+            </fieldset>
 
             {/* OWNER ROWS TABLE */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden mt-4">
+            <fieldset disabled={isOneDoorAndSynced} className="m-0 p-0 border-0 min-w-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden mt-4 block">
                 <div className="bg-white text-[#007bff] border-b border-slate-200 px-4 py-2.5 font-bold uppercase text-sm flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <UserIcon size={16} />
@@ -1773,11 +1776,11 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                         </table>
                     </div>
                 </div>
-            </div>
+            </fieldset>
 
             {/* RECEIVER ROWS TABLE */}
             {!isMeasOrArch && (
-                <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden mt-4">
+                <fieldset disabled={isOneDoorAndSynced} className="m-0 p-0 border-0 min-w-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden mt-4 block">
                     <div className="bg-white text-[#007bff] border-b border-slate-200 px-4 py-2.5 font-bold uppercase text-sm flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <UserIcon size={16} />
@@ -1868,11 +1871,11 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             </table>
                         </div>
                     </div>
-                </div>
+                </fieldset>
             )}
 
             {/* OTHER DOCS ROWS TABLE */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden mt-4">
+            <fieldset disabled={isOneDoorAndSynced} className="m-0 p-0 border-0 min-w-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden mt-4 block">
                 <div className="bg-white text-[#007bff] border-b border-slate-200 px-4 py-2.5 font-bold uppercase text-sm flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <FileText size={16} />
@@ -1952,10 +1955,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                         </table>
                     </div>
                 </div>
-            </div>
+            </fieldset>
 
             {/* CARD 3: THÔNG TIN NGƯỜI ĐƯỢC ỦY QUYỀN */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden mt-4">
+            <fieldset disabled={isOneDoorAndSynced} className="m-0 p-0 border-0 min-w-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden mt-4 block">
                 <div 
                     onClick={() => setShowAuthSection(!showAuthSection)} 
                     className="bg-white hover:bg-slate-50 text-[#007bff] border-b border-slate-200 px-4 py-2.5 font-bold uppercase text-sm flex items-center justify-between cursor-pointer select-none transition-colors"
@@ -2014,7 +2017,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                         </div>
                     </div>
                 )}
-            </div>
+            </fieldset>
  
                 </>
             ) : (
@@ -2063,7 +2066,8 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
 
             {initialData && initialData.id && (
                 <div className="space-y-6 mt-4">
-                    {/* SECTION: NHÂN VIÊN */}
+                    <fieldset disabled={isOneDoorAndSynced} className="m-0 p-0 border-0 min-w-0 space-y-6 block">
+                        {/* SECTION: NHÂN VIÊN */}
                     <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
                         <div>
                             <label className={labelClass}>Giao nhân viên xử lý</label>
@@ -2164,6 +2168,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             </div>
                         </div>
                     </div>
+                    </fieldset>
 
                     {/* SECTION: GHI CHÚ NỘI BỘ */}
                     <div className="bg-white rounded-lg border border-orange-200 shadow-sm overflow-hidden">
@@ -2174,7 +2179,6 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                         <div className="p-4 bg-orange-50/10">
                             <textarea 
                                 rows={3} 
-                                disabled={currentUser?.role === UserRole.ONEDOOR}
                                 className="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all font-medium text-gray-800 disabled:bg-slate-100 disabled:text-slate-500"
                                 placeholder="Nhập ghi chú nội bộ..."
                                 value={formData.privateNotes || ''} 

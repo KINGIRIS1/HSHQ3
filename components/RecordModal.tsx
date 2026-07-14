@@ -824,7 +824,6 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                             <div className="flex items-center gap-2 mb-1"><Lock size={14} className="text-yellow-600" /><label className="text-xs font-bold text-yellow-800 uppercase">Ghi chú nội bộ</label></div>
                             <textarea 
                                 rows={2} 
-                                disabled={currentUser?.role === UserRole.ONEDOOR}
                                 className="w-full border border-yellow-300 rounded-md px-3 py-2 bg-white text-sm disabled:bg-yellow-100/50 disabled:text-gray-500" 
                                 value={val(formData.privateNotes)} 
                                 onChange={(e) => handleChange('privateNotes', e.target.value)} 

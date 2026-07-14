@@ -311,13 +311,6 @@ function App() {
       }, 600000);
   };
 
-  // --- LOGIC TỰ ĐỘNG CHUYỂN TAB CHO 1 CỬA ---
-  useEffect(() => {
-      if (currentView === 'handover_list' && currentUser?.role === UserRole.ONEDOOR && recordFilterProps.handoverTab === 'today') {
-          recordFilterProps.setHandoverTab('history');
-      }
-  }, [currentView, currentUser, recordFilterProps.handoverTab]);
-
   // --- HANDLERS (Business Logic) ---
 
   const handleExportReportExcel = async (fromDateStr: string, toDateStr: string, ward: string, title?: string, data?: RecordFile[]) => {

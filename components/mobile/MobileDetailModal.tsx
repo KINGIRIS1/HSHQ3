@@ -196,8 +196,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isSubadmin = currentUser?.role === UserRole.SUBADMIN;
   const canPerformAction = isAdmin || isSubadmin || isOneDoor;
-  const isOneDoorAndSynced = currentUser?.role === UserRole.ONEDOOR && (record.isDeptSynced === true || record.status !== RecordStatus.RECEIVED);
-  const canEditRecord = canPerformAction && !isOneDoorAndSynced;
+  const canEditRecord = canPerformAction;
   const canPrintReceipt = isAdmin || isOneDoor;
 
   const formatDate = (dateStr?: string | null, onlyDate?: boolean) => {
