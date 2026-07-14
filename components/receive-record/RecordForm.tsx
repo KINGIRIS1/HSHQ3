@@ -899,19 +899,10 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
     const isNewRecord = !(initialData && initialData.id);
 
     if (isNewRecord) {
-      const isType3 = formData.recordType?.startsWith('3.');
-      if (!isType3) {
-        // 1.x and 2.x always get code from server (generateCode) right now
+      if (!finalCode) {
         const activeWard = formData.ward || processingWard;
         finalCode = generateCode(activeWard, formData.receivedDate || '', formData.recordType || undefined);
         setFormData(prev => ({ ...prev, code: finalCode }));
-      } else {
-        // 3.x gets code from other system if filled, otherwise gets from server if empty
-        if (!finalCode) {
-          const activeWard = formData.ward || processingWard;
-          finalCode = generateCode(activeWard, formData.receivedDate || '', formData.recordType || undefined);
-          setFormData(prev => ({ ...prev, code: finalCode }));
-        }
       }
     }
 
@@ -1158,31 +1149,13 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             {formData.recordType !== '1.2 Công văn' && (
                                 <div className="md:col-span-1">
                                     <label className={labelClass}>Mã hồ sơ <span className="text-red-500">*</span></label>
-                                    {(() => {
-                                        const rType = formData.recordType || '';
-                                        const isType3 = rType.startsWith('3.');
-                                        if (isType3) {
-                                            return (
-                                                <input 
-                                                    type="text" 
-                                                    className={`${plainInputClass} bg-white text-blue-600 font-bold font-mono`} 
-                                                    placeholder="Mã hồ sơ..."
-                                                    value={formData.code || ''} 
-                                                    onChange={(e) => handleChange('code', e.target.value)} 
-                                                />
-                                            );
-                                        } else {
-                                            return (
-                                                <input 
-                                                    type="text" 
-                                                    readOnly
-                                                    className={`${plainInputClass} bg-slate-50 text-slate-500 font-medium cursor-not-allowed`} 
-                                                    placeholder="Tự động tạo..."
-                                                    value={formData.code || ''} 
-                                                />
-                                            );
-                                        }
-                                    })()}
+                                    <input 
+                                        type="text" 
+                                        className={`${plainInputClass} bg-white text-blue-600 font-bold font-mono`} 
+                                        placeholder="Mã hồ sơ..."
+                                        value={formData.code || ''} 
+                                        onChange={(e) => handleChange('code', e.target.value)} 
+                                    />
                                 </div>
                             )}
                             <div className={formData.recordType === '1.2 Công văn' ? "md:col-span-4" : (isRegistration(formData.recordType) && !isDefaultTaxProcedure(formData.recordType) ? "md:col-span-2" : "md:col-span-3")}>
@@ -1428,35 +1401,15 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                             {formData.recordType !== '1.2 Công văn' && (
                                 <div>
                                     <label className={labelClass}>Mã hồ sơ <span className="text-red-500">*</span></label>
-                                    {(() => {
-                                        const rType = formData.recordType || '';
-                                        const isType3 = rType.startsWith('3.');
-                                        if (isType3) {
-                                            return (
-                                                <input 
-                                                    type="text" 
-                                                    className={`${plainInputClass} bg-white text-blue-600 font-bold font-mono`} 
-                                                    placeholder="Nhập mã hồ sơ (hoặc để trống để tự sinh)..."
-                                                    value={formData.code || ''} 
-                                                    onChange={(e) => handleChange('code', e.target.value)} 
-                                                />
-                                            );
-                                        } else {
-                                            return (
-                                                <input 
-                                                     type="text" 
-                                                    className={`${plainInputClass} bg-white text-blue-600 font-bold font-mono`} 
-                                                    placeholder="Nhập mã hồ sơ (hoặc để trống để tự sinh)..."
-                                                    value={formData.code || ''} 
-                                                    onChange={(e) => handleChange('code', e.target.value)}
-                                                />
-                                            );
-                                        }
-                                    })()}
+                                    <input 
+                                        type="text" 
+                                        className={`${plainInputClass} bg-white text-blue-600 font-bold font-mono`} 
+                                        placeholder="Nhập mã hồ sơ (hoặc để trống để tự sinh)..."
+                                        value={formData.code || ''} 
+                                        onChange={(e) => handleChange('code', e.target.value)} 
+                                    />
                                     <p className="text-[11px] text-slate-500 mt-1 font-medium">
-                                        {formData.recordType?.startsWith('3.') 
-                                            ? "* Lưu ý: Có thể điền mã từ hệ thống khác hoặc để trống để tự sinh." 
-                                            : "* Lưu ý: Mã hồ sơ sẽ được tự động tạo khi nhấn Lưu hoặc In."}
+                                        * Lưu ý: Có thể điền mã từ hệ thống khác hoặc để trống để tự động tạo khi nhấn Lưu hoặc In.
                                     </p>
                                 </div>
                             )}
