@@ -2106,7 +2106,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             forceActive: isPendingCheckActive,
                                             subText: record.pendingCheckDate ? (() => {
                                                 const checker = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
-                                                if (checker) return `${checker.name}`;
+                                                if (checker) return `${checker.name} (${checker.position || 'Tổ trưởng'})`;
                                                 return undefined;
                                             })() : undefined,
                                             colorClass: {
@@ -2123,7 +2123,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             subText: record.checkedDate && record.checkedBy ? (() => {
                                                 const checker = employees.find(e => e.id === record.checkedBy);
                                                 if (!checker) return undefined;
-                                                return `${checker.name}`;
+                                                return `${checker.name} (${checker.position || 'Tổ trưởng'})`;
                                              })() : undefined,
                                             colorClass: {
                                                 border: "border-orange-500 text-orange-600",

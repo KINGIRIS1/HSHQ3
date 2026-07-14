@@ -86,8 +86,9 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
   const todayStr = new Date().toISOString().split('T')[0];
 
   const filteredRecordsForBatches = useMemo(() => {
-      if (!currentView) return records;
-      const activeGroup = getViewActiveGroup(currentView);
+      const activeGroup = (targetRecords && targetRecords.length > 0)
+          ? getRecordGroup(targetRecords[0])
+          : (currentView ? getViewActiveGroup(currentView) : 'measurement');
       const isReturnedMode = targetRecords.length > 0 && targetRecords.every(r => r.status === RecordStatus.RETURNED);
       return records.filter(r => 
           getRecordGroup(r) === activeGroup && 

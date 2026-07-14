@@ -1207,7 +1207,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                         const receiver = users.find(u => u.employeeId === record.receivedBy);
                         if (!receiver) return undefined;
                         const emp = employees.find(e => e.id === receiver.employeeId);
-                        return `Người nhận: ${receiver.name} (${emp?.position || 'Nhân viên'})`;
+                        return `${receiver.name} (${emp?.position || 'Nhân viên'})`;
                     })() : undefined}
                   />
                   <TimelineItem 
@@ -1218,7 +1218,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     subText={record.assignedTo ? (() => {
                         const assigned = employees.find(e => e.id === record.assignedTo);
                         if (!assigned) return undefined;
-                        return `Nhân viên thực hiện: ${assigned.name} (${assigned.position || 'Nhân viên'})`;
+                        return `${assigned.name} (${assigned.position || 'Nhân viên'})`;
                     })() : undefined}
                   />
                   <TimelineItem 
@@ -1230,7 +1230,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     subText={record.completedWorkDate && record.assignedTo ? (() => {
                         const assigned = employees.find(e => e.id === record.assignedTo);
                         if (!assigned) return undefined;
-                        return `Nhân viên hoàn thành: ${assigned.name} (${assigned.position || 'Nhân viên'})`;
+                        return `${assigned.name} (${assigned.position || 'Nhân viên'})`;
                     })() : undefined}
                   />
 
@@ -1242,7 +1242,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     colorClass={{text: 'text-orange-600', border: 'border-orange-600', bg: 'bg-orange-600'}}
                     subText={record.pendingCheckDate ? (() => {
                         const checker = record.checkedBy ? employees.find(e => e.id === record.checkedBy) : null;
-                        if (checker) return `Người kiểm tra: ${checker.name} (${checker.position || 'Tổ trưởng'})`;
+                        if (checker) return `${checker.name} (${checker.position || 'Tổ trưởng'})`;
                         return undefined;
                     })() : undefined}
                   />
@@ -1255,7 +1255,7 @@ export const MobileDetailModal: React.FC<MobileDetailModalProps> = ({
                     subText={record.checkedDate && record.checkedBy ? (() => {
                         const checker = employees.find(e => e.id === record.checkedBy);
                         if (!checker) return undefined;
-                        return `Người kiểm tra: ${checker.name} (${checker.position || 'Tổ trưởng'})`;
+                        return `${checker.name} (${checker.position || 'Tổ trưởng'})`;
                     })() : undefined}
                   />
 
