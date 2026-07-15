@@ -121,6 +121,7 @@ interface AppRoutesProps {
   handleDeleteEmployee: (id: string) => void;
   handleDeleteAllData: () => Promise<boolean>;
   handleTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
+  handleSyncMissingFieldsFromArchive?: () => Promise<{ success: boolean; count: number; error?: any }>;
   onRefreshData: () => void;
   setWards: React.Dispatch<React.SetStateAction<string[]>>;
   onResetWards: () => void;
@@ -1728,6 +1729,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
           onHolidaysChanged={props.onRefreshData}
           records={props.records}
           onTransferPendingOneStopRecords={props.handleTransferPendingOneStopRecords}
+          onSyncMissingFieldsFromArchive={props.handleSyncMissingFieldsFromArchive}
           onViewRecord={props.handleViewRecord}
         />
       );

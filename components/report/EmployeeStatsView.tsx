@@ -13,7 +13,7 @@ interface EmployeeStatsViewProps {
     toDate: string;
     selectedEmpId: string;
     setSelectedEmpId: (id: string) => void;
-    mainTab?: 'measurement' | 'archive' | 'registration';
+    mainTab?: 'all' | 'measurement' | 'archive' | 'registration';
 }
 
 const EmployeeStatsView: React.FC<EmployeeStatsViewProps> = ({ 

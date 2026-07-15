@@ -10,7 +10,8 @@ import { supabase } from '../services/supabaseClient';
 import { mapRecordFromDb, saveToCache, getFromCache, CACHE_KEYS } from '../services/apiCore';
 import { DEFAULT_WARDS as STATIC_WARDS, APP_VERSION, MOCK_EMPLOYEES, MOCK_USERS } from '../constants';
 import { addToOfflineQueue } from '../utils/offlineSync';
-import { isRegType, getGcnWorkflowStepsHelper } from '../utils/appHelpers';
+import { isRegType, getGcnWorkflowStepsHelper, calculateDeadline, removeVietnameseTones } from '../utils/appHelpers';
+import { fetchArchiveRecords } from '../services/apiArchive';
 
 // --- HELPERS FOR AUTO-TRANSITION TO TBT ---
 const getSolarDateFromLunar = (lunarDay: number, lunarMonth: number, year: number): Date | null => {
@@ -596,6 +597,138 @@ export const useAppData = (currentUser: User | null) => {
         return result;
     };
 
+    const handleSyncMissingFieldsFromArchive = async () => {
+        try {
+            // Fetch all archive records
+            const [saoluc, vaoso, congvan] = await Promise.all([
+                fetchArchiveRecords('saoluc'),
+                fetchArchiveRecords('vaoso'),
+                fetchArchiveRecords('congvan')
+            ]);
+            
+            const allArchives = [...saoluc, ...vaoso, ...congvan];
+            
+            // Build matching maps
+            const archiveMapByCode = new Map<string, typeof allArchives[0]>();
+            const archiveMapByName = new Map<string, typeof allArchives[0]>();
+            
+            allArchives.forEach(a => {
+                if (a.so_hieu) {
+                    const norm = a.so_hieu.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+                    if (norm) archiveMapByCode.set(norm, a);
+                }
+                if (a.noi_nhan_gui) {
+                    const norm = removeVietnameseTones(a.noi_nhan_gui.trim().toLowerCase());
+                    if (norm) archiveMapByName.set(norm, a);
+                }
+            });
+            
+            const findEmployeeIdByName = (name: string): string | null => {
+                if (!name) return null;
+                const normName = removeVietnameseTones(name.trim().toLowerCase());
+                const emp = employees.find(e => removeVietnameseTones(e.name.trim().toLowerCase()) === normName);
+                return emp ? emp.id : null;
+            };
+
+            const updates: any[] = [];
+            
+            records.forEach(r => {
+                let updated = false;
+                const cloned = { ...r };
+                
+                // Try to find matching archive record
+                const rCodeNorm = r.code ? r.code.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '') : '';
+                const rNameNorm = r.customerName ? removeVietnameseTones(r.customerName.trim().toLowerCase()) : '';
+                
+                const matched = (rCodeNorm && archiveMapByCode.get(rCodeNorm)) || (rNameNorm && archiveMapByName.get(rNameNorm));
+                
+                if (matched) {
+                    const mData = matched.data || {};
+                    
+                    // 1. receivedDate
+                    if (!cloned.receivedDate) {
+                        const recDate = matched.ngay_thang || mData.ngay_nhan || mData.receivedDate;
+                        if (recDate) {
+                            cloned.receivedDate = recDate;
+                            updated = true;
+                        }
+                    }
+                    
+                    // 2. deadline
+                    if (!cloned.deadline) {
+                        const deadlineDate = mData.hen_tra || mData.deadline;
+                        if (deadlineDate) {
+                            cloned.deadline = deadlineDate;
+                            updated = true;
+                        }
+                    }
+                    
+                    // 3. assignedTo / assignedDate
+                    if (!cloned.assignedTo) {
+                        const assTo = mData.assigned_to || mData.assignedTo;
+                        if (assTo) {
+                            // If assTo is an employee ID, use it. Otherwise try to resolve from name.
+                            const isId = employees.some(e => e.id === assTo);
+                            const finalEmpId = isId ? assTo : findEmployeeIdByName(assTo);
+                            
+                            if (finalEmpId) {
+                                cloned.assignedTo = finalEmpId;
+                                cloned.assignedDate = cloned.assignedDate || mData.assigned_date || mData.assignedDate || cloned.receivedDate;
+                                updated = true;
+                            }
+                        }
+                    }
+                    
+                    // 4. exportBatch / exportDate / completedDate
+                    if (!cloned.exportBatch) {
+                        const batch = mData.danh_sach || mData.exportBatch || mData.export_batch;
+                        if (batch) {
+                            const batchNum = typeof batch === 'number' ? batch : (parseInt(String(batch).replace(/\D/g, ''), 10) || null);
+                            if (batchNum) {
+                                cloned.exportBatch = batchNum;
+                                cloned.exportDate = cloned.exportDate || mData.ngay_hoan_thanh || mData.exportDate || mData.export_date || mData.completedDate || mData.completed_date;
+                                cloned.completedDate = cloned.completedDate || cloned.exportDate || mData.ngay_hoan_thanh || mData.completedDate || mData.completed_date;
+                                updated = true;
+                            }
+                        }
+                    }
+                }
+                
+                // Fallback: If receivedDate and recordType are present but deadline is still empty, calculate it!
+                if (cloned.receivedDate && cloned.recordType && !cloned.deadline) {
+                    cloned.deadline = calculateDeadline(cloned.recordType, cloned.receivedDate, holidays, cloned.hasTax);
+                    updated = true;
+                }
+                
+                if (updated) {
+                    updates.push({
+                        id: cloned.id,
+                        receivedDate: cloned.receivedDate,
+                        deadline: cloned.deadline,
+                        assignedTo: cloned.assignedTo,
+                        assignedDate: cloned.assignedDate,
+                        exportBatch: cloned.exportBatch,
+                        exportDate: cloned.exportDate,
+                        completedDate: cloned.completedDate
+                    });
+                }
+            });
+            
+            if (updates.length > 0) {
+                const result = await updateRecordsBatchById(updates);
+                if (result.success) {
+                    await loadData();
+                }
+                return { success: true, count: updates.length };
+            }
+            
+            return { success: true, count: 0 };
+        } catch (error) {
+            console.error("Error in syncMissingFieldsFromArchive:", error);
+            return { success: false, count: 0, error };
+        }
+    };
+
     return {
         records, employees, users, wards, holidays, rolePermissions, departmentPermissions, connectionStatus,
         isUpdateAvailable, latestVersion, updateUrl,
@@ -605,6 +738,7 @@ export const useAppData = (currentUser: User | null) => {
         handleSaveEmployee, handleDeleteEmployee,
         handleUpdateUser, handleDeleteUser,
         handleDeleteAllData,
-        handleTransferPendingOneStopRecords
+        handleTransferPendingOneStopRecords,
+        handleSyncMissingFieldsFromArchive
     };
 };

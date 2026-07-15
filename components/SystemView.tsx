@@ -19,6 +19,7 @@ interface SystemViewProps {
     onHolidaysChanged: () => void;
     records?: RecordFile[];
     onTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
+    onSyncMissingFieldsFromArchive?: () => Promise<{ success: boolean; count: number; error?: any }>;
     onViewRecord?: (record: RecordFile) => void;
 }
 
@@ -36,6 +37,7 @@ const SystemView: React.FC<SystemViewProps> = ({
     onHolidaysChanged,
     records = [],
     onTransferPendingOneStopRecords,
+    onSyncMissingFieldsFromArchive,
     onViewRecord
 }) => {
     const isAdmin = currentUser.role === UserRole.ADMIN;
@@ -100,6 +102,7 @@ const SystemView: React.FC<SystemViewProps> = ({
                         currentUserRole={currentUser.role}
                         records={records}
                         onTransferPendingOneStopRecords={onTransferPendingOneStopRecords}
+                        onSyncMissingFieldsFromArchive={onSyncMissingFieldsFromArchive}
                         onViewRecord={onViewRecord}
                     />
                 )}

@@ -167,19 +167,20 @@ const ReportSection: React.FC<ReportSectionProps> = ({
 
     // --- NEW LOGIC FOR MAIN TABS (Đo đạc vs Cấp giấy vs Lưu trữ) ---
     const allowedMainTabs = useMemo(() => {
-        if (!currentUser) return ['measurement', 'registration', 'archive'];
+        const baseTabs = ['all', 'measurement', 'registration', 'archive'];
+        if (!currentUser) return baseTabs;
         
         const roleStr = (currentUser.role as string).toUpperCase();
         const isSystemAdmin = roleStr === 'ADMIN' || roleStr === 'SUBADMIN';
-        if (isSystemAdmin) return ['measurement', 'registration', 'archive'];
+        if (isSystemAdmin) return baseTabs;
 
         const userEmp = rawEmployees.find(e => e.id === currentUser.employeeId);
-        if (!userEmp) return ['measurement', 'registration', 'archive']; // fallback
+        if (!userEmp) return baseTabs; // fallback
 
         const dept = userEmp.department.toLowerCase();
         // Exception for administrative/leadership who can view everything
         const isPrivilegedDept = dept.includes('hành chính') || dept.includes('giám đốc') || dept.includes('lãnh đạo') || dept.includes('quản trị');
-        if (isPrivilegedDept) return ['measurement', 'registration', 'archive'];
+        if (isPrivilegedDept) return baseTabs;
 
         const allowed: string[] = [];
         if (dept.includes('đo đạc') || dept.includes('kỹ thuật')) {
@@ -193,7 +194,7 @@ const ReportSection: React.FC<ReportSectionProps> = ({
         }
 
         // If no match found, let them see what corresponds or fallback to default
-        if (allowed.length === 0) return ['measurement', 'registration', 'archive'];
+        if (allowed.length === 0) return baseTabs;
         return allowed;
     }, [rawEmployees, currentUser]);
 
@@ -218,23 +219,23 @@ const ReportSection: React.FC<ReportSectionProps> = ({
         return isHanhChinh || isDirectorDept || roleStr === 'ONEDOOR';
     }, [currentUser, rawEmployees]);
 
-    const [mainTab, setMainTab] = useState<'measurement' | 'archive' | 'registration'>(() => {
+    const [mainTab, setMainTab] = useState<'all' | 'measurement' | 'archive' | 'registration'>(() => {
         // Find first allowed tab on initialization if possible
         if (currentUser) {
             const roleStr = (currentUser.role as string).toUpperCase();
-            if (roleStr === 'ADMIN' || roleStr === 'SUBADMIN') return 'measurement';
+            if (roleStr === 'ADMIN' || roleStr === 'SUBADMIN') return 'all';
             const userEmp = rawEmployees.find(e => e.id === currentUser.employeeId);
             if (userEmp) {
                 const dept = userEmp.department.toLowerCase();
                 const isPrivilegedDept = dept.includes('hành chính') || dept.includes('giám đốc') || dept.includes('lãnh đạo') || dept.includes('quản trị');
-                if (isPrivilegedDept) return 'measurement';
+                if (isPrivilegedDept) return 'all';
                 
                 if (dept.includes('đo đạc') || dept.includes('kỹ thuật')) return 'measurement';
                 if (dept.includes('cấp giấy') || dept.includes('đăng ký') || dept.includes('biến động') || dept.includes('thẩm định') || dept.includes('pháp chế')) return 'registration';
                 if (dept.includes('lưu trữ') || dept.includes('một cửa') || dept.includes('thông tin')) return 'archive';
             }
         }
-        return 'measurement';
+        return 'all';
     });
 
     useEffect(() => {
@@ -248,6 +249,26 @@ const ReportSection: React.FC<ReportSectionProps> = ({
             setActiveTab('list');
         }
     }, [canViewRevenue, activeTab]);
+
+    // Tự động điều chỉnh khoảng thời gian mặc định nếu trong DB có hồ sơ cũ hơn 2025
+    useEffect(() => {
+        if (rawRecords && rawRecords.length > 0) {
+            let earliestDate = null;
+            for (const r of rawRecords) {
+                if (r.receivedDate) {
+                    const d = r.receivedDate.split('T')[0];
+                    if (d && d >= '1970-01-01') {
+                        if (!earliestDate || d < earliestDate) {
+                            earliestDate = d;
+                        }
+                    }
+                }
+            }
+            if (earliestDate && earliestDate < '2025-01-01') {
+                setFromDate(earliestDate);
+            }
+        }
+    }, [rawRecords]);
 
     const [archiveRecords, setArchiveRecords] = useState<RecordFile[]>([]);
 
@@ -304,7 +325,11 @@ const ReportSection: React.FC<ReportSectionProps> = ({
     }, [mainTab]);
 
     const activeRecords = useMemo(() => {
-        if (mainTab === 'measurement') {
+        if (mainTab === 'all') {
+            const archiveIds = new Set(archiveRecords.map(a => a.id));
+            const nonArchiveFromRecords = records.filter(r => !archiveIds.has(r.id));
+            return [...nonArchiveFromRecords, ...archiveRecords];
+        } else if (mainTab === 'measurement') {
             return records.filter(r => 
                 !['CMD', 'Tòa án', 'Thi hành án'].includes(r.recordType || '') &&
                 !isArchiveType(r.recordType) && r.recordType !== 'Sao lục' && r.recordType !== 'Công văn' &&
@@ -318,7 +343,9 @@ const ReportSection: React.FC<ReportSectionProps> = ({
     }, [mainTab, records, archiveRecords]);
 
     const activeEmployees = useMemo(() => {
-        if (mainTab === 'measurement') {
+        if (mainTab === 'all') {
+            return employees;
+        } else if (mainTab === 'measurement') {
             return employees.filter(e => {
                 const dept = e.department?.toLowerCase() || '';
                 return dept.includes('đo đạc') || dept.includes('kỹ thuật');
@@ -592,6 +619,14 @@ const ReportSection: React.FC<ReportSectionProps> = ({
         <div className="flex flex-col h-full overflow-hidden relative bg-slate-50">
             {/* MAIN TAB SWITCHER */}
             <div className="bg-white border-b border-gray-200 flex px-4 pt-2 gap-1 shrink-0">
+                {allowedMainTabs.includes('all') && (
+                    <button 
+                        onClick={() => setMainTab('all')}
+                        className={`px-6 py-3 text-sm font-bold rounded-t-lg border-t border-l border-r transition-all flex items-center gap-2 ${mainTab === 'all' ? 'bg-indigo-50 border-gray-200 text-indigo-700 border-b-transparent relative top-[1px]' : 'bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100'}`}
+                    >
+                        <Layout size={18} /> Tất cả hồ sơ
+                    </button>
+                )}
                 {allowedMainTabs.includes('measurement') && (
                     <button 
                         onClick={() => setMainTab('measurement')}
@@ -620,23 +655,23 @@ const ReportSection: React.FC<ReportSectionProps> = ({
 
             {/* Toolbar */}
             <div className={`p-4 border-b border-gray-200 shadow-sm flex flex-col gap-4 shrink-0 z-10 ${
-                mainTab === 'measurement' ? 'bg-blue-50' : mainTab === 'registration' ? 'bg-emerald-50' : 'bg-orange-50'
+                mainTab === 'all' ? 'bg-indigo-50' : mainTab === 'measurement' ? 'bg-blue-50' : mainTab === 'registration' ? 'bg-emerald-50' : 'bg-orange-50'
             }`}>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-xl ${
-                            mainTab === 'measurement' ? 'bg-blue-200 text-blue-700' : mainTab === 'registration' ? 'bg-emerald-200 text-emerald-700' : 'bg-orange-200 text-orange-700'
+                            mainTab === 'all' ? 'bg-indigo-200 text-indigo-700' : mainTab === 'measurement' ? 'bg-blue-200 text-blue-700' : mainTab === 'registration' ? 'bg-emerald-200 text-emerald-700' : 'bg-orange-200 text-orange-700'
                         }`}>
                             <BarChart3 size={24} />
                         </div>
                         <div>
                             <h2 className={`font-bold text-lg ${
-                                mainTab === 'measurement' ? 'text-blue-900' : mainTab === 'registration' ? 'text-emerald-900' : 'text-orange-900'
+                                mainTab === 'all' ? 'text-indigo-900' : mainTab === 'measurement' ? 'text-blue-900' : mainTab === 'registration' ? 'text-emerald-900' : 'text-orange-900'
                             }`}>
-                                {mainTab === 'measurement' ? 'Thống kê Hồ sơ Đo đạc' : mainTab === 'registration' ? 'Thống kê Hồ sơ Cấp giấy' : 'Thống kê Hồ sơ Lưu trữ'}
+                                {mainTab === 'all' ? 'Báo cáo Tổng hợp (Tất cả hồ sơ)' : mainTab === 'measurement' ? 'Thống kê Hồ sơ Đo đạc' : mainTab === 'registration' ? 'Thống kê Hồ sơ Cấp giấy' : 'Thống kê Hồ sơ Lưu trữ'}
                             </h2>
                             <p className="text-xs text-gray-500">
-                                {mainTab === 'measurement' ? 'Dữ liệu từ Tổ đo đạc & Kỹ thuật' : mainTab === 'registration' ? 'Dữ liệu từ Tổ đăng ký cấp giấy' : 'Dữ liệu từ Tổ thông tin lưu trữ'}
+                                {mainTab === 'all' ? 'Tổng hợp toàn bộ dữ liệu trên hệ thống' : mainTab === 'measurement' ? 'Dữ liệu từ Tổ đo đạc & Kỹ thuật' : mainTab === 'registration' ? 'Dữ liệu từ Tổ đăng ký cấp giấy' : 'Dữ liệu từ Tổ thông tin lưu trữ'}
                             </p>
                         </div>
                     </div>

@@ -13,6 +13,7 @@ interface ImportModalProps {
   onImport: (records: RecordFile[], mode: 'create' | 'update', onProgress?: (processed: number, total: number) => void) => Promise<boolean>;
   employees: Employee[];
   currentView?: string;
+  records?: RecordFile[];
 }
 
 // Helper: Solar date from Lunar (Giống ReceiveRecord)
@@ -44,7 +45,7 @@ const getTabCategory = (view: string): 'cap_giay' | 'do_dac' | 'luu_tru' | 'rece
     return 'do_dac';
 };
 
-const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, employees, currentView }) => {
+const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, employees, currentView, records }) => {
   type PreviewRecord = RecordFile & { _errors?: string[] };
   const [previewData, setPreviewData] = useState<PreviewRecord[]>([]);
   const [fileName, setFileName] = useState('');
@@ -347,6 +348,9 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
                   if (rawVal === undefined || rawVal === null || rawVal === '') return undefined;
                   const parsed = parseExcelDate(rawVal);
                   if (parsed === '') {
+                      if (String(rawVal).length <= 4) {
+                          return undefined;
+                      }
                       errors.push(`Trường "${label}" (${rawVal}) không đúng định dạng DD/MM/YYYY.`);
                       return undefined;
                   }
@@ -369,7 +373,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
                   record.receivedDate = new Date().toISOString();
               }
 
-              const deadlineRaw = getVal(['HẸN TRẢ', 'DEADLINE', 'deadline']);
+              const deadlineRaw = getVal(['HẸN TRẢ', 'DEADLINE', 'deadline', 'THỜI HẠN XỬ LÝ', 'THỜI HẠN GIẢI QUYẾT', 'HẠN XỬ LÝ', 'HẠN GIẢI QUYẾT', 'HẠN TRẢ']);
               if (deadlineRaw !== undefined) record.deadline = processDateCell(deadlineRaw, "Hạn trả");
 
               const completedWorkDateRaw = getVal(['NGÀY THỰC HIỆN', 'NGÀY ĐÃ THỰC HIỆN', 'completedworkdate', 'completed_work_date', 'completedWorkDate']);
@@ -387,8 +391,11 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
               const approvalDateRaw = getVal(['NGÀY KÝ DUYỆT', 'NGÀY KÝ', 'approvaldate', 'approval_date', 'approvalDate']);
               if (approvalDateRaw !== undefined) record.approvalDate = processDateCell(approvalDateRaw, "Ngày ký duyệt");
 
-              const completedDateRaw = getVal(['NGÀY HOÀN THÀNH', 'completeddate', 'completed_date', 'completedDate', 'NGÀY GIAO 1 CỬA']);
-              if (completedDateRaw !== undefined) record.completedDate = processDateCell(completedDateRaw, "Ngày bàn giao một cửa");
+              const completedDateRaw = getVal(['NGÀY HOÀN THÀNH', 'completeddate', 'completed_date', 'completedDate', 'NGÀY GIAO 1 CỬA', 'HOÀN THÀNH', 'HOÀN THÀNH/ ĐỢT', 'HOÀN THÀNH/ĐỢT']);
+              if (completedDateRaw !== undefined) {
+                  const parsedCompletedDate = processDateCell(completedDateRaw, "Ngày bàn giao một cửa");
+                  if (parsedCompletedDate) record.completedDate = parsedCompletedDate;
+              }
 
               const resultReturnedDateRaw = getVal(['NGÀY TRẢ DÂN', 'resultreturneddate', 'result_returned_date', 'resultReturnedDate']);
               if (resultReturnedDateRaw !== undefined) record.resultReturnedDate = processDateCell(resultReturnedDateRaw, "Ngày trả dân");
@@ -406,7 +413,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
                   record.price = 310000;
               }
 
-              const exportBatchRaw = getVal(['ĐỢT', 'BATCH', 'exportbatch', 'export_batch', 'exportBatch']);
+              const exportBatchRaw = getVal(['ĐỢT', 'BATCH', 'exportbatch', 'export_batch', 'exportBatch', 'HOÀN THÀNH/ ĐỢT', 'HOÀN THÀNH/ĐỢT']);
               if (exportBatchRaw !== undefined) {
                   const numStr = String(exportBatchRaw).replace(/[^0-9]/g, '');
                   if (numStr) record.exportBatch = parseInt(numStr, 10);
@@ -476,16 +483,18 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
                   }
               }
 
-              const assigneeRaw = getVal(['NGƯỜI XỬ LÝ', 'NHÂN VIÊN', 'assignedto', 'assigned_to', 'assignedTo']);
-              if (assigneeRaw !== undefined) {
+              const assigneeRaw = getVal(['NGƯỜI XỬ LÝ', 'NHÂN VIÊN', 'assignedto', 'assigned_to', 'assignedTo', 'GIAO NHÂN VIÊN', 'NHÂN VIÊN THỤ LÝ', 'CÁN BỘ THỤ LÝ', 'GIAO CHO']);
+              if (assigneeRaw !== undefined && String(assigneeRaw).trim() !== '') {
                   const emp = employees.find(e => e.name.toLowerCase().includes(String(assigneeRaw).toLowerCase()));
                   if (emp) {
                       record.assignedTo = emp.id;
-                      if (mode === 'create') record.assignedDate = record.receivedDate;
+                      if (!record.assignedDate) {
+                          record.assignedDate = record.receivedDate || new Date().toISOString();
+                      }
                   }
               }
 
-              const assignedDateRaw = getVal(['NGÀY GIAO', 'NGÀY GIAO VIỆC', 'assigneddate', 'assigned_date', 'assignedDate']);
+              const assignedDateRaw = getVal(['NGÀY GIAO', 'NGÀY GIAO VIỆC', 'assigneddate', 'assigned_date', 'assignedDate', 'NGÀY GIAO VIỆC']);
               if (assignedDateRaw !== undefined) {
                   record.assignedDate = processDateCell(assignedDateRaw, "Ngày giao việc");
               }
@@ -651,11 +660,56 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
                   record.transferToDNLis = (str === 'có' || str === 'yes' || str === 'true' || str === '1');
               }
 
-              if (mode === 'create' && !record.deadline && record.recordType && record.receivedDate) {
+              if (!record.deadline && record.recordType && record.receivedDate) {
                   record.deadline = calculateDeadline(record.recordType, record.receivedDate, record.hasTax);
               }
 
-              record.id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9);
+              // Synchronize missing fields from the database if record exists by code or customerName
+              const normCode = record.code ? record.code.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '') : '';
+              const normName = record.customerName ? removeVietnameseTones(record.customerName.trim().toLowerCase()) : '';
+              
+              const existingRecord = (records || []).find(r => {
+                  if (normCode && r.code) {
+                      const dbCode = r.code.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+                      if (dbCode === normCode) return true;
+                  }
+                  if (normName && r.customerName) {
+                      const dbName = removeVietnameseTones(r.customerName.trim().toLowerCase());
+                      if (dbName === normName) return true;
+                  }
+                  return false;
+              });
+
+              if (existingRecord) {
+                  record.id = existingRecord.id;
+                  
+                  // Fill missing/blank/undefined fields
+                  const keysToSync = [
+                      'code', 'customerName', 'phoneNumber', 'customerAddress', 'cccd', 'authDocType', 
+                      'ward', 'mapSheet', 'landPlot', 'area', 'clnArea', 'bhkArea', 'lucArea', 'otherLandArea', 
+                      'residentialArea', 'recordType', 'receivedDate', 'deadline', 'assignedTo', 'assignedDate', 
+                      'completedWorkDate', 'checkedDate', 'checkedBy', 'approvalDate', 'completedDate', 
+                      'resultReturnedDate', 'receiptNumber', 'receiptType', 'paymentAmount', 'receiverName', 
+                      'price', 'advancePayment', 'hasDefect', 'defectReason', 'defectDate', 'rejectReason', 
+                      'rejectDate', 'notes', 'privateNotes', 'personalNotes', 'needsMapCorrection', 'hasTax', 
+                      'transferToDNLis', 'status', 'isDeptSynced', 'currentStepIndex', 'stepAssignees', 
+                      'submittedTo', 'submissionDate', 'pendingCheckDate', 'exportBatch', 'exportDate'
+                  ];
+                  
+                  keysToSync.forEach(key => {
+                      const currentVal = record[key];
+                      const existingVal = (existingRecord as any)[key];
+                      
+                      const isCurrentEmpty = currentVal === undefined || currentVal === null || currentVal === '';
+                      const isExistingFilled = existingVal !== undefined && existingVal !== null && existingVal !== '';
+                      
+                      if (isCurrentEmpty && isExistingFilled) {
+                          record[key] = existingVal;
+                      }
+                  });
+              } else {
+                  record.id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9);
+              }
               
               if (mode === 'create') {
                   const category = currentView ? getTabCategory(currentView) : 'receive';

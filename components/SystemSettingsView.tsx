@@ -14,6 +14,7 @@ interface SystemSettingsViewProps {
   currentUserRole?: UserRole;
   records?: RecordFile[];
   onTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
+  onSyncMissingFieldsFromArchive?: () => Promise<{ success: boolean; count: number; error?: any }>;
   onViewRecord?: (record: RecordFile) => void;
 }
 
@@ -228,6 +229,7 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   currentUserRole,
   records = [],
   onTransferPendingOneStopRecords,
+  onSyncMissingFieldsFromArchive,
   onViewRecord
 }) => {
   const isAdminOrSub = currentUserRole === UserRole.ADMIN || currentUserRole === UserRole.SUBADMIN;
@@ -246,6 +248,7 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   // Sync state for One-Stop pending records
   const [syncCutoffDate, setSyncCutoffDate] = useState('2026-07-10');
   const [isSyncingOneStop, setIsSyncingOneStop] = useState(false);
+  const [isSyncingArchive, setIsSyncingArchive] = useState(false);
 
   // Holiday States
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -1599,6 +1602,56 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                 >
                                     {isSyncingOneStop ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
                                     {isSyncingOneStop ? 'Đang chuyển xử lý...' : 'Chuyển xử lý hàng loạt'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Khôi phục & đồng bộ thông tin hồ sơ cũ */}
+                    <div className="border border-emerald-100 rounded-[2rem] overflow-hidden bg-white shadow-xl shadow-emerald-50">
+                        <div className="bg-emerald-50/50 p-6 border-b border-emerald-50 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-emerald-800 font-black flex items-center gap-2 uppercase tracking-widest text-xs"> 
+                                    <Database className="text-emerald-600" size={18} /> Khôi phục & đồng bộ hồ sơ cũ
+                                </h3>
+                                <p className="text-[11px] text-emerald-500 font-medium mt-1">Khôi phục đầy đủ và điền thông tin còn thiếu cho các hồ sơ cũ từ dữ liệu lưu trữ.</p>
+                            </div>
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <p className="text-sm text-slate-500 leading-relaxed font-medium">
+                                Tính năng này sẽ quét qua toàn bộ cơ sở dữ liệu để đối chiếu các hồ sơ tiếp nhận cũ với hồ sơ lưu trữ gốc (Vào sổ GCN, Sao lục, Công văn). Hệ thống sẽ tự động đồng bộ và khôi phục các thông tin còn thiếu bao gồm: <strong>Ngày nhận, Ngày hẹn trả (Tính toán theo thời hạn xử lý SLA), Nhân viên được phân công, và Đợt giao Một cửa</strong>.
+                            </p>
+
+                            <div className="pt-4 border-t border-slate-100 flex justify-end">
+                                <button 
+                                    onClick={async () => {
+                                        if (await confirmAction("Bạn có chắc chắn muốn chạy tiến trình Khôi phục & Đồng bộ các trường thông tin còn thiếu cho toàn bộ hồ sơ cũ trong hệ thống?")) {
+                                            setIsSyncingArchive(true);
+                                            try {
+                                                if (onSyncMissingFieldsFromArchive) {
+                                                    const res = await onSyncMissingFieldsFromArchive();
+                                                    if (res && res.success) {
+                                                        alert(`Đã khôi phục & đồng bộ thành công ${res.count} hồ sơ.`);
+                                                        if (onHolidaysChanged) onHolidaysChanged(); // Refresh data
+                                                    } else {
+                                                        alert("Đã xảy ra lỗi trong quá trình đồng bộ: " + (res?.error ? String(res.error) : "Lỗi không xác định"));
+                                                    }
+                                                } else {
+                                                    alert("Lỗi: Chức năng đồng bộ dữ liệu chưa được định nghĩa.");
+                                                }
+                                            } catch (err) {
+                                                console.error(err);
+                                                alert("Có lỗi xảy ra: " + (err instanceof Error ? err.message : String(err)));
+                                            } finally {
+                                                setIsSyncingArchive(false);
+                                            }
+                                        }
+                                    }}
+                                    disabled={isSyncingArchive}
+                                    className="w-full sm:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
+                                >
+                                    {isSyncingArchive ? <Loader2 className="animate-spin" size={14} /> : <Database size={14} />}
+                                    {isSyncingArchive ? 'Đang đồng bộ...' : 'Bắt đầu Khôi phục & Đồng bộ'}
                                 </button>
                             </div>
                         </div>

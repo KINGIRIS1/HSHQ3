@@ -215,7 +215,7 @@ function App() {
       setEmployees, setUsers, setRecords, setWards,
       loadData, handleAddOrUpdateRecord, handleDeleteRecord, handleImportRecords,
       handleSaveEmployee, handleDeleteEmployee, handleDeleteAllData, handleUpdateUser, handleDeleteUser,
-      handleTransferPendingOneStopRecords
+      handleTransferPendingOneStopRecords, handleSyncMissingFieldsFromArchive
   } = useAppData(currentUser);
 
   // Re-fetch data from database when user successfully logs in
@@ -1753,6 +1753,7 @@ function App() {
             handleDeleteEmployee={handleDeleteEmployee}
             handleDeleteAllData={handleDeleteAllData}
             handleTransferPendingOneStopRecords={handleTransferPendingOneStopRecords}
+            handleSyncMissingFieldsFromArchive={handleSyncMissingFieldsFromArchive}
             onRefreshData={loadData}
             setWards={setWards}
             onResetWards={() => setWards(STATIC_WARDS)}
