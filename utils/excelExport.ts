@@ -11,7 +11,8 @@ export const exportReportToExcel = async (
     toDateStr: string,
     ward: string,
     employees: Employee[],
-    customTitle?: string
+    customTitle?: string,
+    excludeFinance: boolean = true
 ) => {
     const from = new Date(fromDateStr);
     from.setHours(0, 0, 0, 0);
@@ -110,8 +111,8 @@ export const exportReportToExcel = async (
         }
     });
 
-    // Table Header (Cập nhật cột theo yêu cầu: Loại Thủ Tục đặt sau Chủ Sử Dụng)
-    const tableHeader = [
+    // Table Header
+    const tableHeader = excludeFinance ? [
         "STT", 
         "Mã Hồ Sơ", 
         "Chủ Sử Dụng", 
@@ -119,11 +120,25 @@ export const exportReportToExcel = async (
         "Địa Chỉ (Xã)", 
         "Tờ",
         "Thửa",
-        "Loại HĐ/TL", // Yêu cầu 2: Loại hồ sơ thanh lý (Trích lục, đo đạc...)
+        "NV Xử Lý",
+        "Ngày Nhận", 
+        "Hẹn Trả", 
+        "Ngày hoàn thành",
+        "Ngày trả kết quả",
+        "Trạng Thái"
+    ] : [
+        "STT", 
+        "Mã Hồ Sơ", 
+        "Chủ Sử Dụng", 
+        "Loại Thủ Tục", 
+        "Địa Chỉ (Xã)", 
+        "Tờ",
+        "Thửa",
+        "Loại HĐ/TL", 
         "NV Xử Lý",
         "Số Biên Lai", 
-        "Giá trị HĐ", // Yêu cầu 3: Đổi từ Thành Tiền -> Giá trị HĐ
-        "Giá trị TL", // Yêu cầu 1: Thêm cột Giá trị thanh lý
+        "Giá trị HĐ", 
+        "Giá trị TL", 
         "Ngày Nhận", 
         "Hẹn Trả", 
         "Ngày hoàn thành",
@@ -145,25 +160,43 @@ export const exportReportToExcel = async (
     
     const dataRows = sortedFiltered.map((r, i) => {
         const contractInfo = getContractInfo(r.code);
-        return [
-            i + 1,
-            r.code,
-            r.customerName,
-            r.recordType || '',
-            getNormalizedWard(r.ward || undefined),
-            r.mapSheet || '',
-            r.landPlot || '',
-            contractInfo.type, // Loại HĐ/TL
-            getEmployeeName(r.assignedTo || undefined),
-            r.receiptNumber || '',
-            contractInfo.amount,      // Giá trị HĐ
-            contractInfo.liquidation, // Giá trị TL
-            formatDate(r.receivedDate),
-            formatDate(r.deadline),
-            formatDate(r.completedDate),      
-            formatDate(r.resultReturnedDate),
-            STATUS_LABELS[r.status]
-        ];
+        if (excludeFinance) {
+            return [
+                i + 1,
+                r.code,
+                r.customerName,
+                r.recordType || '',
+                getNormalizedWard(r.ward || undefined),
+                r.mapSheet || '',
+                r.landPlot || '',
+                getEmployeeName(r.assignedTo || undefined),
+                formatDate(r.receivedDate),
+                formatDate(r.deadline),
+                formatDate(r.completedDate),      
+                formatDate(r.resultReturnedDate),
+                STATUS_LABELS[r.status]
+            ];
+        } else {
+            return [
+                i + 1,
+                r.code,
+                r.customerName,
+                r.recordType || '',
+                getNormalizedWard(r.ward || undefined),
+                r.mapSheet || '',
+                r.landPlot || '',
+                contractInfo.type, // Loại HĐ/TL
+                getEmployeeName(r.assignedTo || undefined),
+                r.receiptNumber || '',
+                contractInfo.amount,      // Giá trị HĐ
+                contractInfo.liquidation, // Giá trị TL
+                formatDate(r.receivedDate),
+                formatDate(r.deadline),
+                formatDate(r.completedDate),      
+                formatDate(r.resultReturnedDate),
+                STATUS_LABELS[r.status]
+            ];
+        }
     });
 
     // Generate Workbook
@@ -218,25 +251,39 @@ export const exportReportToExcel = async (
         { s: { r: 6, c: 0 }, e: { r: 6, c: totalCols } }
     ];
     
-    // Column Widths (Adjusted for new columns)
-    ws['!cols'] = [
-        { wch: 5 },  // STT
-        { wch: 15 }, // Mã HS
-        { wch: 25 }, // Chủ SD
-        { wch: 18 }, // Địa Chỉ
-        { wch: 7 },  // Tờ
-        { wch: 7 },  // Thửa
-        { wch: 25 }, // Loại Thủ Tục
-        { wch: 15 }, // Loại HĐ/TL (New)
-        { wch: 20 }, // NV Xử Lý
-        { wch: 12 }, // Số BL
-        { wch: 15 }, // Giá trị HĐ
-        { wch: 15 }, // Giá trị TL (New)
-        { wch: 12 }, // Ngày Nhận
-        { wch: 12 }, // Hẹn Trả
-        { wch: 14 }, // Ngày hoàn thành
-        { wch: 14 }, // Ngày trả kết quả
-        { wch: 15 }  // Trạng thái
+    // Column Widths (Adjusted for exact header mappings)
+    ws['!cols'] = excludeFinance ? [
+        { wch: 5 },  // STT (0)
+        { wch: 15 }, // Mã HS (1)
+        { wch: 25 }, // Chủ SD (2)
+        { wch: 25 }, // Loại Thủ Tục (3)
+        { wch: 18 }, // Địa Chỉ (Xã) (4)
+        { wch: 7 },  // Tờ (5)
+        { wch: 7 },  // Thửa (6)
+        { wch: 20 }, // NV Xử Lý (7)
+        { wch: 12 }, // Ngày Nhận (8)
+        { wch: 12 }, // Hẹn Trả (9)
+        { wch: 14 }, // Ngày hoàn thành (10)
+        { wch: 14 }, // Ngày trả kết quả (11)
+        { wch: 15 }  // Trạng thái (12)
+    ] : [
+        { wch: 5 },  // STT (0)
+        { wch: 15 }, // Mã HS (1)
+        { wch: 25 }, // Chủ SD (2)
+        { wch: 25 }, // Loại Thủ Tục (3)
+        { wch: 18 }, // Địa Chỉ (Xã) (4)
+        { wch: 7 },  // Tờ (5)
+        { wch: 7 },  // Thửa (6)
+        { wch: 15 }, // Loại HĐ/TL (7)
+        { wch: 20 }, // NV Xử Lý (8)
+        { wch: 12 }, // Số BL (9)
+        { wch: 15 }, // Giá trị HĐ (10)
+        { wch: 15 }, // Giá trị TL (11)
+        { wch: 12 }, // Ngày Nhận (12)
+        { wch: 12 }, // Hẹn Trả (13)
+        { wch: 14 }, // Ngày hoàn thành (14)
+        { wch: 14 }, // Ngày trả kết quả (15)
+        { wch: 15 }  // Trạng thái (16)
     ];
 
     // Apply Styles
@@ -259,22 +306,35 @@ export const exportReportToExcel = async (
             const cellRef = XLSX.utils.encode_cell({ r, c });
             if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" };
             
-            // Căn giữa: STT, Tờ, Thửa, NV, BL, Ngày, Trạng thái. Căn phải: Tiền.
-            // Index: 0(STT), 4(Tờ), 5(Thửa), 8(NV), 9(BL), 10(HĐ), 11(TL), 12(NgayNhan), 13(Hen), 14(Xong), 15(TraKQ), 16(Status)
-            if ([0, 4, 5, 8, 9, 12, 13, 14, 15, 16].includes(c)) ws[cellRef].s = centerStyle;
-            else if (c === 10 || c === 11) ws[cellRef].s = rightStyle;
-            else ws[cellRef].s = cellStyle;
+            if (excludeFinance) {
+                // STT, Tờ, Thửa, Ngày Nhận, Hẹn Trả, Ngày hoàn thành, Ngày trả kết quả, Trạng thái
+                if ([0, 5, 6, 8, 9, 10, 11, 12].includes(c)) ws[cellRef].s = centerStyle;
+                else ws[cellRef].s = cellStyle;
+            } else {
+                // STT, Tờ, Thửa, Số BL, Ngày Nhận, Hẹn Trả, Ngày hoàn thành, Ngày trả kết quả, Trạng thái
+                if ([0, 5, 6, 9, 12, 13, 14, 15, 16].includes(c)) ws[cellRef].s = centerStyle;
+                else if (c === 10 || c === 11) ws[cellRef].s = rightStyle;
+                else ws[cellRef].s = cellStyle;
+            }
         }
     }
 
     const lastRow = dataStartIdx + totalDataRows + 2;
-    // Footer adjustments for wider table
+    // Footer adjustments dynamically scaled to the table width
     const rightColStart = totalCols - 2;
     const rightColEnd = totalCols;
 
+    const footerRow1 = Array(totalCols + 1).fill("");
+    footerRow1[0] = "NGƯỜI LẬP BIỂU";
+    footerRow1[rightColStart] = "THỦ TRƯỞNG ĐƠN VỊ";
+
+    const footerRow2 = Array(totalCols + 1).fill("");
+    footerRow2[0] = "(Ký, họ tên)";
+    footerRow2[rightColStart] = "(Ký, họ tên, đóng dấu)";
+
     XLSX.utils.sheet_add_aoa(ws, [
-        ["NGƯỜI LẬP BIỂU", "", "", "", "", "", "", "", "", "", "", "", "", "", "THỦ TRƯỞNG ĐƠN VỊ", ""],
-        ["(Ký, họ tên)", "", "", "", "", "", "", "", "", "", "", "", "", "", "(Ký, họ tên, đóng dấu)", ""]
+        footerRow1,
+        footerRow2
     ], { origin: `A${lastRow}` });
     
     ws['!merges'].push(
