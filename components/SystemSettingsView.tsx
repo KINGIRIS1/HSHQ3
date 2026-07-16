@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Database, AlertTriangle, Cloud, Loader2, CheckCircle, Save, Globe, Calendar, Plus, Trash2, ShieldAlert, Key, Compass, FolderOpen, Award, FileCheck, Users, Clock, Timer, RefreshCw, Sliders, ChevronRight, HelpCircle, X, Copy } from 'lucide-react';
+import { Database, AlertTriangle, Cloud, Loader2, CheckCircle, Save, Globe, Calendar, Plus, Trash2, ShieldAlert, Key, Compass, FolderOpen, Award, FileCheck, Users, Clock, Timer, RefreshCw, Sliders, ChevronRight, HelpCircle, X, Copy, Download, Upload } from 'lucide-react';
 import { Holiday, UserRole, RolePermissions, DepartmentPermissions, DEFAULT_ROLE_PERMISSIONS, AVAILABLE_PERMISSIONS, Employee, RecordFile, RecordStatus } from '../types';
 import { fetchHolidays, saveHolidays, testDatabaseConnection, saveUpdateInfo, fetchUpdateInfo, getSystemSetting, saveSystemSetting } from '../services/api';
 import { APP_VERSION } from '../constants';
@@ -579,6 +579,182 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           alert(`Đã phát hành phiên bản ${manualVersion}!\nTất cả người dùng sẽ nhận được thông báo cập nhật sau vài giây.`);
       } else {
           alert("Lỗi khi lưu cấu hình cập nhật. Vui lòng thử lại.");
+      }
+  };
+
+  // --- BACKUP & RESTORE HANDLERS ---
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleBackupData = async () => {
+      if (!await confirmAction("BẮT ĐẦU SAO LƯU HỆ THỐNG:\nHệ thống sẽ thu thập toàn bộ cơ sở dữ liệu bao gồm Hồ sơ, Hợp đồng, Nhân viên, Người dùng, Danh mục đơn giá, Ngày lễ và tài liệu Lưu trữ.\n\nBạn có chắc chắn muốn tiến hành sao lưu toàn bộ dữ liệu để tải về không?")) {
+          return;
+      }
+
+      setIsBackingUp(true);
+      try {
+          const { fetchRecords } = await import('../services/apiRecords');
+          const { fetchContracts, fetchPriceList } = await import('../services/apiContracts');
+          const { fetchEmployees, fetchUsers } = await import('../services/apiPeople');
+          const { fetchArchiveRecords } = await import('../services/apiArchive');
+
+          const [
+              recordsData,
+              contractsData,
+              employeesData,
+              usersData,
+              priceListData,
+              holidaysData,
+              archiveSaoluc,
+              archiveVaoso,
+              archiveCongvan
+          ] = await Promise.all([
+              fetchRecords().catch(() => []),
+              fetchContracts().catch(() => []),
+              fetchEmployees().catch(() => []),
+              fetchUsers().catch(() => []),
+              fetchPriceList().catch(() => []),
+              fetchHolidays().catch(() => []),
+              fetchArchiveRecords('saoluc').catch(() => []),
+              fetchArchiveRecords('vaoso').catch(() => []),
+              fetchArchiveRecords('congvan').catch(() => [])
+          ]);
+
+          const backupObj = {
+              backup_version: APP_VERSION,
+              backup_time: new Date().toISOString(),
+              land_records: recordsData,
+              contracts: contractsData,
+              employees: employeesData,
+              users: usersData,
+              price_list: priceListData,
+              holidays: holidaysData,
+              archive_records: [
+                  ...archiveSaoluc,
+                  ...archiveVaoso,
+                  ...archiveCongvan
+              ]
+          };
+
+          const blob = new Blob([JSON.stringify(backupObj, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const timeStr = new Date().toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
+          a.href = url;
+          a.download = `backup_toan_bo_du_lieu_${timeStr}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          alert("Sao lưu dữ liệu thành công! Tệp tin sao lưu đã được tải xuống máy tính của bạn.");
+      } catch (err) {
+          console.error("Lỗi khi sao lưu dữ liệu:", err);
+          alert("Có lỗi xảy ra khi thực hiện sao lưu: " + (err instanceof Error ? err.message : String(err)));
+      } finally {
+          setIsBackingUp(false);
+      }
+  };
+
+  const handleRestoreData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!await confirmAction("CẢNH BÁO: Bạn đang thực hiện KHÔI PHỤC dữ liệu hệ thống từ tệp tin sao lưu.\nHành động này sẽ tải tệp lên và ghi đè/bổ sung vào cơ sở dữ liệu hiện tại.\n\nBạn có chắc chắn muốn tiến hành khôi phục không?")) {
+          e.target.value = '';
+          return;
+      }
+
+      if (!await confirmAction("XÁC NHẬN LẦN CUỐI: Toàn bộ dữ liệu tương ứng trong tệp sao lưu sẽ được ghi nhận vào hệ thống. Nhấn OK để thực hiện khôi phục ngay.")) {
+          e.target.value = '';
+          return;
+      }
+
+      setIsRestoring(true);
+      try {
+          const text = await file.text();
+          const backupObj = JSON.parse(text);
+
+          if (!backupObj.land_records) {
+              throw new Error("Tệp sao lưu không đúng định dạng hoặc thiếu trường dữ liệu 'land_records'.");
+          }
+
+          // 1. Restore to LocalStorage cache
+          const { CACHE_KEYS, saveToCache } = await import('../services/apiCore');
+          saveToCache(CACHE_KEYS.RECORDS, backupObj.land_records);
+          if (backupObj.contracts) saveToCache(CACHE_KEYS.CONTRACTS, backupObj.contracts);
+          if (backupObj.employees) saveToCache(CACHE_KEYS.EMPLOYEES, backupObj.employees);
+          if (backupObj.users) saveToCache(CACHE_KEYS.USERS, backupObj.users);
+          if (backupObj.price_list) saveToCache(CACHE_KEYS.PRICE_LIST, backupObj.price_list);
+          if (backupObj.holidays) saveToCache(CACHE_KEYS.HOLIDAYS, backupObj.holidays);
+          if (backupObj.archive_records) saveToCache('offline_archive_records', backupObj.archive_records);
+
+          // 2. If Supabase is configured, sync to Supabase!
+          const { isConfigured, supabase } = await import('../services/supabaseClient');
+          if (isConfigured) {
+              const CHUNK_SIZE = 100;
+
+              // Helper to upsert collection
+              const upsertCollection = async (tableName: string, data: any[], mapFn?: (item: any) => any) => {
+                  if (!data || data.length === 0) return;
+                  const mappedData = mapFn ? data.map(mapFn) : data;
+                  
+                  for (let i = 0; i < mappedData.length; i += CHUNK_SIZE) {
+                      const chunk = mappedData.slice(i, i + CHUNK_SIZE);
+                      const { error } = await supabase.from(tableName).upsert(chunk);
+                      if (error) {
+                          console.error(`Lỗi khôi phục bảng ${tableName}, chunk ${i}:`, error);
+                          throw error;
+                      }
+                  }
+              };
+
+              const { mapContractToDb, mapEmployeeToDb, mapUserToDb, mapPriceToDb, getDbColumns, mapPayloadToDb, sanitizeData } = await import('../services/apiCore');
+              const { RECORD_DB_COLUMNS } = await import('../services/apiRecords');
+
+              const actualCols = await getDbColumns('land_records');
+              
+              // Restore land records
+              const sanitizedRecords = backupObj.land_records.map((r: any) => {
+                  const sanitized = sanitizeData(r, RECORD_DB_COLUMNS);
+                  return mapPayloadToDb(sanitized, actualCols);
+              });
+              await upsertCollection('land_records', sanitizedRecords);
+
+              // Restore contracts
+              if (backupObj.contracts) {
+                  await upsertCollection('contracts', backupObj.contracts, mapContractToDb);
+              }
+
+              // Restore employees
+              if (backupObj.employees) {
+                  await upsertCollection('employees', backupObj.employees, mapEmployeeToDb);
+              }
+
+              // Restore users
+              if (backupObj.users) {
+                  await upsertCollection('users', backupObj.users, mapUserToDb);
+              }
+
+              // Restore price_list
+              if (backupObj.price_list) {
+                  await upsertCollection('price_list', backupObj.price_list, mapPriceToDb);
+              }
+
+              // Restore archive_records
+              if (backupObj.archive_records) {
+                  await upsertCollection('archive_records', backupObj.archive_records);
+              }
+          }
+
+          alert("Khôi phục dữ liệu thành công! Trang web sẽ tự động tải lại để áp dụng các thay đổi.");
+          window.location.reload();
+      } catch (err) {
+          console.error("Lỗi khi khôi phục dữ liệu:", err);
+          alert("Khôi phục thất bại: " + (err instanceof Error ? err.message : String(err)));
+      } finally {
+          setIsRestoring(false);
+          e.target.value = '';
       }
   };
 
@@ -1815,6 +1991,50 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                         </button>
                                     )
                                 )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Sao lưu & Khôi phục dữ liệu */}
+                    <div className="border border-indigo-100 rounded-[2rem] overflow-hidden bg-white shadow-xl shadow-indigo-50">
+                        <div className="bg-indigo-50/50 p-6 border-b border-indigo-50 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-indigo-800 font-black flex items-center gap-2 uppercase tracking-widest text-xs"> 
+                                    <Database className="text-indigo-600" size={18} /> Sao lưu & Khôi phục hệ thống
+                                </h3>
+                                <p className="text-[11px] text-indigo-500 font-medium mt-1">Xuất dữ liệu hệ thống ra tệp tin để lưu trữ dự phòng hoặc phục hồi khi cần thiết.</p>
+                            </div>
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <p className="text-sm text-slate-500 leading-relaxed font-medium">
+                                Tính năng này cho phép bạn tải về một bản sao lưu chứa đầy đủ tất cả hồ sơ, hợp đồng, đơn giá dịch vụ, nhân viên, ngày nghỉ lễ và danh mục lưu trữ. Bạn có thể sử dụng tệp tin này để lưu trữ an toàn hoặc khôi phục dữ liệu cho hệ thống bất kỳ lúc nào.
+                            </p>
+
+                            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                                {/* Khôi phục */}
+                                <div className="flex items-center gap-3 w-full sm:w-auto">
+                                    <label className={`w-full sm:w-auto px-6 py-3.5 border border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer ${isRestoring ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        {isRestoring ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
+                                        {isRestoring ? 'Đang khôi phục...' : 'Khôi phục từ tệp tin'}
+                                        <input 
+                                            type="file" 
+                                            accept=".json" 
+                                            onChange={handleRestoreData} 
+                                            disabled={isRestoring || isBackingUp} 
+                                            className="hidden" 
+                                        />
+                                    </label>
+                                </div>
+
+                                {/* Sao lưu */}
+                                <button 
+                                    onClick={handleBackupData}
+                                    disabled={isBackingUp || isRestoring}
+                                    className="w-full sm:w-auto px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
+                                >
+                                    {isBackingUp ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}
+                                    {isBackingUp ? 'Đang xuất dữ liệu...' : 'Sao lưu dữ liệu ngay'}
+                                </button>
                             </div>
                         </div>
                     </div>
