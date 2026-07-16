@@ -1732,24 +1732,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                 <div className="bg-green-200 p-1.5 rounded text-green-700"><DollarSign size={16}/></div>
                                 <div>
                                     <label className="text-[10px] text-green-500 uppercase font-bold block">
-                                        {record.recordType === 'Cung cấp tài liệu đất đai' ? 'Giá trị hồ sơ' : 'Giá trị hợp đồng'}
+                                        Số tiền:
                                     </label>
                                     <p className="text-sm font-bold text-green-800">
-                                        {record.recordType === 'Cung cấp tài liệu đất đai' 
-                                            ? '310.000 đ' 
-                                            : (contractPrice !== null && contractPrice !== undefined ? contractPrice.toLocaleString('vi-VN') + ' đ' : '---')}
+                                        {record.paymentAmount !== null && record.paymentAmount !== undefined 
+                                            ? record.paymentAmount.toLocaleString('vi-VN') + ' đ' 
+                                            : '---'}
                                     </p>
                                 </div>
                             </div>
-                            {record.paymentAmount !== null && record.paymentAmount !== undefined && (
-                                <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100 flex items-center gap-3 col-span-2">
-                                    <div className="bg-emerald-200 p-1.5 rounded text-emerald-700"><DollarSign size={16}/></div>
-                                    <div>
-                                        <label className="text-[10px] text-emerald-600 uppercase font-bold block">Số tiền thực thu</label>
-                                        <p className="text-sm font-bold text-emerald-800">{record.paymentAmount.toLocaleString('vi-VN')} đ</p>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                         
                         {/* GIÁ TRỊ THANH LÝ */}
