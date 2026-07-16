@@ -173,8 +173,7 @@ const EmployeeStatsView: React.FC<EmployeeStatsViewProps> = ({
             'Ngày nhận': r.receivedDate ? new Date(r.receivedDate).toLocaleDateString('vi-VN') : '',
             'Hẹn trả': r.deadline ? new Date(r.deadline).toLocaleDateString('vi-VN') : '',
             'Ngày xong': r.completedDate ? new Date(r.completedDate).toLocaleDateString('vi-VN') : '',
-            'Trạng thái': STATUS_LABELS[r.status] || r.status,
-            'Ghi chú': getDisplayNotes(r.notes) || r.content || ''
+            'Trạng thái': STATUS_LABELS[r.status] || r.status
         }));
 
         const ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -190,8 +189,7 @@ const EmployeeStatsView: React.FC<EmployeeStatsViewProps> = ({
             { wch: 12 }, // Ngay nhan
             { wch: 12 }, // Hen tra
             { wch: 12 }, // Ngay xong
-            { wch: 15 }, // Trang thai
-            { wch: 30 }  // Ghi chu
+            { wch: 15 } // Trang thai
         ];
         ws['!cols'] = wscols;
 

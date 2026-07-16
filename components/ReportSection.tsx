@@ -165,9 +165,9 @@ const ReportSection: React.FC<ReportSectionProps> = ({
 
     const [dailyStatsRecords, setDailyStatsRecords] = useState<RecordFile[]>([]);
 
-    // --- NEW LOGIC FOR MAIN TABS (Đo đạc vs Cấp giấy vs Lưu trữ) ---
+    // --- NEW LOGIC FOR MAIN TABS (Đo đạc vs Lưu trữ) ---
     const allowedMainTabs = useMemo(() => {
-        const baseTabs = ['all', 'measurement', 'registration', 'archive'];
+        const baseTabs = ['measurement', 'archive'];
         if (!currentUser) return baseTabs;
         
         const roleStr = (currentUser.role as string).toUpperCase();
@@ -185,9 +185,6 @@ const ReportSection: React.FC<ReportSectionProps> = ({
         const allowed: string[] = [];
         if (dept.includes('đo đạc') || dept.includes('kỹ thuật')) {
             allowed.push('measurement');
-        }
-        if (dept.includes('cấp giấy') || dept.includes('đăng ký') || dept.includes('biến động') || dept.includes('thẩm định') || dept.includes('pháp chế')) {
-            allowed.push('registration');
         }
         if (dept.includes('lưu trữ') || dept.includes('một cửa') || dept.includes('thông tin')) {
             allowed.push('archive');
@@ -223,19 +220,19 @@ const ReportSection: React.FC<ReportSectionProps> = ({
         // Find first allowed tab on initialization if possible
         if (currentUser) {
             const roleStr = (currentUser.role as string).toUpperCase();
-            if (roleStr === 'ADMIN' || roleStr === 'SUBADMIN') return 'all';
+            if (roleStr === 'ADMIN' || roleStr === 'SUBADMIN') return 'measurement';
             const userEmp = rawEmployees.find(e => e.id === currentUser.employeeId);
             if (userEmp) {
                 const dept = userEmp.department.toLowerCase();
                 const isPrivilegedDept = dept.includes('hành chính') || dept.includes('giám đốc') || dept.includes('lãnh đạo') || dept.includes('quản trị');
-                if (isPrivilegedDept) return 'all';
+                if (isPrivilegedDept) return 'measurement';
                 
                 if (dept.includes('đo đạc') || dept.includes('kỹ thuật')) return 'measurement';
-                if (dept.includes('cấp giấy') || dept.includes('đăng ký') || dept.includes('biến động') || dept.includes('thẩm định') || dept.includes('pháp chế')) return 'registration';
+                if (dept.includes('cấp giấy') || dept.includes('đăng ký') || dept.includes('biến động') || dept.includes('thẩm định') || dept.includes('pháp chế')) return 'measurement';
                 if (dept.includes('lưu trữ') || dept.includes('một cửa') || dept.includes('thông tin')) return 'archive';
             }
         }
-        return 'all';
+        return 'measurement';
     });
 
     useEffect(() => {
@@ -864,7 +861,6 @@ const ReportSection: React.FC<ReportSectionProps> = ({
                                         <th className="p-3 w-24">Hoàn thành</th>
                                         <th className="p-3 w-32">NV Xử lý</th>
                                         <th className="p-3 w-32 text-center">Trạng thái</th>
-                                        <th className="p-3">Ghi chú</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -908,13 +904,9 @@ const ReportSection: React.FC<ReportSectionProps> = ({
                                                     {STATUS_LABELS[r.status]}
                                                 </span>
                                             </td>
-                                            <td className="p-3 text-gray-500 italic truncate max-w-xs">
-                                                {isCompletedLate && <span className="text-[10px] text-orange-600 font-bold mr-1">[Trễ xong]</span>}
-                                                {getDisplayNotes(r.notes) || r.content || ''}
-                                            </td>
                                         </tr>
                                     )}) : (
-                                        <tr><td colSpan={10} className="p-8 text-center text-gray-400">Không có dữ liệu trong khoảng thời gian này.</td></tr>
+                                        <tr><td colSpan={12} className="p-8 text-center text-gray-400">Không có dữ liệu trong khoảng thời gian này.</td></tr>
                                     )}
                                 </tbody>
                             </table>

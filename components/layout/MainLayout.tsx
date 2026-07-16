@@ -4,7 +4,6 @@ import TopNavigation from '../TopNavigation';
 import { Menu, WifiOff, ShieldCheck, UserCircle, LogOut, UserCog, ChevronDown, Settings } from 'lucide-react';
 import { User, UserRole, RolePermissions, DepartmentPermissions, Employee } from '../../types';
 import UpdateRequiredModal from '../UpdateRequiredModal';
-import { OfflineSyncHub } from '../OfflineSyncHub';
 
 interface MainLayoutProps {
     children: React.ReactNode;
@@ -102,8 +101,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
                 {/* RIGHT: USER INFO & OFFLINE COUPLING */}
                 <div className="flex items-center gap-4">
-                    <OfflineSyncHub connectionStatus={connectionStatus} onSyncSuccess={onSyncSuccess} />
-
                     <div className="relative">
                         <button 
                             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}

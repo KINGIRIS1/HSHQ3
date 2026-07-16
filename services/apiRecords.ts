@@ -16,6 +16,7 @@ export const RECORD_DB_COLUMNS = [
     'receiptNumber', 'resultReturnedDate', 'receiverName', 'receiptType', 'paymentAmount', 'receiptPhoto',
     'needsMapCorrection',
     'issueNumber', 'entryNumber', 'issueDate', 'residentialArea',
+    'clnArea', 'bhkArea', 'lucArea', 'otherLandArea',
     'price', 'advancePayment', 'isDeptSynced',
     'hasDefect', 'defectReason', 'defectDate',
     'rejectReason', 'rejectDate'
@@ -23,6 +24,7 @@ export const RECORD_DB_COLUMNS = [
 
 export const OPTIONAL_NEW_COLUMNS = [
     'customerAddress', 'issueNumber', 'entryNumber', 'issueDate', 'residentialArea',
+    'clnArea', 'bhkArea', 'lucArea', 'otherLandArea',
     'needsMapCorrection', 'receiptNumber', 'resultReturnedDate', 'receiverName', 'receiptType', 'paymentAmount', 'receiptPhoto',
     'reminderDate', 'lastRemindedAt', 'measurementNumber', 'excerptNumber',
     'authorizedBy', 'authDocType', 'otherDocs',

@@ -121,7 +121,7 @@ interface AppRoutesProps {
   handleDeleteEmployee: (id: string) => void;
   handleDeleteAllData: () => Promise<boolean>;
   handleTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
-  handleSyncMissingFieldsFromArchive?: () => Promise<{ success: boolean; count: number; error?: any }>;
+  handleSyncMissingFieldsFromArchive?: (onlyScan?: boolean, preCalculatedUpdates?: any[]) => Promise<{ success: boolean; count: number; readCount?: number; generatedCount?: number; categoryStats?: any; updates?: any[]; error?: any }>;
   onRefreshData: () => void;
   setWards: React.Dispatch<React.SetStateAction<string[]>>;
   onResetWards: () => void;
@@ -1697,6 +1697,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
           records={props.records}
           onUpdateRecord={props.handleAddOrUpdateRecord}
           onRefreshData={props.onRefreshData}
+          holidays={holidays}
         />
       );
     case "barcode_generator":

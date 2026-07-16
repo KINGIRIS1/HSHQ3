@@ -1029,11 +1029,33 @@ export function getDisplayNotes(notes: string | null | undefined): string {
     const trimmedLine = line.trim();
     if (!trimmedLine) continue;
 
+    const normalizedLine = trimmedLine.toLowerCase();
+    if (
+      normalizedLine.includes('đồng bộ thủ tục') || 
+      normalizedLine.includes('dong bo thu tuc')
+    ) {
+      continue;
+    }
+
     if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
       try {
         const parsed = JSON.parse(trimmedLine);
         if (parsed.generalNotes && parsed.generalNotes.trim()) {
-          resultLines.push(parsed.generalNotes.trim());
+          const gnText = parsed.generalNotes.trim();
+          const gnLines = gnText
+            .split('\n')
+            .map((l: string) => l.trim())
+            .filter((l: string) => {
+              if (!l) return false;
+              const normalizedGn = l.toLowerCase();
+              return !(
+                normalizedGn.includes('đồng bộ thủ tục') ||
+                normalizedGn.includes('dong bo thu tuc')
+              );
+            });
+          if (gnLines.length > 0) {
+            resultLines.push(gnLines.join('\n'));
+          }
         }
       } catch (e) {
         resultLines.push(line);

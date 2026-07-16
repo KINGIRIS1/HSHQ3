@@ -112,14 +112,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ records }) => {
     const regStats = useMemo(() => getDeptStats(regRecords), [regRecords]);
     const archStats = useMemo(() => getDeptStats(archRecords), [archRecords]);
 
-    // Data so sánh 3 bộ phận tốt nhất
+    // Data so sánh 2 bộ phận
     const departmentChartData = useMemo(() => {
         return [
             { name: 'Đo đạc', value: measStats.total, color: '#3b82f6' },
-            { name: 'Cấp giấy', value: regStats.total, color: '#a855f7' },
             { name: 'Lưu trữ & Công văn', value: archStats.total, color: '#10b981' }
         ].filter(d => d.value > 0);
-    }, [measStats.total, regStats.total, archStats.total]);
+    }, [measStats.total, archStats.total]);
 
     // --- Data cho Biểu đồ Địa bàn (Xã/Phường) ---
     const wardData = useMemo(() => {
@@ -269,7 +268,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ records }) => {
                     </span>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* BỘ PHẬN ĐO ĐẠC */}
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/5 transition-all flex flex-col justify-between gap-3 group">
                         <div>
@@ -307,52 +306,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ records }) => {
                                 </div>
                                 <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
                                     <div className="bg-blue-500 h-full rounded-full transition-all duration-500" style={{ width: `${(measStats.completed / measStats.total) * 100}%` }}></div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-center py-1">
-                                <span className="text-[11px] text-gray-400 font-medium">Chưa có hồ sơ</span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* BỘ PHẬN CẤP GIẤY */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-purple-200 hover:bg-purple-50/5 transition-all flex flex-col justify-between gap-3 group">
-                        <div>
-                            <div className="flex justify-between items-center mb-2.5">
-                                <div className="flex items-center gap-2">
-                                    <div className="p-1.5 bg-purple-100/50 rounded-lg text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all shrink-0">
-                                        <CheckCircle size={15} />
-                                    </div>
-                                    <span className="text-xs font-bold text-gray-800">Bộ phận Cấp giấy</span>
-                                </div>
-                                <span className="text-[9px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">Cấp giấy & BD</span>
-                            </div>
-                            <p className="text-[11px] text-gray-400 mb-3 font-medium leading-tight">Quy trình cấp đổi, cấp mới, thừa kế, tặng cho</p>
-                            
-                            <div className="grid grid-cols-3 gap-2 text-center py-2 bg-white rounded-lg border border-slate-100">
-                                <div>
-                                    <span className="text-[9px] text-gray-400 block font-semibold uppercase">Nhận</span>
-                                    <span className="text-xs font-bold text-slate-800">{regStats.total}</span>
-                                </div>
-                                <div>
-                                    <span className="text-[9px] text-yellow-600 block font-semibold uppercase">Đang XL</span>
-                                    <span className="text-xs font-bold text-yellow-600">{regStats.processing}</span>
-                                </div>
-                                <div>
-                                    <span className="text-[9px] text-green-600 block font-semibold uppercase">Xong</span>
-                                    <span className="text-xs font-bold text-green-600">{regStats.completed}</span>
-                                </div>
-                            </div>
-                        </div>
-                        {regStats.total > 0 ? (
-                            <div className="mt-1">
-                                <div className="flex justify-between text-[10px] font-semibold text-gray-500 mb-1">
-                                    <span>Tỷ lệ hoàn thành</span>
-                                    <span className="text-purple-600 font-bold">{Math.round((regStats.completed / regStats.total) * 100)}%</span>
-                                </div>
-                                <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
-                                    <div className="bg-purple-500 h-full rounded-full transition-all duration-500" style={{ width: `${(regStats.completed / regStats.total) * 100}%` }}></div>
                                 </div>
                             </div>
                         ) : (

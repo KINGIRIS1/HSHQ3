@@ -494,3 +494,42 @@ export const syncRecordToVaoSo = async (record: RecordFile, issueNumber?: string
     // Đã loại bỏ triệt để chức năng tự động đồng bộ hồ sơ tiếp nhận về các phòng chuyên môn (vào sổ) theo yêu cầu.
     return false;
 };
+
+export const upsertArchiveRecordsBatch = async (records: Partial<ArchiveRecord>[]): Promise<{ success: boolean; count: number }> => {
+    if (!isConfigured) {
+        let count = 0;
+        records.forEach(r => {
+            const idx = MOCK_ARCHIVE.findIndex(item => item.id === r.id || (r.so_hieu && item.so_hieu === r.so_hieu && item.type === r.type));
+            if (idx !== -1) {
+                const mergedData = r.data ? { ...MOCK_ARCHIVE[idx].data, ...r.data } : MOCK_ARCHIVE[idx].data;
+                MOCK_ARCHIVE[idx] = { ...MOCK_ARCHIVE[idx], ...r, data: mergedData } as ArchiveRecord;
+                count++;
+            } else {
+                const newRec = {
+                    ...r,
+                    id: r.id || (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9)),
+                    created_at: r.created_at || new Date().toISOString()
+                } as ArchiveRecord;
+                MOCK_ARCHIVE.unshift(newRec);
+                count++;
+            }
+        });
+        saveToCache(CACHE_KEY_ARCHIVE, MOCK_ARCHIVE);
+        return { success: true, count };
+    }
+    try {
+        const payload = records.map(r => {
+            const p: any = { ...r };
+            if (!p.id) p.id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9);
+            if (p.ngay_thang === '') p.ngay_thang = null;
+            return p;
+        });
+
+        const { error } = await supabase.from('archive_records').upsert(payload);
+        if (error) throw error;
+        return { success: true, count: payload.length };
+    } catch (error) {
+        logError("upsertArchiveRecordsBatch", error);
+        return { success: false, count: 0 };
+    }
+};

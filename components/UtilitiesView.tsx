@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { FolderCog, ExternalLink, Loader2, Download, CheckCircle, AlertCircle, X, Calculator, FileText, Gavel, Info, Table2, Grid, FileSpreadsheet, Layers } from 'lucide-react';
-import { User as UserType, RecordFile, NotifyFunction, NotifyType, Employee, UserRole } from '../types';
+import { FolderCog, ExternalLink, Loader2, Download, CheckCircle, AlertCircle, X, Calculator, FileText, Gavel, Info, Table2, Grid, FileSpreadsheet, Layers, Database, Calendar } from 'lucide-react';
+import { User as UserType, RecordFile, NotifyFunction, NotifyType, Employee, UserRole, Holiday } from '../types';
 import { getEmployeeTeam } from './AssignModal';
 import SoanBienBanTab from './utilities/SoanBienBanTab';
 import CungCapThongTinTab from './utilities/CungCapThongTinTab';
@@ -11,6 +11,8 @@ import ChinhLyBienDongTab from './utilities/ChinhLyBienDongTab';
 import HoSoTachThuaTab from './utilities/HoSoTachThuaTab';
 import ChuyenDoiToBanDoTab from './utilities/ChuyenDoiToBanDoTab';
 import DongBoThuTucTab from './utilities/DongBoThuTucTab';
+import DongBoCSVTab from './utilities/DongBoCSVTab';
+import SuaDoiNgayTab from './utilities/SuaDoiNgayTab';
 
 interface UtilitiesViewProps {
     currentUser: UserType;
@@ -21,9 +23,10 @@ interface UtilitiesViewProps {
     records?: RecordFile[];
     onUpdateRecord?: (r: RecordFile) => Promise<any>;
     onRefreshData?: () => void;
+    holidays?: Holiday[];
 }
 
-const UtilitiesView: React.FC<UtilitiesViewProps> = ({ currentUser, employees = [], initialRecordForCorrection, recordForMinutes, onClearRecordForMinutes, records, onUpdateRecord, onRefreshData }) => {
+const UtilitiesView: React.FC<UtilitiesViewProps> = ({ currentUser, employees = [], initialRecordForCorrection, recordForMinutes, onClearRecordForMinutes, records, onUpdateRecord, onRefreshData, holidays = [] }) => {
   const userEmp = employees.find(e => e.id === currentUser.employeeId);
   const teamName = userEmp ? getEmployeeTeam(userEmp) : '';
   const isAdmin = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUBADMIN;
@@ -32,7 +35,7 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({ currentUser, employees = 
   const isSpecialTeam = isAdmin || isOneDoor || isDirector;
 
   const allowedTabs = React.useMemo(() => {
-    return ['bienban', 'vphc', 'thongtin', 'chinhly', 'tachthua', 'saiso', 'chuyendoi', 'dongbothutuc'];
+    return ['bienban', 'vphc', 'thongtin', 'chinhly', 'tachthua', 'saiso', 'chuyendoi', 'dongbothutuc', 'dongbocsv', 'suadoingay'];
   }, []);
 
   const [activeTab, setActiveTab] = useState<string>('bienban');
@@ -188,9 +191,25 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({ currentUser, employees = 
                       <Layers size={16} /> Đồng bộ thủ tục
                   </button>
               )}
+              {allowedTabs.includes('dongbocsv') && (
+                  <button 
+                      onClick={() => setActiveTab('dongbocsv')}
+                      className={`px-4 py-2 text-sm font-bold rounded-md transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'dongbocsv' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                      <Database size={16} /> Đồng bộ CSV/Excel
+                  </button>
+              )}
+              {allowedTabs.includes('suadoingay') && (
+                  <button 
+                      onClick={() => setActiveTab('suadoingay')}
+                      className={`px-4 py-2 text-sm font-bold rounded-md transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'suadoingay' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                      <Calendar size={16} /> Sửa đổi Ngày
+                  </button>
+              )}
           </div>
           
-          {activeTab !== 'saiso' && activeTab !== 'chinhly' && activeTab !== 'tachthua' && activeTab !== 'chuyendoi' && activeTab !== 'dongbothutuc' && (
+          {activeTab !== 'saiso' && activeTab !== 'chinhly' && activeTab !== 'tachthua' && activeTab !== 'chuyendoi' && activeTab !== 'dongbothutuc' && activeTab !== 'dongbocsv' && activeTab !== 'suadoingay' && (
             <div className="flex-1 flex justify-end items-center gap-3 pr-4">
                 <button 
                     onClick={handleConfigurePath}
@@ -259,6 +278,25 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({ currentUser, employees = 
                   records={records || []}
                   onUpdateRecord={onUpdateRecord}
                   onRefreshData={onRefreshData}
+              />
+          </div>
+
+          {/* TAB 9: ĐỒNG BỘ CSV/EXCEL */}
+          <div className={`w-full h-full flex flex-col bg-[#f1f5f9] ${activeTab === 'dongbocsv' ? 'block' : 'hidden'}`}>
+              <DongBoCSVTab 
+                  notify={notify}
+                  onRefreshData={onRefreshData}
+              />
+          </div>
+
+          {/* TAB 10: SỬA ĐỔI / ĐỒNG BỘ NGÀY HỒ SƠ */}
+          <div className={`w-full h-full flex flex-col bg-[#f1f5f9] ${activeTab === 'suadoingay' ? 'block' : 'hidden'}`}>
+              <SuaDoiNgayTab 
+                  notify={notify}
+                  records={records || []}
+                  onUpdateRecord={onUpdateRecord}
+                  onRefreshData={onRefreshData}
+                  holidays={holidays}
               />
           </div>
       </div>

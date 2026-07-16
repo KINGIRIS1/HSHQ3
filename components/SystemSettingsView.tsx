@@ -14,7 +14,7 @@ interface SystemSettingsViewProps {
   currentUserRole?: UserRole;
   records?: RecordFile[];
   onTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
-  onSyncMissingFieldsFromArchive?: () => Promise<{ success: boolean; count: number; error?: any }>;
+  onSyncMissingFieldsFromArchive?: (onlyScan?: boolean, preCalculatedUpdates?: any[]) => Promise<{ success: boolean; count: number; readCount?: number; generatedCount?: number; categoryStats?: any; updates?: any[]; error?: any }>;
   onViewRecord?: (record: RecordFile) => void;
 }
 
@@ -248,7 +248,16 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   // Sync state for One-Stop pending records
   const [syncCutoffDate, setSyncCutoffDate] = useState('2026-07-10');
   const [isSyncingOneStop, setIsSyncingOneStop] = useState(false);
-  const [isSyncingArchive, setIsSyncingArchive] = useState(false);
+  const [isScanningArchive, setIsScanningArchive] = useState(false);
+  const [isCommittingArchive, setIsCommittingArchive] = useState(false);
+  const [scanResult, setScanResult] = useState<{
+    scanned: boolean;
+    readCount: number;
+    generatedCount: number;
+    totalCount: number;
+    categoryStats?: any;
+    updates: any[];
+  } | null>(null);
 
   // Holiday States
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -1619,40 +1628,193 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                         </div>
                         <div className="p-8 space-y-6">
                             <p className="text-sm text-slate-500 leading-relaxed font-medium">
-                                Tính năng này sẽ quét qua toàn bộ cơ sở dữ liệu để đối chiếu các hồ sơ tiếp nhận cũ với hồ sơ lưu trữ gốc (Vào sổ GCN, Sao lục, Công văn). Hệ thống sẽ tự động đồng bộ và khôi phục các thông tin còn thiếu bao gồm: <strong>Ngày nhận, Ngày hẹn trả (Tính toán theo thời hạn xử lý SLA), Nhân viên được phân công, và Đợt giao Một cửa</strong>.
+                                Tính năng này sẽ quét qua toàn bộ cơ sở dữ liệu để đối chiếu các hồ sơ tiếp nhận cũ với hồ sơ lưu trữ gốc (Vào sổ GCN, Sao lục, Công văn). Hệ thống sẽ phân tích dữ liệu, báo cáo số lượng thông tin có thể khôi phục trước khi thực hiện đồng bộ thực tế.
                             </p>
 
-                            <div className="pt-4 border-t border-slate-100 flex justify-end">
-                                <button 
-                                    onClick={async () => {
-                                        if (await confirmAction("Bạn có chắc chắn muốn chạy tiến trình Khôi phục & Đồng bộ các trường thông tin còn thiếu cho toàn bộ hồ sơ cũ trong hệ thống?")) {
-                                            setIsSyncingArchive(true);
+                            {scanResult && (
+                                <div className="p-6 bg-emerald-50/40 border border-emerald-100 rounded-2xl space-y-4">
+                                    <div className="flex items-center gap-2 text-emerald-800 font-black text-sm uppercase tracking-wider">
+                                        <CheckCircle size={18} className="text-emerald-600" /> Kết quả phân tích (Quét thành công)
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="p-4 bg-white border border-emerald-50 rounded-xl shadow-sm">
+                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tổng số hồ sơ cập nhật</div>
+                                            <div className="text-2xl font-black text-emerald-700 mt-1">{scanResult.totalCount}</div>
+                                            <div className="text-[11px] text-slate-500 font-medium mt-1">Hồ sơ có thay đổi</div>
+                                        </div>
+
+                                        <div className="p-4 bg-white border border-emerald-50 rounded-xl shadow-sm">
+                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Khớp & Khôi phục từ lưu trữ</div>
+                                            <div className="text-2xl font-black text-blue-600 mt-1">{scanResult.readCount}</div>
+                                            <div className="text-[11px] text-slate-500 font-medium mt-1">Đọc thông tin từ lưu trữ gốc</div>
+                                        </div>
+
+                                        <div className="p-4 bg-white border border-emerald-50 rounded-xl shadow-sm">
+                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tự sinh hạn hạn xử lý (SLA)</div>
+                                            <div className="text-2xl font-black text-amber-600 mt-1">{scanResult.generatedCount}</div>
+                                            <div className="text-[11px] text-slate-500 font-medium mt-1">Tính theo quy trình loại hồ sơ</div>
+                                        </div>
+                                    </div>
+
+                                    {scanResult.categoryStats && (
+                                        <div className="pt-4 border-t border-slate-100/60 space-y-3">
+                                            <div className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Phân tích chi tiết theo nhóm chuyên môn:</div>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                {/* Hồ sơ Đo đạc */}
+                                                <div className="p-4 bg-white/70 border border-slate-100 rounded-xl space-y-1.5 shadow-sm">
+                                                    <div className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                                        Hồ sơ đo đạc
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
+                                                        <span>Khôi phục từ lưu trữ:</span>
+                                                        <span className="text-blue-600 font-bold">{scanResult.categoryStats.measurement?.readCount || 0}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
+                                                        <span>Tự sinh hạn (SLA):</span>
+                                                        <span className="text-amber-600 font-bold">{scanResult.categoryStats.measurement?.generatedCount || 0}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] pt-1.5 border-t border-slate-100 text-slate-700 font-extrabold">
+                                                        <span>Cần cập nhật:</span>
+                                                        <span>{scanResult.categoryStats.measurement?.totalCount || 0}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Hồ sơ Cấp giấy */}
+                                                <div className="p-4 bg-white/70 border border-slate-100 rounded-xl space-y-1.5 shadow-sm">
+                                                    <div className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                        Hồ sơ cấp giấy
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
+                                                        <span>Khôi phục từ lưu trữ:</span>
+                                                        <span className="text-blue-600 font-bold">{scanResult.categoryStats.registration?.readCount || 0}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
+                                                        <span>Tự sinh hạn (SLA):</span>
+                                                        <span className="text-amber-600 font-bold">{scanResult.categoryStats.registration?.generatedCount || 0}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] pt-1.5 border-t border-slate-100 text-slate-700 font-extrabold">
+                                                        <span>Cần cập nhật:</span>
+                                                        <span>{scanResult.categoryStats.registration?.totalCount || 0}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Hồ sơ Lưu trữ */}
+                                                <div className="p-4 bg-white/70 border border-slate-100 rounded-xl space-y-1.5 shadow-sm">
+                                                    <div className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                                                        Hồ sơ lưu trữ
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
+                                                        <span>Khôi phục từ lưu trữ:</span>
+                                                        <span className="text-blue-600 font-bold">{scanResult.categoryStats.archive?.readCount || 0}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
+                                                        <span>Tự sinh hạn (SLA):</span>
+                                                        <span className="text-amber-600 font-bold">{scanResult.categoryStats.archive?.generatedCount || 0}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] pt-1.5 border-t border-slate-100 text-slate-700 font-extrabold">
+                                                        <span>Cần cập nhật:</span>
+                                                        <span>{scanResult.categoryStats.archive?.totalCount || 0}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {scanResult.totalCount === 0 ? (
+                                        <p className="text-xs text-slate-500 font-medium text-center py-2">
+                                            Tất cả hồ sơ trong hệ thống hiện đã đầy đủ thông tin hoặc không tìm thấy dữ liệu đối chiếu khớp. Không cần thực hiện đồng bộ.
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-emerald-700 font-bold leading-relaxed bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                                            * Lưu ý: Khi nhấn "Xác nhận & Đồng bộ ngay", {scanResult.totalCount} hồ sơ trên sẽ được cập nhật đồng loạt vào cơ sở dữ liệu thực tế. Các thay đổi bao gồm: điền thông tin Ngày nhận, Ngày hẹn trả, Nhân viên, Đợt giao một cửa còn thiếu.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-3 justify-end">
+                                {scanResult && (
+                                    <button
+                                        onClick={() => setScanResult(null)}
+                                        disabled={isCommittingArchive}
+                                        className="w-full sm:w-auto px-5 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95"
+                                    >
+                                        Hủy bỏ / Quét lại
+                                    </button>
+                                )}
+
+                                {!scanResult ? (
+                                    <button 
+                                        onClick={async () => {
+                                            setIsScanningArchive(true);
                                             try {
                                                 if (onSyncMissingFieldsFromArchive) {
-                                                    const res = await onSyncMissingFieldsFromArchive();
+                                                    const res = await onSyncMissingFieldsFromArchive(true); // onlyScan = true
                                                     if (res && res.success) {
-                                                        alert(`Đã khôi phục & đồng bộ thành công ${res.count} hồ sơ.`);
-                                                        if (onHolidaysChanged) onHolidaysChanged(); // Refresh data
+                                                        setScanResult({
+                                                            scanned: true,
+                                                            readCount: res.readCount || 0,
+                                                            generatedCount: res.generatedCount || 0,
+                                                            totalCount: res.count || 0,
+                                                            categoryStats: res.categoryStats,
+                                                            updates: res.updates || []
+                                                        });
                                                     } else {
-                                                        alert("Đã xảy ra lỗi trong quá trình đồng bộ: " + (res?.error ? String(res.error) : "Lỗi không xác định"));
+                                                        alert("Đã xảy ra lỗi khi quét: " + (res?.error ? String(res.error) : "Lỗi không xác định"));
                                                     }
                                                 } else {
-                                                    alert("Lỗi: Chức năng đồng bộ dữ liệu chưa được định nghĩa.");
+                                                    alert("Lỗi: Chức năng quét dữ liệu chưa được định nghĩa.");
                                                 }
                                             } catch (err) {
                                                 console.error(err);
                                                 alert("Có lỗi xảy ra: " + (err instanceof Error ? err.message : String(err)));
                                             } finally {
-                                                setIsSyncingArchive(false);
+                                                setIsScanningArchive(false);
                                             }
-                                        }
-                                    }}
-                                    disabled={isSyncingArchive}
-                                    className="w-full sm:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
-                                >
-                                    {isSyncingArchive ? <Loader2 className="animate-spin" size={14} /> : <Database size={14} />}
-                                    {isSyncingArchive ? 'Đang đồng bộ...' : 'Bắt đầu Khôi phục & Đồng bộ'}
-                                </button>
+                                        }}
+                                        disabled={isScanningArchive}
+                                        className="w-full sm:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
+                                    >
+                                        {isScanningArchive ? <Loader2 className="animate-spin" size={14} /> : <Database size={14} />}
+                                        {isScanningArchive ? 'Đang phân tích hệ thống...' : 'Quét & Phân tích thông tin'}
+                                    </button>
+                                ) : (
+                                    scanResult.totalCount > 0 && (
+                                        <button 
+                                            onClick={async () => {
+                                                if (await confirmAction(`Bạn có chắc chắn muốn tiến hành đồng bộ và ghi đè ${scanResult.totalCount} hồ sơ cũ lên cơ sở dữ liệu?`)) {
+                                                    setIsCommittingArchive(true);
+                                                    try {
+                                                        if (onSyncMissingFieldsFromArchive) {
+                                                            const res = await onSyncMissingFieldsFromArchive(false, scanResult.updates); // onlyScan = false
+                                                            if (res && res.success) {
+                                                                alert(`Đồng bộ thành công! Đã cập nhật ${res.count} hồ sơ.`);
+                                                                setScanResult(null);
+                                                                if (onHolidaysChanged) onHolidaysChanged(); // Refresh data
+                                                            } else {
+                                                                alert("Đã xảy ra lỗi khi đồng bộ: " + (res?.error ? String(res.error) : "Lỗi không xác định"));
+                                                            }
+                                                        }
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                        alert("Có lỗi xảy ra khi ghi dữ liệu: " + (err instanceof Error ? err.message : String(err)));
+                                                    } finally {
+                                                        setIsCommittingArchive(false);
+                                                    }
+                                                }
+                                            }}
+                                            disabled={isCommittingArchive}
+                                            className="w-full sm:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
+                                        >
+                                            {isCommittingArchive ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle size={14} />}
+                                            {isCommittingArchive ? 'Đang đồng bộ...' : 'Xác nhận & Đồng bộ ngay'}
+                                        </button>
+                                    )
+                                )}
                             </div>
                         </div>
                     </div>

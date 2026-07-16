@@ -128,8 +128,7 @@ export const exportReportToExcel = async (
         "Hẹn Trả", 
         "Ngày hoàn thành",
         "Ngày trả kết quả",
-        "Trạng Thái", 
-        "Ghi Chú"
+        "Trạng Thái"
     ];
 
     // Sắp xếp danh sách hồ sơ: Chủ sử dụng (customerName), sau đó đến Loại thủ tục (recordType)
@@ -163,8 +162,7 @@ export const exportReportToExcel = async (
             formatDate(r.deadline),
             formatDate(r.completedDate),      
             formatDate(r.resultReturnedDate),
-            STATUS_LABELS[r.status],
-            getDisplayNotes(r.notes)
+            STATUS_LABELS[r.status]
         ];
     });
 
@@ -238,8 +236,7 @@ export const exportReportToExcel = async (
         { wch: 12 }, // Hẹn Trả
         { wch: 14 }, // Ngày hoàn thành
         { wch: 14 }, // Ngày trả kết quả
-        { wch: 15 }, // Trạng thái
-        { wch: 20 }  // Ghi chú
+        { wch: 15 }  // Trạng thái
     ];
 
     // Apply Styles

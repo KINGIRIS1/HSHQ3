@@ -10,7 +10,7 @@ import { supabase } from '../services/supabaseClient';
 import { mapRecordFromDb, saveToCache, getFromCache, CACHE_KEYS } from '../services/apiCore';
 import { DEFAULT_WARDS as STATIC_WARDS, APP_VERSION, MOCK_EMPLOYEES, MOCK_USERS } from '../constants';
 import { addToOfflineQueue } from '../utils/offlineSync';
-import { isRegType, getGcnWorkflowStepsHelper, calculateDeadline, removeVietnameseTones } from '../utils/appHelpers';
+import { isRegType, getGcnWorkflowStepsHelper, calculateDeadline, removeVietnameseTones, isMeasurementType, isArchiveType } from '../utils/appHelpers';
 import { fetchArchiveRecords } from '../services/apiArchive';
 
 // --- HELPERS FOR AUTO-TRANSITION TO TBT ---
@@ -597,8 +597,19 @@ export const useAppData = (currentUser: User | null) => {
         return result;
     };
 
-    const handleSyncMissingFieldsFromArchive = async () => {
+    const handleSyncMissingFieldsFromArchive = async (onlyScan: boolean = false, preCalculatedUpdates?: any[]) => {
         try {
+            if (!onlyScan && preCalculatedUpdates) {
+                if (preCalculatedUpdates.length > 0) {
+                    const result = await updateRecordsBatchById(preCalculatedUpdates);
+                    if (result.success) {
+                        await loadData();
+                    }
+                    return { success: true, count: preCalculatedUpdates.length };
+                }
+                return { success: true, count: 0 };
+            }
+
             // Fetch all archive records
             const [saoluc, vaoso, congvan] = await Promise.all([
                 fetchArchiveRecords('saoluc'),
@@ -631,10 +642,30 @@ export const useAppData = (currentUser: User | null) => {
             };
 
             const updates: any[] = [];
+            let readCount = 0;
+            let generatedCount = 0;
+            
+            const categoryStats = {
+                measurement: { readCount: 0, generatedCount: 0, totalCount: 0 },
+                registration: { readCount: 0, generatedCount: 0, totalCount: 0 },
+                archive: { readCount: 0, generatedCount: 0, totalCount: 0 },
+                other: { readCount: 0, generatedCount: 0, totalCount: 0 }
+            };
             
             records.forEach(r => {
                 let updated = false;
+                let isMatched = false;
                 const cloned = { ...r };
+                
+                // Determine category based on recordType
+                let category: 'measurement' | 'registration' | 'archive' | 'other' = 'other';
+                if (isMeasurementType(cloned.recordType)) {
+                    category = 'measurement';
+                } else if (isRegType(cloned.recordType)) {
+                    category = 'registration';
+                } else if (isArchiveType(cloned.recordType)) {
+                    category = 'archive';
+                }
                 
                 // Try to find matching archive record
                 const rCodeNorm = r.code ? r.code.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '') : '';
@@ -644,13 +675,14 @@ export const useAppData = (currentUser: User | null) => {
                 
                 if (matched) {
                     const mData = matched.data || {};
+                    let matchedUpdated = false;
                     
                     // 1. receivedDate
                     if (!cloned.receivedDate) {
                         const recDate = matched.ngay_thang || mData.ngay_nhan || mData.receivedDate;
                         if (recDate) {
                             cloned.receivedDate = recDate;
-                            updated = true;
+                            matchedUpdated = true;
                         }
                     }
                     
@@ -659,7 +691,7 @@ export const useAppData = (currentUser: User | null) => {
                         const deadlineDate = mData.hen_tra || mData.deadline;
                         if (deadlineDate) {
                             cloned.deadline = deadlineDate;
-                            updated = true;
+                            matchedUpdated = true;
                         }
                     }
                     
@@ -674,7 +706,7 @@ export const useAppData = (currentUser: User | null) => {
                             if (finalEmpId) {
                                 cloned.assignedTo = finalEmpId;
                                 cloned.assignedDate = cloned.assignedDate || mData.assigned_date || mData.assignedDate || cloned.receivedDate;
-                                updated = true;
+                                matchedUpdated = true;
                             }
                         }
                     }
@@ -688,19 +720,47 @@ export const useAppData = (currentUser: User | null) => {
                                 cloned.exportBatch = batchNum;
                                 cloned.exportDate = cloned.exportDate || mData.ngay_hoan_thanh || mData.exportDate || mData.export_date || mData.completedDate || mData.completed_date;
                                 cloned.completedDate = cloned.completedDate || cloned.exportDate || mData.ngay_hoan_thanh || mData.completedDate || mData.completed_date;
-                                updated = true;
+                                matchedUpdated = true;
                             }
                         }
                     }
+
+                    if (matchedUpdated) {
+                        updated = true;
+                        isMatched = true;
+                    }
                 }
                 
+                let isSlaCalculated = false;
                 // Fallback: If receivedDate and recordType are present but deadline is still empty, calculate it!
                 if (cloned.receivedDate && cloned.recordType && !cloned.deadline) {
                     cloned.deadline = calculateDeadline(cloned.recordType, cloned.receivedDate, holidays, cloned.hasTax);
                     updated = true;
+                    isSlaCalculated = true;
                 }
                 
                 if (updated) {
+                    let isRead = false;
+                    let isGen = false;
+
+                    if (isMatched) {
+                        isRead = true;
+                    }
+                    if (isSlaCalculated) {
+                        isGen = true;
+                    }
+
+                    if (isRead) {
+                        readCount++;
+                        categoryStats[category].readCount++;
+                    }
+                    if (isGen) {
+                        generatedCount++;
+                        categoryStats[category].generatedCount++;
+                    }
+                    
+                    categoryStats[category].totalCount++;
+
                     updates.push({
                         id: cloned.id,
                         receivedDate: cloned.receivedDate,
@@ -714,15 +774,19 @@ export const useAppData = (currentUser: User | null) => {
                 }
             });
             
+            if (onlyScan) {
+                return { success: true, readCount, generatedCount, count: updates.length, categoryStats, updates };
+            }
+
             if (updates.length > 0) {
                 const result = await updateRecordsBatchById(updates);
                 if (result.success) {
                     await loadData();
                 }
-                return { success: true, count: updates.length };
+                return { success: true, count: updates.length, readCount, generatedCount, categoryStats };
             }
             
-            return { success: true, count: 0 };
+            return { success: true, count: 0, readCount: 0, generatedCount: 0, categoryStats };
         } catch (error) {
             console.error("Error in syncMissingFieldsFromArchive:", error);
             return { success: false, count: 0, error };

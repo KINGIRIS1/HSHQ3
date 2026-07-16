@@ -19,7 +19,7 @@ interface SystemViewProps {
     onHolidaysChanged: () => void;
     records?: RecordFile[];
     onTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
-    onSyncMissingFieldsFromArchive?: () => Promise<{ success: boolean; count: number; error?: any }>;
+    onSyncMissingFieldsFromArchive?: (onlyScan?: boolean, preCalculatedUpdates?: any[]) => Promise<{ success: boolean; count: number; readCount?: number; generatedCount?: number; categoryStats?: any; updates?: any[]; error?: any }>;
     onViewRecord?: (record: RecordFile) => void;
 }
 

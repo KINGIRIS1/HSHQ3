@@ -155,7 +155,6 @@ const ExportHandoverModal: React.FC<ExportHandoverModalProps> = ({
           <td style="padding: 8px;">${location}</td>
           <td style="text-align: center; padding: 8px;">${r.data?.hen_tra ? r.data.hen_tra.split("-").reverse().join("/") : "-"}</td>
           <td style="padding: 8px;"></td>
-          <td style="text-align: center; padding: 8px; font-size: 11px;">${notes}</td>
         </tr>
       `;
     }).join("");
@@ -200,11 +199,10 @@ const ExportHandoverModal: React.FC<ExportHandoverModalProps> = ({
               <tr>
                 <th style="width: 5%;">STT</th>
                 <th style="width: 15%;">Số hiệu bộ HS</th>
-                <th style="width: 25%; font-weight: bold;">${type === "saoluc" ? "Chủ sử dụng" : "Nơi nhận / Gửi"}</th>
-                <th style="width: 25%;">Địa bàn / Vị trí</th>
+                <th style="width: 28%; font-weight: bold;">${type === "saoluc" ? "Chủ sử dụng" : "Nơi nhận / Gửi"}</th>
+                <th style="width: 30%;">Địa bàn / Vị trí</th>
                 <th style="width: 12%;">Hẹn trả</th>
                 <th style="width: 10%;">Ký nhận</th>
-                <th style="width: 8%;">Ghi chú</th>
               </tr>
             </thead>
             <tbody>
@@ -285,7 +283,6 @@ const ExportHandoverModal: React.FC<ExportHandoverModalProps> = ({
       "Hẹn Trả",
       "Ngày nhận hồ sơ",
       "Ký tên",
-      "Ghi Chú",
     ];
     wsData.push(headers);
 
@@ -302,7 +299,6 @@ const ExportHandoverModal: React.FC<ExportHandoverModalProps> = ({
         r.data?.hen_tra ? r.data.hen_tra.split("-").reverse().join("/") : "",
         "", // Ngày nhận hồ sơ (Empty)
         "", // Ký tên (Empty)
-        "", // Ghi Chú (Empty)
       ]);
     });
 
@@ -311,7 +307,6 @@ const ExportHandoverModal: React.FC<ExportHandoverModalProps> = ({
     wsData.push([""]);
     wsData.push([
       "BÊN GIAO HỒ SƠ",
-      "",
       "",
       "",
       "",
@@ -337,7 +332,7 @@ const ExportHandoverModal: React.FC<ExportHandoverModalProps> = ({
       { s: { r: 4, c: 0 }, e: { r: 4, c: lastCol } }, // NGÀY...
       { s: { r: 5, c: 0 }, e: { r: 5, c: lastCol } }, // ĐỢT...
       { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 3 } }, // BÊN GIAO...
-      { s: { r: wsData.length - 1, c: 9 }, e: { r: wsData.length - 1, c: 10 } }, // BÊN NHẬN...
+      { s: { r: wsData.length - 1, c: 8 }, e: { r: wsData.length - 1, c: 9 } }, // BÊN NHẬN...
     ];
 
     // Column Widths
@@ -352,7 +347,6 @@ const ExportHandoverModal: React.FC<ExportHandoverModalProps> = ({
       { wch: 12 }, // Hẹn Trả
       { wch: 15 }, // Ngày nhận
       { wch: 15 }, // Ký tên
-      { wch: 15 }, // Ghi Chú
     ];
 
     // Styles

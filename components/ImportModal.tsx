@@ -385,19 +385,19 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
               const checkedDateRaw = getVal(['NGÀY ĐÃ KIỂM TRA', 'checkeddate', 'checked_date', 'checkedDate']);
               if (checkedDateRaw !== undefined) record.checkedDate = processDateCell(checkedDateRaw, "Ngày đã kiểm tra");
 
-              const submissionDateRaw = getVal(['NGÀY TRÌNH KÝ', 'submissiondate', 'submission_date', 'submissionDate']);
+              const submissionDateRaw = getVal(['NGÀY TRÌNH KÝ', 'NGÀY TRÌNH KY', 'submissiondate', 'submission_date', 'submissionDate']);
               if (submissionDateRaw !== undefined) record.submissionDate = processDateCell(submissionDateRaw, "Ngày trình ký");
 
               const approvalDateRaw = getVal(['NGÀY KÝ DUYỆT', 'NGÀY KÝ', 'approvaldate', 'approval_date', 'approvalDate']);
               if (approvalDateRaw !== undefined) record.approvalDate = processDateCell(approvalDateRaw, "Ngày ký duyệt");
 
-              const completedDateRaw = getVal(['NGÀY HOÀN THÀNH', 'completeddate', 'completed_date', 'completedDate', 'NGÀY GIAO 1 CỬA', 'HOÀN THÀNH', 'HOÀN THÀNH/ ĐỢT', 'HOÀN THÀNH/ĐỢT']);
+              const completedDateRaw = getVal(['NGÀY GIAO 1 CỬA', 'NGÀY GIAO 1 CUA', 'NGÀY HOÀN THÀNH', 'completeddate', 'completed_date', 'completedDate', 'HOÀN THÀNH', 'HOÀN THÀNH/ ĐỢT', 'HOÀN THÀNH/ĐỢT']);
               if (completedDateRaw !== undefined) {
                   const parsedCompletedDate = processDateCell(completedDateRaw, "Ngày bàn giao một cửa");
                   if (parsedCompletedDate) record.completedDate = parsedCompletedDate;
               }
 
-              const resultReturnedDateRaw = getVal(['NGÀY TRẢ DÂN', 'resultreturneddate', 'result_returned_date', 'resultReturnedDate']);
+              const resultReturnedDateRaw = getVal(['NGÀY TRẢ KẾT QUẢ', 'NGAY TRA KET QUA', 'NGÀY TRẢ DÂN', 'resultreturneddate', 'result_returned_date', 'resultReturnedDate']);
               if (resultReturnedDateRaw !== undefined) record.resultReturnedDate = processDateCell(resultReturnedDateRaw, "Ngày trả dân");
 
               const typeRaw = getVal(['LOẠI HỒ SƠ', 'LOAI HO SO', 'recordtype', 'record_type']);
@@ -419,7 +419,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
                   if (numStr) record.exportBatch = parseInt(numStr, 10);
               }
 
-              const exportDateRaw = getVal(['NGÀY XUẤT', 'EXPORT DATE', 'NGÀY TRẢ', 'exportdate', 'export_date', 'exportDate']);
+              const exportDateRaw = getVal(['NGÀY GIAO 1 CỬA', 'NGÀY GIAO 1 CUA', 'NGÀY XUẤT', 'EXPORT DATE', 'NGÀY TRẢ', 'exportdate', 'export_date', 'exportDate']);
               if (exportDateRaw !== undefined) {
                   record.exportDate = processDateCell(exportDateRaw, "Ngày xuất/trả");
               }
@@ -483,7 +483,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
                   }
               }
 
-              const assigneeRaw = getVal(['NGƯỜI XỬ LÝ', 'NHÂN VIÊN', 'assignedto', 'assigned_to', 'assignedTo', 'GIAO NHÂN VIÊN', 'NHÂN VIÊN THỤ LÝ', 'CÁN BỘ THỤ LÝ', 'GIAO CHO']);
+              const assigneeRaw = getVal(['NGƯỜI ĐƯỢC GIAO', 'NGƯỜI XỬ LÝ', 'NHÂN VIÊN', 'assignedto', 'assigned_to', 'assignedTo', 'GIAO NHÂN VIÊN', 'NHÂN VIÊN THỤ LÝ', 'CÁN BỘ THỤ LÝ', 'GIAO CHO']);
               if (assigneeRaw !== undefined && String(assigneeRaw).trim() !== '') {
                   const emp = employees.find(e => e.name.toLowerCase().includes(String(assigneeRaw).toLowerCase()));
                   if (emp) {
@@ -494,7 +494,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
                   }
               }
 
-              const assignedDateRaw = getVal(['NGÀY GIAO', 'NGÀY GIAO VIỆC', 'assigneddate', 'assigned_date', 'assignedDate', 'NGÀY GIAO VIỆC']);
+              const assignedDateRaw = getVal(['NGÀY GIAO NHÂN VIÊN', 'NGÀY GIAO', 'NGÀY GIAO VIỆC', 'assigneddate', 'assigned_date', 'assignedDate']);
               if (assignedDateRaw !== undefined) {
                   record.assignedDate = processDateCell(assignedDateRaw, "Ngày giao việc");
               }
@@ -513,12 +513,26 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
               if (receivedByCell !== undefined) record.receivedBy = String(receivedByCell).trim();
 
               // 4. Người ký duyệt
-              const submittedToCell = getVal(['NGƯỜI KÝ DUYỆT', 'NGUOI KY DUYET', 'submittedto', 'submittedTo']);
-              if (submittedToCell !== undefined) record.submittedTo = String(submittedToCell).trim();
+              const submittedToCell = getVal(['LÃNH ĐẠO TRÌNH', 'LANH DAO TRINH', 'NGƯỜI KÝ DUYỆT', 'NGUOI KY DUYET', 'submittedto', 'submittedTo']);
+              if (submittedToCell !== undefined && String(submittedToCell).trim() !== '') {
+                  const emp = employees.find(e => e.name.toLowerCase().includes(String(submittedToCell).toLowerCase()));
+                  if (emp) {
+                      record.submittedTo = emp.id;
+                  } else {
+                      record.submittedTo = String(submittedToCell).trim();
+                  }
+              }
 
               // 5. Người kiểm tra
               const checkedByCell = getVal(['NGƯỜI KIỂM TRA', 'NGUOI KIEM TRA', 'checkedby', 'checkedBy']);
-              if (checkedByCell !== undefined) record.checkedBy = String(checkedByCell).trim();
+              if (checkedByCell !== undefined && String(checkedByCell).trim() !== '') {
+                  const emp = employees.find(e => e.name.toLowerCase().includes(String(checkedByCell).toLowerCase()));
+                  if (emp) {
+                      record.checkedBy = emp.id;
+                  } else {
+                      record.checkedBy = String(checkedByCell).trim();
+                  }
+              }
 
               // 6. Đất CLN
               const clnAreaCell = getVal(['ĐẤT CLN', 'DIỆN TÍCH CLN', 'clnarea', 'clnArea']);
@@ -795,6 +809,14 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
               [],
               ["[PHẦN 2] QUY CHUẨN ĐỊNH DẠNG:"],
               ["TRẠNG THÁI", "Chọn đúng trạng thái: Tiếp nhận, Đang xử lý, Chờ kiểm tra, Đã kiểm tra, Chờ ký, Đã ký, Đã giao 1 cửa, Đã trả dân", "Văn bản tự do", "Không bắt buộc"],
+              ["NGÀY GIAO NHÂN VIÊN", "Ngày bàn giao cho nhân viên thực hiện nhiệm vụ chuyên môn.", "Định dạng Ngày: DD/MM/YYYY", "Không bắt buộc"],
+              ["NGƯỜI ĐƯỢC GIAO", "Họ tên nhân viên được giao việc (Hệ thống sẽ tự khớp theo danh sách chuyên viên).", "Họ tên đầy đủ", "Không bắt buộc"],
+              ["NGƯỜI KIỂM TRA", "Họ tên cán bộ/tổ trưởng phụ trách kiểm tra chất lượng hồ sơ.", "Họ tên đầy đủ", "Không bắt buộc"],
+              ["NGÀY TRÌNH KIỂM TRA", "Ngày chuyên viên trình hồ sơ lên cho tổ trưởng kiểm tra.", "Định dạng Ngày: DD/MM/YYYY", "Không bắt buộc"],
+              ["LÃNH ĐẠO TRÌNH", "Họ tên lãnh đạo phê duyệt / ký duyệt hồ sơ.", "Họ tên đầy đủ", "Không bắt buộc"],
+              ["NGÀY TRÌNH KÝ", "Ngày trình hồ sơ lên ban lãnh đạo để ký duyệt.", "Định dạng Ngày: DD/MM/YYYY", "Không bắt buộc"],
+              ["NGÀY GIAO 1 CỬA", "Ngày bàn giao kết quả hồ sơ hoàn thành về bộ phận Một cửa.", "Định dạng Ngày: DD/MM/YYYY", "Không bắt buộc"],
+              ["NGÀY TRẢ KẾT QUẢ", "Ngày thực tế bàn giao sản phẩm/kết quả cho người dân.", "Định dạng Ngày: DD/MM/YYYY", "Không bắt buộc"],
               ["SỐ ĐO ĐẠC/TRÍCH LỤC", "Cập nhật số đo đạc hoặc số trích lục của hồ sơ chuyên môn.", "Văn bản tự do", "Không bắt buộc"],
               ["NGÀY TRẢ DÂN", "Ngày thực tế bàn giao kết quả cho người dân.", "Định dạng Ngày: DD/MM/YYYY (Ví dụ: 27/06/2026)", "Không bắt buộc"]
           ];
@@ -803,7 +825,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
           XLSX.utils.sheet_add_aoa(wsInstr, instrRows, { origin: "A1" });
           XLSX.utils.sheet_add_aoa(wsInstr, [instrHeaders], { origin: "A9" });
           
-          wsInstr['!cols'] = [{ wch: 25 }, { wch: 50 }, { wch: 40 }, { wch: 25 }];
+          wsInstr['!cols'] = [{ wch: 25 }, { wch: 55 }, { wch: 45 }, { wch: 25 }];
           
           if (wsInstr['A1']) {
               wsInstr['A1'].s = { font: { bold: true, color: { rgb: "C65911" }, sz: 14, name: "Calibri" } };
@@ -825,12 +847,12 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
 
           // CAP NHAT SHEET
           const updateHeaders = [
-              'MÃ HỒ SƠ', 'TRẠNG THÁI', 'ĐỢT BAN GIAO', 'NGÀY XUẤT', 'SỐ ĐO ĐẠC', 'SỐ TRÍCH LỤC', 'SỐ PHÁT HÀNH', 'SỐ VÀO SỔ', 'NGÀY CẤP SỔ', 'NGƯỜI NHẬN KẾT QUẢ', 'NGÀY TRẢ DÂN', 'GHI CHÚ CHUNG'
+              'MÃ HỒ SƠ', 'TRẠNG THÁI', 'ĐỢT BAN GIAO', 'NGÀY GIAO NHÂN VIÊN', 'NGƯỜI ĐƯỢC GIAO', 'NGƯỜI KIỂM TRA', 'NGÀY TRÌNH KIỂM TRA', 'LÃNH ĐẠO TRÌNH', 'NGÀY TRÌNH KÝ', 'NGÀY GIAO 1 CỬA', 'NGÀY TRẢ KẾT QUẢ', 'SỐ ĐO ĐẠC', 'SỐ TRÍCH LỤC', 'SỐ PHÁT HÀNH', 'SỐ VÀO SỔ', 'NGÀY CẤP SỔ', 'NGƯỜI NHẬN KẾT QUẢ', 'GHI CHÚ CHUNG'
           ];
           const updateRows = [
-              ['HS-DAT-001', 'Đã ký', '1', '27/06/2026', 'DD-2026-102', 'TL-2026-95', 'CC 123456', 'CH 789', '27/06/2026', 'Nguyễn Chí Thanh', '27/06/2026', 'Cập nhật thông tin thông qua mẫu Excel']
+              ['HS-DAT-001', 'Đã ký', '1', '15/07/2026', 'Nguyễn Văn A', 'Trần Văn B', '18/07/2026', 'Lê Văn C', '20/07/2026', '22/07/2026', '23/07/2026', 'DD-2026-102', 'TL-2026-95', 'CC 123456', 'CH 789', '21/07/2026', 'Nguyễn Chí Thanh', 'Cập nhật tiến trình qua Excel']
           ];
-          addStyledSheet('2. CAP NHAT THONG TIN', updateHeaders, updateRows, [15, 15, 12, 12, 14, 14, 15, 12, 12, 20, 12, 35]);
+          addStyledSheet('2. CAP NHAT THONG TIN', updateHeaders, updateRows, [15, 15, 12, 18, 18, 18, 18, 18, 18, 18, 18, 14, 14, 15, 12, 12, 20, 35]);
 
           XLSX.writeFile(wb, 'Mau_Cap_Nhat_Thong_Tin_Ho_So.xlsx');
       } else {

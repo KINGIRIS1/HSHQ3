@@ -181,8 +181,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
       '2.3 Trích đo',
       '2.4 Trích đo Cắm mốc',
       '2.5 Trích đo Tách - Hợp thửa',
-      '2.6 Cung cấp số thửa',
-      ...REGISTRATION_PROCEDURES
+      '2.6 Cung cấp số thửa'
     ];
   }, [currentView]);
 

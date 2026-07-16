@@ -696,10 +696,6 @@ const ReceiveContract: React.FC<ReceiveContractProps> = ({ wards, currentUser, e
             <div><h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><FileSignature className="text-purple-600" /> Quản Lý Hợp Đồng</h2></div>
             
             <div className="flex gap-2 items-center flex-wrap">
-                <button onClick={() => setIsNetworkGuideOpen(true)} className="px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 rounded-lg transition-all shadow-sm flex items-center gap-1.5 font-bold text-xs" title="Hướng dẫn khôi phục khi mất mạng/rớt mạng">
-                    <WifiOff size={14} className={!isOnline ? "animate-pulse text-rose-600" : "text-rose-500"} />
-                    <span>Rớt Mạng? {!isOnline && <span className="ml-1 px-1 py-0.5 bg-red-600 text-white rounded text-[10px] uppercase font-mono tracking-wider animate-pulse">Offline</span>}</span>
-                </button>
                 <button onClick={() => setIsNumberingModalOpen(true)} className="px-3 py-1.5 bg-purple-600 border border-purple-500 text-white hover:bg-purple-700 hover:border-purple-600 rounded-lg transition-all shadow-md flex items-center gap-1.5 font-bold text-xs" title="Sổ Lấy Số & Số Hợp Đồng Tự Động">
                     <BookOpen size={14} />
                     <span>Sổ Lấy Số (Tiếp: {nextCodeProposal})</span>
@@ -865,55 +861,6 @@ const ReceiveContract: React.FC<ReceiveContractProps> = ({ wards, currentUser, e
               }}
               onSaveAnnex={handleSaveAnnexStatus}
           />
-      )}
-
-      {isNetworkGuideOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden shadow-2xl border border-gray-100 flex flex-col animate-scale-up text-left">
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-rose-50 rounded-t-2xl shrink-0">
-              <h3 className="font-bold text-lg text-rose-950 flex items-center gap-2">
-                <WifiOff className="text-rose-600 animate-pulse" size={20} />
-                <span>Hướng dẫn Sự cố Rớt Mạng / Mất Kết Nối</span>
-              </h3>
-              <button onClick={() => setIsNetworkGuideOpen(false)} className="text-rose-900/60 hover:text-rose-900 p-1.5 bg-white hover:bg-rose-100 rounded-full transition-colors font-bold">
-                X
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-4 text-sm text-gray-700 leading-relaxed overflow-y-auto max-h-[60vh]">
-              <div>
-                <span className="font-bold text-slate-900 block mb-1">1. ĐIỀU QUAN TRỌNG NHẤT: KHÔNG TẢI LẠI TRANG (F5)</span>
-                <p>Khi mất internet, các dữ liệu tạm thời (form đang nhập dở, danh sách hợp đồng vừa hiển thị) vẫn được <strong>giữ nguyên trong bộ nhớ trình duyệt</strong>. Nếu bạn tải lại trang (F5) hoặc đóng tab, những dữ liệu này sẽ lập tức bị xóa và mất sạch.</p>
-              </div>
-
-              <div>
-                <span className="font-bold text-slate-900 block mb-1">2. CÁCH KHẮC PHỤC KHI LỠ CHUYỂN HỒ SƠ LÚC RỚT MẠNG</span>
-                <p>Nếu bạn nhấn chuyển hồ sơ (hoặc chuyển lập hợp đồng, quyết toán, lưu thông tin) nhưng mạng bị chập chờn:</p>
-                <ul className="list-disc pl-5 mt-1 space-y-1.5 text-slate-600">
-                  <li><strong>Hãy giữ nguyên màn hình đó:</strong> Không cần đóng hay thoát khỏi màn hình hiện tại.</li>
-                  <li><strong>Kiểm tra lại kết nối mạng Wifi/LAN:</strong> Đợi khoảng 10-20 giây để biểu tượng sóng mạng ổn định trở lại.</li>
-                  <li><strong>Tiến hành gửi lại:</strong> Khi có mạng, hãy bấm nút <strong>"Lưu"</strong> hoặc nút <strong>"Tải lại" 🔄</strong> trên danh sách. Dữ liệu sẽ tiếp tục được truyền tải lên máy chủ thành công mà không bị lỗi trùng lặp.</li>
-                </ul>
-              </div>
-
-              <div>
-                <span className="font-bold text-slate-900 block mb-1">3. TÌM LẠI HỒ SƠ QUA "MÃ HỒ SƠ LIÊN KẾT"</span>
-                <p>Để giúp bạn kiểm soát độc lập, chúng tôi đã thêm cột <strong>"Mã hồ sơ liên kết"</strong> ngay bên cạnh Mã Hợp Đồng trong danh sách. Kể cả khi mạng chập chờn và chuyển hồ sơ đi, bạn luôn biết chính xác hợp đồng nào thuộc về hồ sơ nào nhờ liên kết này.</p>
-              </div>
-
-              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs mt-2">
-                <span className="font-bold block mb-1">💡 Mẹo nhỏ cho khu vực mạng kém:</span>
-                Trước khi thao tác các tác vụ quan trọng, bạn có thể kiểm tra tín hiệu mạng qua biểu tượng phía trên. Nếu mất mạng, hệ thống sẽ cảnh báo bằng biểu ngữ đỏ rực để nhắc nhở phòng ngừa.
-              </div>
-            </div>
-
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end shrink-0 rounded-b-2xl">
-              <button onClick={() => setIsNetworkGuideOpen(false)} className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-sm shadow-sm transition-colors">
-                Tôi đã hiểu
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

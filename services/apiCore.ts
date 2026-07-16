@@ -193,7 +193,8 @@ export const sanitizeData = (data: any, allowedColumns: string[]) => {
         'area', 'exportBatch', 'unitPrice', 'vatRate', 'vatAmount', 'totalAmount', 
         'deposit', 'quantity', 'excerptNumber', 'plotCount', 'markerCount', 
         'minArea', 'maxArea', 'price',
-        'liquidationArea', 'liquidationAmount', 'residentialArea'
+        'liquidationArea', 'liquidationAmount', 'residentialArea',
+        'clnArea', 'bhkArea', 'lucArea', 'otherLandArea'
     ];
     numberFields.forEach(field => {
         if (clean[field] === '' || clean[field] === undefined || (typeof clean[field] === 'number' && isNaN(clean[field]))) {
@@ -311,6 +312,11 @@ export const mapRecordFromDb = (item: any): any => {
     if (r.lastRemindedAt === undefined && (r.lastremindedat !== undefined || r.last_reminded_at !== undefined)) r.lastRemindedAt = r.lastremindedat || r.last_reminded_at;
     
     if (r.privateNotes === undefined && (r.privatenotes !== undefined || r.private_notes !== undefined)) r.privateNotes = r.privatenotes || r.private_notes;
+    
+    if (r.clnArea === undefined && (r.clnarea !== undefined || r.cln_area !== undefined)) r.clnArea = r.clnarea || r.cln_area;
+    if (r.bhkArea === undefined && (r.bhkarea !== undefined || r.bhk_area !== undefined)) r.bhkArea = r.bhkarea || r.bhk_area;
+    if (r.lucArea === undefined && (r.lucarea !== undefined || r.luc_area !== undefined)) r.lucArea = r.lucarea || r.luc_area;
+    if (r.otherLandArea === undefined && (r.otherlandarea !== undefined || r.other_land_area !== undefined)) r.otherLandArea = r.otherlandarea || r.other_land_area;
     
     // Tách stepAssignees từ privateNotes
     const parsedNotesObj = parsePrivateNotesAndAssignees(r.privateNotes);

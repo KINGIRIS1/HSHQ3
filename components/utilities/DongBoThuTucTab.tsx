@@ -280,7 +280,7 @@ const DongBoThuTucTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onR
                     ...item.record,
                     recordType: item.newProcedure,
                     // Optionally record a flag or note of sync history
-                    notes: (item.record.notes || '') + `\n[Đồng bộ thủ tục]: Đổi từ '${item.oldProcedure}' sang '${item.newProcedure}'`
+                    notes: item.record.notes || ''
                 };
 
                 const res = await onUpdateRecord(updatedRecord);
