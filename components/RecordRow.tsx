@@ -333,7 +333,7 @@ const RecordRow: React.FC<RecordRowProps> = ({
 
       {visibleColumns.status && (
         <td className={`${cellClass} text-center`}>
-            {record.resultReturnedDate ? (
+            {record.resultReturnedDate && record.status === RecordStatus.RETURNED ? (
                 <div className="flex flex-col gap-1 items-center">
                     <span className="inline-flex flex-col items-center px-2 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 w-full leading-tight">
                         <span>Đã trả KQ</span>

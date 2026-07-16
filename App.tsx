@@ -664,83 +664,9 @@ function App() {
               break;
       }
 
+      // Removed cascade/backfill auto-population to prevent inaccurate historical reports. Only single status dates are updated.
       if (record) {
-          let flow = [
-              RecordStatus.RECEIVED,
-              RecordStatus.ASSIGNED,
-              RecordStatus.IN_PROGRESS,
-              RecordStatus.COMPLETED_WORK,
-              RecordStatus.PENDING_CHECK,
-              RecordStatus.CHECKED,
-              RecordStatus.PENDING_SIGN,
-              RecordStatus.SIGNED,
-              RecordStatus.HANDOVER
-          ];
-          if (isMeasurementType(record.recordType)) {
-              flow = [
-                  RecordStatus.RECEIVED,
-                  RecordStatus.ASSIGNED,
-                  RecordStatus.IN_PROGRESS,
-                  RecordStatus.PENDING_CHECK,
-                  RecordStatus.CHECKED,
-                  RecordStatus.PENDING_SIGN,
-                  RecordStatus.SIGNED,
-                  RecordStatus.HANDOVER
-              ];
-          } else if (isArchiveType(record.recordType)) {
-              flow = [
-                  RecordStatus.RECEIVED,
-                  RecordStatus.ASSIGNED,
-                  RecordStatus.IN_PROGRESS,
-                  RecordStatus.COMPLETED_WORK,
-                  RecordStatus.PENDING_SIGN,
-                  RecordStatus.SIGNED,
-                  RecordStatus.HANDOVER
-              ];
-          }
-
-          const getIndex = (status: RecordStatus) => {
-              const idx = flow.indexOf(status);
-              return idx === -1 ? 999 : idx;
-          };
-
-          const targetIdx = flow.indexOf(newStatus);
-          if (targetIdx >= 0) {
-              const received = record.receivedDate || targetDateStr;
-              let assigned = record.assignedDate || (targetIdx >= getIndex(RecordStatus.ASSIGNED) ? targetDateStr : null);
-              let completedWork = record.completedWorkDate || (targetIdx >= getIndex(RecordStatus.COMPLETED_WORK) ? (assigned || targetDateStr) : null);
-              let pendingCheck = record.pendingCheckDate || (targetIdx >= getIndex(RecordStatus.PENDING_CHECK) ? (completedWork || targetDateStr) : null);
-              let checked = record.checkedDate || (targetIdx >= getIndex(RecordStatus.CHECKED) ? (pendingCheck || targetDateStr) : null);
-              let submission = record.submissionDate || (targetIdx >= getIndex(RecordStatus.PENDING_SIGN) ? (checked || targetDateStr) : null);
-              let approval = record.approvalDate || (targetIdx >= getIndex(RecordStatus.SIGNED) ? (submission || targetDateStr) : null);
-              let completed = record.completedDate || (targetIdx >= getIndex(RecordStatus.HANDOVER) ? (approval || targetDateStr) : null);
-
-              if (isMeasurementType(record.recordType)) {
-                  // "chờ kiểm tra làm ngày đã thực hiện"
-                  if (targetIdx >= getIndex(RecordStatus.PENDING_CHECK)) {
-                      pendingCheck = record.pendingCheckDate || targetDateStr;
-                      completedWork = record.completedWorkDate || pendingCheck;
-                  }
-                  // "đã trình ký làm ngày cho đã kiểm tra"
-                  if (targetIdx >= getIndex(RecordStatus.PENDING_SIGN)) {
-                      submission = record.submissionDate || targetDateStr;
-                      checked = record.checkedDate || submission;
-                  }
-                  // "ngày giao 1 cửa làm ngày đã ký"
-                  if (targetIdx >= getIndex(RecordStatus.HANDOVER)) {
-                      completed = record.completedDate || targetDateStr;
-                      approval = record.approvalDate || completed;
-                  }
-              }
-
-              if (targetIdx >= getIndex(RecordStatus.ASSIGNED) && assigned) updates.assignedDate = record.assignedDate || assigned;
-              if ((targetIdx >= getIndex(RecordStatus.COMPLETED_WORK) || isMeasurementType(record.recordType)) && completedWork) updates.completedWorkDate = record.completedWorkDate || completedWork;
-              if (targetIdx >= getIndex(RecordStatus.PENDING_CHECK) && pendingCheck) updates.pendingCheckDate = record.pendingCheckDate || pendingCheck;
-              if ((targetIdx >= getIndex(RecordStatus.CHECKED) || isMeasurementType(record.recordType)) && checked) updates.checkedDate = record.checkedDate || checked;
-              if (targetIdx >= getIndex(RecordStatus.PENDING_SIGN) && submission) updates.submissionDate = record.submissionDate || submission;
-              if ((targetIdx >= getIndex(RecordStatus.SIGNED) || isMeasurementType(record.recordType)) && approval) updates.approvalDate = record.approvalDate || approval;
-              if (targetIdx >= getIndex(RecordStatus.HANDOVER) && completed) updates.completedDate = record.completedDate || completed;
-          }
+          // Keep rollback cleanup or specific status updates if needed, otherwise no-op for cascade.
       }
 
       return updates;

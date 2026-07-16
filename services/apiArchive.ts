@@ -1,7 +1,7 @@
 
 import { RecordFile } from '../types';
 import { supabase, isConfigured } from './supabaseClient';
-import { logError, getFromCache, saveToCache, sanitizeData } from './apiCore';
+import { logError, getFromCache, saveToCache, sanitizeData, mapPayloadToDb, getDbColumns } from './apiCore';
 import { RECORD_DB_COLUMNS, OPTIONAL_NEW_COLUMNS } from './apiRecords';
 
 // --- TYPES ---
@@ -87,17 +87,20 @@ export const migrateCungCapTaiLieu = async () => {
             return sanitizeData(safeData, RECORD_DB_COLUMNS);
         });
 
+        const actualCols = await getDbColumns('land_records');
+        const mappedRecords = landRecordsToInsert.map(record => mapPayloadToDb(record, actualCols));
+
         // Insert into land_records using upsert to avoid conflicts on duplicate IDs
         let { error: insertError } = await supabase
             .from('land_records')
-            .upsert(landRecordsToInsert);
+            .upsert(mappedRecords);
             
         if (insertError && (insertError.code === 'PGRST204' || String(insertError.code) === '42703' || (insertError.message && String(insertError.message).includes('does not exist')))) {
             console.warn("⚠️ [Migration Fallback] Database is missing columns. Retrying without new columns...", insertError);
             const fallbackRecords = landRecordsToInsert.map(record => {
                 const fallbackPayload = { ...record };
                 OPTIONAL_NEW_COLUMNS.forEach(col => delete fallbackPayload[col]);
-                return fallbackPayload;
+                return mapPayloadToDb(fallbackPayload, actualCols);
             });
             const { error: fallbackError } = await supabase
                 .from('land_records')
@@ -189,16 +192,19 @@ export const migrateCongVanToLandRecords = async () => {
         });
 
         if (isConfigured) {
+            const actualCols = await getDbColumns('land_records');
+            const mappedRecords = landRecordsToInsert.map(record => mapPayloadToDb(record, actualCols));
+
             let { error: insertError } = await supabase
                 .from('land_records')
-                .upsert(landRecordsToInsert);
+                .upsert(mappedRecords);
                 
             if (insertError && (insertError.code === 'PGRST204' || String(insertError.code) === '42703' || (insertError.message && String(insertError.message).includes('does not exist')))) {
                 console.warn("⚠️ [Migration Fallback] Database is missing columns. Retrying without new columns...", insertError);
                 const fallbackRecords = landRecordsToInsert.map(record => {
                     const fallbackPayload = { ...record };
                     OPTIONAL_NEW_COLUMNS.forEach(col => delete fallbackPayload[col]);
-                    return fallbackPayload;
+                    return mapPayloadToDb(fallbackPayload, actualCols);
                 });
                 const { error: fallbackError } = await supabase
                     .from('land_records')

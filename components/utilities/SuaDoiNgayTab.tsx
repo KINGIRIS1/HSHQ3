@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, RefreshCw, Loader2, Search, CheckCircle2, AlertCircle, HelpCircle, ArrowRight, Save, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { NotifyFunction, RecordFile, Holiday, RecordStatus } from '../../types';
-import { calculateDeadline, formatDateKey, isMeasurementType } from '../../utils/appHelpers';
+import { calculateDeadline, formatDateKey, isMeasurementType, parseSafeDate } from '../../utils/appHelpers';
 import { getNormalizedWard } from '../../constants';
 
 interface Props {
@@ -30,13 +30,18 @@ interface ScanResult {
     isDeadlineModified: boolean;
     isCompletedDateModified: boolean;
     isExportDateModified: boolean;
+
+    // Premature Handover Fields
+    isPremature?: boolean;
+    proposedStatus?: RecordStatus;
+    datesToClear?: string[];
 }
 
 const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRefreshData, holidays = [] }) => {
     const [loading, setLoading] = useState(false);
     const [updating, setUpdating] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterType, setFilterType] = useState<'all' | 'missing_received' | 'missing_deadline' | 'missing_both' | 'missing_handover'>('all');
+    const [filterType, setFilterType] = useState<'all' | 'missing_received' | 'missing_deadline' | 'missing_both' | 'missing_handover' | 'all_records' | 'premature_handover'>('all');
     
     // Split by 2 specialty tabs: Đo đạc and Lưu trữ
     const [specialtyTab, setSpecialtyTab] = useState<'dodac' | 'luutru'>('dodac');
@@ -57,12 +62,198 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
     const [agreedNonGeo, setAgreedNonGeo] = useState<Record<string, boolean>>({});
     const [explanationNonGeo, setExplanationNonGeo] = useState<Record<string, string>>({});
 
+    // Expanded record states for editing detailed step dates
+    const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
+    const [expandedRecordEdits, setExpandedRecordEdits] = useState<{
+        status: RecordStatus;
+        receivedDate: string;
+        deadline: string;
+        assignedDate: string;
+        completedWorkDate: string;
+        pendingCheckDate: string;
+        checkedDate: string;
+        submissionDate: string;
+        approvalDate: string;
+        completedDate: string;
+        resultReturnedDate: string;
+        exportDate: string;
+    } | null>(null);
+
     // Helper function to check if a record is non-geographic handover
     const isNonGeographicHandover = (r: RecordFile) => {
         if (!r.handoverWard) return false;
         const normWard = getNormalizedWard(r.ward || '');
         const normHandoverWard = getNormalizedWard(r.handoverWard);
         return normWard && normHandoverWard && normWard.toLowerCase() !== normHandoverWard.toLowerCase();
+    };
+
+    // Helper function to check if a record has returned result with returned time of 00:00 and is missing completedDate or exportBatch, or has a status mismatch
+    const isPrematureHandover = (r: RecordFile) => {
+        // Must have resultReturnedDate (ngày đã trả kết quả)
+        if (!r.resultReturnedDate) {
+            return false;
+        }
+
+        const dateObj = parseSafeDate(r.resultReturnedDate);
+        if (!dateObj) {
+            return false;
+        }
+
+        // The time is exactly 00:00
+        const isTimeZero = dateObj.getHours() === 0 && dateObj.getMinutes() === 0;
+        if (!isTimeZero) {
+            return false;
+        }
+
+        // Case 1: Status is not RETURNED (e.g. PROCESSING, HANDOVER, etc.) but has resultReturnedDate
+        if (r.status !== RecordStatus.RETURNED) {
+            return true;
+        }
+
+        // Case 2: Status is RETURNED but lacks completedDate (ngày Hoàn thành) or exportBatch (đợt bàn giao)
+        if (!r.completedDate || !r.exportBatch) {
+            return true;
+        }
+
+        return false;
+    };
+
+    // Helper to map any RecordFile to ScanResult structure
+    const mapRecordToScanResult = (r: RecordFile): ScanResult => {
+        const currentRecDate = r.receivedDate ? r.receivedDate.split('T')[0] : '';
+        const currentDeadlineDate = r.deadline ? r.deadline.split('T')[0] : '';
+        const currentCompletedDate = r.completedDate ? r.completedDate.split('T')[0] : '';
+        const currentExportDate = r.exportDate ? r.exportDate.split('T')[0] : '';
+
+        return {
+            record: r,
+            currentReceivedDate: currentRecDate,
+            currentDeadline: currentDeadlineDate,
+            currentCompletedDate: currentCompletedDate,
+            currentExportDate: currentExportDate,
+            proposedReceivedDate: currentRecDate,
+            proposedDeadline: currentDeadlineDate,
+            proposedCompletedDate: currentCompletedDate,
+            proposedExportDate: currentExportDate,
+            receivedDateSource: 'Giữ nguyên',
+            deadlineSource: 'Giữ nguyên',
+            completedDateSource: 'Giữ nguyên',
+            exportDateSource: 'Giữ nguyên',
+            isReceivedDateModified: false,
+            isDeadlineModified: false,
+            isCompletedDateModified: false,
+            isExportDateModified: false
+        };
+    };
+
+    const handleToggleExpand = (item: ScanResult) => {
+        if (expandedRecordId === item.record.id) {
+            setExpandedRecordId(null);
+            setExpandedRecordEdits(null);
+        } else {
+            setExpandedRecordId(item.record.id);
+            const r = item.record;
+            setExpandedRecordEdits({
+                status: r.status,
+                receivedDate: r.receivedDate ? r.receivedDate.split('T')[0] : '',
+                deadline: r.deadline ? r.deadline.split('T')[0] : '',
+                assignedDate: r.assignedDate ? r.assignedDate.split('T')[0] : '',
+                completedWorkDate: r.completedWorkDate ? r.completedWorkDate.split('T')[0] : '',
+                pendingCheckDate: r.pendingCheckDate ? r.pendingCheckDate.split('T')[0] : '',
+                checkedDate: r.checkedDate ? r.checkedDate.split('T')[0] : '',
+                submissionDate: r.submissionDate ? r.submissionDate.split('T')[0] : '',
+                approvalDate: r.approvalDate ? r.approvalDate.split('T')[0] : '',
+                completedDate: r.completedDate ? r.completedDate.split('T')[0] : '',
+                resultReturnedDate: r.resultReturnedDate ? r.resultReturnedDate.split('T')[0] : '',
+                exportDate: r.exportDate ? r.exportDate.split('T')[0] : '',
+            });
+        }
+    };
+
+    const handleExpandedEditChange = (field: string, value: any) => {
+        setExpandedRecordEdits(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                [field]: value
+            };
+        });
+    };
+
+    const handleSaveExpandedEdits = async (record: RecordFile) => {
+        if (!expandedRecordEdits || !onUpdateRecord) return;
+        
+        setUpdating(true);
+        try {
+            const payload: RecordFile = {
+                ...record,
+                status: expandedRecordEdits.status,
+                receivedDate: expandedRecordEdits.receivedDate ? `${expandedRecordEdits.receivedDate}T07:00:00Z` : null,
+                deadline: expandedRecordEdits.deadline ? `${expandedRecordEdits.deadline}T17:00:00Z` : null,
+                assignedDate: expandedRecordEdits.assignedDate ? `${expandedRecordEdits.assignedDate}T07:00:00Z` : null,
+                completedWorkDate: expandedRecordEdits.completedWorkDate ? `${expandedRecordEdits.completedWorkDate}T07:00:00Z` : null,
+                pendingCheckDate: expandedRecordEdits.pendingCheckDate ? `${expandedRecordEdits.pendingCheckDate}T07:00:00Z` : null,
+                checkedDate: expandedRecordEdits.checkedDate ? `${expandedRecordEdits.checkedDate}T07:00:00Z` : null,
+                submissionDate: expandedRecordEdits.submissionDate ? `${expandedRecordEdits.submissionDate}T07:00:00Z` : null,
+                approvalDate: expandedRecordEdits.approvalDate ? `${expandedRecordEdits.approvalDate}T07:00:00Z` : null,
+                completedDate: expandedRecordEdits.completedDate ? `${expandedRecordEdits.completedDate}T07:00:00Z` : null,
+                resultReturnedDate: expandedRecordEdits.resultReturnedDate ? `${expandedRecordEdits.resultReturnedDate}T07:00:00Z` : null,
+                exportDate: expandedRecordEdits.exportDate ? `${expandedRecordEdits.exportDate}T07:00:00Z` : null,
+            };
+
+            const res = await onUpdateRecord(payload);
+            if (res) {
+                notify(`Đã lưu thay đổi quy trình cho hồ sơ ${record.code || 'N/A'}!`, 'success');
+                setExpandedRecordId(null);
+                setExpandedRecordEdits(null);
+                if (onRefreshData) onRefreshData();
+            } else {
+                notify('Lưu thay đổi thất bại.', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            notify('Có lỗi xảy ra khi lưu thay đổi.', 'error');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleAutoClearFutureDates = () => {
+        if (!expandedRecordEdits) return;
+        const currentStatus = expandedRecordEdits.status;
+        const flow = [
+            RecordStatus.RECEIVED,
+            RecordStatus.ASSIGNED,
+            RecordStatus.IN_PROGRESS,
+            RecordStatus.COMPLETED_WORK,
+            RecordStatus.PENDING_CHECK,
+            RecordStatus.CHECKED,
+            RecordStatus.PENDING_SIGN,
+            RecordStatus.SIGNED,
+            RecordStatus.HANDOVER,
+            RecordStatus.RETURNED
+        ];
+        
+        const idx = flow.indexOf(currentStatus);
+        if (idx === -1) return;
+
+        setExpandedRecordEdits(prev => {
+            if (!prev) return null;
+            const next = { ...prev };
+            
+            if (idx < 1) { next.assignedDate = ''; }
+            if (idx < 3) { next.completedWorkDate = ''; }
+            if (idx < 4) { next.pendingCheckDate = ''; }
+            if (idx < 5) { next.checkedDate = ''; }
+            if (idx < 6) { next.submissionDate = ''; }
+            if (idx < 7) { next.approvalDate = ''; }
+            if (idx < 8) { next.completedDate = ''; }
+            if (idx < 9) { next.resultReturnedDate = ''; next.exportDate = ''; }
+
+            return next;
+        });
+        
+        notify('Đã dọn dẹp các ngày quy trình sau trạng thái được chọn.', 'info');
     };
 
     // 1. Helper function to extract received date from 12 characters from right of the code (YYMMDD-XXXX or similar)
@@ -123,8 +314,11 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
             const isHandedOver = (r.status === RecordStatus.HANDOVER || r.status === RecordStatus.RETURNED || !!r.exportBatch) && !!r.exportBatch;
             const isMissingHandover = isHandedOver && (!currentCompletedDate || !currentExportDate);
 
-            // Only show and process records with date issues, leave fully populated records untouched
-            if (!isMissingRec && !isMissingDeadline && !isMissingHandover) continue;
+            // Check premature handover (returned result but dates are in future)
+            const isPremature = isPrematureHandover(r);
+
+            // Only show and process records with date issues or premature handovers, leave fully populated records untouched
+            if (!isMissingRec && !isMissingDeadline && !isMissingHandover && !isPremature) continue;
 
             // Propose Received Date
             let propRecDate = currentRecDate;
@@ -245,6 +439,41 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
                 }
             }
 
+            // Calculate proposed status and dates to clear if premature
+            let proposedStatus: RecordStatus | undefined = undefined;
+            let datesToClear: string[] | undefined = undefined;
+            
+            if (isPremature) {
+                if (r.status !== RecordStatus.RETURNED) {
+                    proposedStatus = r.status;
+                    datesToClear = ['resultReturnedDate'];
+                } else {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    if (r.approvalDate && r.approvalDate.split('T')[0] <= todayStr) {
+                        proposedStatus = RecordStatus.SIGNED;
+                        datesToClear = ['completedDate', 'exportDate', 'resultReturnedDate'];
+                    } else if (r.submissionDate && r.submissionDate.split('T')[0] <= todayStr) {
+                        proposedStatus = RecordStatus.PENDING_SIGN;
+                        datesToClear = ['approvalDate', 'completedDate', 'exportDate', 'resultReturnedDate'];
+                    } else if (r.checkedDate && r.checkedDate.split('T')[0] <= todayStr) {
+                        proposedStatus = RecordStatus.CHECKED;
+                        datesToClear = ['submissionDate', 'approvalDate', 'completedDate', 'exportDate', 'resultReturnedDate'];
+                    } else if (r.pendingCheckDate && r.pendingCheckDate.split('T')[0] <= todayStr) {
+                        proposedStatus = RecordStatus.PENDING_CHECK;
+                        datesToClear = ['checkedDate', 'submissionDate', 'approvalDate', 'completedDate', 'exportDate', 'resultReturnedDate'];
+                    } else if (r.completedWorkDate && r.completedWorkDate.split('T')[0] <= todayStr) {
+                        proposedStatus = RecordStatus.COMPLETED_WORK;
+                        datesToClear = ['pendingCheckDate', 'checkedDate', 'submissionDate', 'approvalDate', 'completedDate', 'exportDate', 'resultReturnedDate'];
+                    } else if (r.assignedDate && r.assignedDate.split('T')[0] <= todayStr) {
+                        proposedStatus = RecordStatus.IN_PROGRESS;
+                        datesToClear = ['completedWorkDate', 'pendingCheckDate', 'checkedDate', 'submissionDate', 'approvalDate', 'completedDate', 'exportDate', 'resultReturnedDate'];
+                    } else {
+                        proposedStatus = RecordStatus.RECEIVED;
+                        datesToClear = ['assignedDate', 'completedWorkDate', 'pendingCheckDate', 'checkedDate', 'submissionDate', 'approvalDate', 'completedDate', 'exportDate', 'resultReturnedDate'];
+                    }
+                }
+            }
+
             results.push({
                 record: r,
                 currentReceivedDate: currentRecDate,
@@ -262,7 +491,10 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
                 isReceivedDateModified: isRecMod,
                 isDeadlineModified: isDeadlineMod,
                 isCompletedDateModified,
-                isExportDateModified
+                isExportDateModified,
+                isPremature,
+                proposedStatus,
+                datesToClear
             });
         }
 
@@ -271,8 +503,9 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
 
     // Compute unique procedures dynamically for the selected Specialty Tab (Đo đạc vs Lưu trữ)
     const availableProcedures = useMemo(() => {
-        const tabScanned = scannedResults.filter(r => {
-            const isMeas = isMeasurementType(r.record.recordType);
+        const sourceList = filterType === 'all_records' ? records : scannedResults.map(r => r.record);
+        const tabScanned = sourceList.filter(r => {
+            const isMeas = isMeasurementType(r.recordType);
             if (specialtyTab === 'dodac') {
                 return isMeas;
             } else {
@@ -282,12 +515,12 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
         
         const types = new Set<string>();
         tabScanned.forEach(r => {
-            if (r.record.recordType) {
-                types.add(r.record.recordType);
+            if (r.recordType) {
+                types.add(r.recordType);
             }
         });
         return Array.from(types).sort();
-    }, [scannedResults, specialtyTab]);
+    }, [scannedResults, records, specialtyTab, filterType]);
 
     // Reset procedure and current page when specialty tab changes
     useEffect(() => {
@@ -302,53 +535,87 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
 
     // 3. Filter scanned results based on specialty tab, specific procedure, search term & missing-type selections
     const filteredResults = useMemo(() => {
-        let results = scannedResults;
+        if (filterType === 'all_records') {
+            let results = records.map(mapRecordToScanResult);
 
-        // Apply specialty tab filter
-        results = results.filter(r => {
-            const isMeas = isMeasurementType(r.record.recordType);
-            if (specialtyTab === 'dodac') {
-                return isMeas;
-            } else {
-                return !isMeas;
-            }
-        });
-
-        // Apply dynamic specific procedure filter
-        if (selectedProcedure !== 'all') {
-            results = results.filter(r => r.record.recordType === selectedProcedure);
-        }
-
-        // Apply missing type filter
-        if (filterType === 'missing_received') {
-            results = results.filter(r => !r.currentReceivedDate);
-        } else if (filterType === 'missing_deadline') {
-            results = results.filter(r => !r.currentDeadline);
-        } else if (filterType === 'missing_both') {
-            results = results.filter(r => !r.currentReceivedDate && !r.currentDeadline);
-        } else if (filterType === 'missing_handover') {
+            // Apply specialty tab filter
             results = results.filter(r => {
-                const isHandedOver = r.record.status === RecordStatus.HANDOVER || r.record.status === RecordStatus.RETURNED || !!r.record.exportBatch;
-                return isHandedOver && (!r.currentCompletedDate || !r.currentExportDate);
+                const isMeas = isMeasurementType(r.record.recordType);
+                if (specialtyTab === 'dodac') {
+                    return isMeas;
+                } else {
+                    return !isMeas;
+                }
             });
-        }
 
-        // Apply Search Term (Code or Customer Name)
-        if (searchTerm.trim()) {
-            const s = searchTerm.toLowerCase().trim();
-            results = results.filter(r => 
-                (r.record.code || '').toLowerCase().includes(s) || 
-                (r.record.customerName || '').toLowerCase().includes(s)
-            );
-        }
+            // Apply dynamic specific procedure filter
+            if (selectedProcedure !== 'all') {
+                results = results.filter(r => r.record.recordType === selectedProcedure);
+            }
 
-        return results;
-    }, [scannedResults, specialtyTab, selectedProcedure, filterType, searchTerm]);
+            // Apply Search Term (Code or Customer Name)
+            if (searchTerm.trim()) {
+                const s = searchTerm.toLowerCase().trim();
+                results = results.filter(r => 
+                    (r.record.code || '').toLowerCase().includes(s) || 
+                    (r.record.customerName || '').toLowerCase().includes(s)
+                );
+            }
+
+            return results;
+        } else {
+            let results = scannedResults;
+
+            // Apply specialty tab filter
+            results = results.filter(r => {
+                const isMeas = isMeasurementType(r.record.recordType);
+                if (specialtyTab === 'dodac') {
+                    return isMeas;
+                } else {
+                    return !isMeas;
+                }
+            });
+
+            // Apply dynamic specific procedure filter
+            if (selectedProcedure !== 'all') {
+                results = results.filter(r => r.record.recordType === selectedProcedure);
+            }
+
+            // Apply missing type filter
+            if (filterType === 'missing_received') {
+                results = results.filter(r => !r.currentReceivedDate);
+            } else if (filterType === 'missing_deadline') {
+                results = results.filter(r => !r.currentDeadline);
+            } else if (filterType === 'missing_both') {
+                results = results.filter(r => !r.currentReceivedDate && !r.currentDeadline);
+            } else if (filterType === 'missing_handover') {
+                results = results.filter(r => {
+                    const isHandedOver = r.record.status === RecordStatus.HANDOVER || r.record.status === RecordStatus.RETURNED || !!r.record.exportBatch;
+                    return isHandedOver && (!r.currentCompletedDate || !r.currentExportDate);
+                });
+            } else if (filterType === 'premature_handover') {
+                results = results.filter(r => r.isPremature);
+            }
+
+            // Apply Search Term (Code or Customer Name)
+            if (searchTerm.trim()) {
+                const s = searchTerm.toLowerCase().trim();
+                results = results.filter(r => 
+                    (r.record.code || '').toLowerCase().includes(s) || 
+                    (r.record.customerName || '').toLowerCase().includes(s)
+                );
+            }
+
+            return results;
+        }
+    }, [scannedResults, records, specialtyTab, selectedProcedure, filterType, searchTerm]);
 
     // 4. Update Selection Set ONLY on structural tab/filter shifts, to prevent input lag when typing
     useEffect(() => {
         const newSelected = new Set<string>();
-        filteredResults.forEach(item => newSelected.add(item.record.id));
+        if (filterType !== 'all_records') {
+            filteredResults.forEach(item => newSelected.add(item.record.id));
+        }
         setSelectedRecordIds(newSelected);
         setManualEdits({});
     }, [specialtyTab, selectedProcedure, filterType]);
@@ -433,21 +700,39 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
                     ...item.record,
                 };
 
-                // Apply changes if date was empty and now we have a proposed or modified date
-                if (!item.currentReceivedDate && finalRecDate) {
-                    updatedPayload.receivedDate = `${finalRecDate}T07:00:00Z`;
-                }
+                // For premature records, reset status and clear future dates
+                if (item.isPremature && item.proposedStatus) {
+                    updatedPayload.status = item.proposedStatus;
+                    if (item.datesToClear) {
+                        item.datesToClear.forEach(field => {
+                            if (field === 'completedDate') updatedPayload.completedDate = null;
+                            if (field === 'exportDate') updatedPayload.exportDate = null;
+                            if (field === 'resultReturnedDate') updatedPayload.resultReturnedDate = null;
+                            if (field === 'approvalDate') updatedPayload.approvalDate = null;
+                            if (field === 'submissionDate') updatedPayload.submissionDate = null;
+                            if (field === 'checkedDate') updatedPayload.checkedDate = null;
+                            if (field === 'pendingCheckDate') updatedPayload.pendingCheckDate = null;
+                            if (field === 'completedWorkDate') updatedPayload.completedWorkDate = null;
+                            if (field === 'assignedDate') updatedPayload.assignedDate = null;
+                        });
+                    }
+                } else {
+                    // Apply changes if date was empty and now we have a proposed or modified date
+                    if (!item.currentReceivedDate && finalRecDate) {
+                        updatedPayload.receivedDate = `${finalRecDate}T07:00:00Z`;
+                    }
 
-                if (!item.currentDeadline && finalDeadlineDate) {
-                    updatedPayload.deadline = `${finalDeadlineDate}T17:00:00Z`;
-                }
+                    if (!item.currentDeadline && finalDeadlineDate) {
+                        updatedPayload.deadline = `${finalDeadlineDate}T17:00:00Z`;
+                    }
 
-                if (!item.currentCompletedDate && finalCompletedDate) {
-                    updatedPayload.completedDate = `${finalCompletedDate}T07:00:00Z`;
-                }
+                    if (!item.currentCompletedDate && finalCompletedDate) {
+                        updatedPayload.completedDate = `${finalCompletedDate}T07:00:00Z`;
+                    }
 
-                if (!item.currentExportDate && finalExportDate) {
-                    updatedPayload.exportDate = `${finalExportDate}T07:00:00Z`;
+                    if (!item.currentExportDate && finalExportDate) {
+                        updatedPayload.exportDate = `${finalExportDate}T07:00:00Z`;
+                    }
                 }
 
                 // If non-geographic handover, save the explanation text
@@ -484,6 +769,7 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
         let missingDeadline = 0;
         let missingBoth = 0;
         let missingHandover = 0;
+        let prematureHandover = 0;
 
         // Count for current active specialty tab
         const activeTabResults = scannedResults.filter(r => {
@@ -500,6 +786,7 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
             const dead = !r.currentDeadline;
             const isHandedOver = (r.record.status === RecordStatus.HANDOVER || r.record.status === RecordStatus.RETURNED || !!r.record.exportBatch) && !!r.record.exportBatch;
             const handover = isHandedOver && (!r.currentCompletedDate || !r.currentExportDate);
+            const premature = !!r.isPremature;
 
             if (rec && dead) {
                 missingBoth++;
@@ -510,6 +797,9 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
             if (handover) {
                 missingHandover++;
             }
+            if (premature) {
+                prematureHandover++;
+            }
         });
 
         return {
@@ -517,6 +807,7 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
             missingDeadline,
             missingBoth,
             missingHandover,
+            prematureHandover,
             totalWithIssues: activeTabResults.length
         };
     }, [scannedResults, specialtyTab]);
@@ -555,7 +846,7 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
             </div>
 
             {/* Quick Stats Panel */}
-            <div id="stats_panel" className="grid grid-cols-2 lg:grid-cols-5 gap-3 p-4 shrink-0 bg-slate-50 border-b border-slate-200">
+            <div id="stats_panel" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 p-4 shrink-0 bg-slate-50 border-b border-slate-200">
                 <div 
                     id="stat_all"
                     onClick={() => setFilterType('all')}
@@ -625,17 +916,47 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
                     <span className="text-xl font-black text-purple-700">{counts.missingHandover}</span>
                     <span className="text-xs text-slate-500 font-medium">Chưa nhập ngày giao một cửa</span>
                 </div>
+
+                <div 
+                    id="stat_premature_handover"
+                    onClick={() => setFilterType('premature_handover')}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
+                        filterType === 'premature_handover' 
+                        ? 'bg-rose-50 border-rose-200 shadow-sm' 
+                        : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
+                >
+                    <span className="text-[10px] uppercase font-bold text-rose-600 tracking-wider">Lỗi Trả KQ 00:00</span>
+                    <span className="text-xl font-black text-rose-700">{counts.prematureHandover}</span>
+                    <span className="text-xs text-slate-500 font-medium">Đã trả KQ 00:00, thiếu Hoàn thành/đợt</span>
+                </div>
+
+                <div 
+                    id="stat_all_records"
+                    onClick={() => setFilterType('all_records')}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
+                        filterType === 'all_records' 
+                        ? 'bg-indigo-50 border-indigo-200 shadow-sm' 
+                        : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
+                >
+                    <span className="text-[10px] uppercase font-bold text-indigo-600 tracking-wider">Sửa Toàn Bộ Quy Trình</span>
+                    <span className="text-xl font-black text-indigo-700">🔍</span>
+                    <span className="text-xs text-slate-500 font-medium">Tìm & Sửa ngày + trạng thái</span>
+                </div>
             </div>
 
             {/* Instruction Banner */}
             <div id="instruction_banner" className="mx-4 mt-4 p-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50/50 to-indigo-50/30 flex items-start gap-3">
                 <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
                 <div className="flex-1 text-xs text-slate-600 leading-relaxed font-medium">
-                    <p className="font-bold text-slate-800 mb-0.5">Quy ước tự động khôi phục ngày:</p>
+                    <p className="font-bold text-slate-800 mb-0.5">Quy ước & Chức năng hiệu chỉnh ngày:</p>
                     <ul className="list-disc pl-4 space-y-1 mt-1 text-slate-500">
+                        <li><strong>Khắc phục hồ sơ lỗi Trả kết quả lúc 00:00:</strong> Hệ thống tự động quét tìm các hồ sơ đang ở trạng thái "Đã trả kết quả" (RETURNED) có giờ trả kết quả là mốc 00:00 (ví dụ: <code className="bg-rose-50 text-rose-700 px-1 rounded font-bold font-mono">00:00 - DD/MM/YYYY</code>) nhưng khuyết ngày Hoàn thành (completedDate) hoặc Đợt bàn giao (exportBatch). Nhấp vào thẻ lỗi này để xem giải pháp đề xuất, chọn hồ sơ cần khắc phục và bấm nút <strong>"Tiến hành Đồng bộ & Sửa đổi"</strong> để tự động xóa trạng thái Đã trả KQ, khôi phục trạng thái quy trình thực tế trước đó và dọn sạch các mốc ngày trả lỗi này.</li>
+                        <li><strong>Hiệu chỉnh quy trình thủ công:</strong> Bấm vào biểu tượng lịch <code className="bg-indigo-50 text-indigo-700 px-1 py-0.2 rounded font-mono text-[10px] font-bold">📅</code> cạnh Mã hồ sơ bất kỳ để sửa trực tiếp tất cả các ngày thuộc 12 bước quy trình và cập nhật lại trạng thái hồ sơ.</li>
                         <li><strong>Ngày nhận đề xuất:</strong> Trích xuất từ <strong>12 ký tự đuôi từ phải sang trái</strong> của Mã hồ sơ (Ưu tiên tìm chuỗi ngày 8 số <code className="bg-slate-100 text-slate-800 px-1 py-0.2 rounded font-mono text-[10px] font-bold">YYYYMMDD</code> hoặc chuỗi ngày 6 số <code className="bg-slate-100 text-slate-800 px-1 py-0.2 rounded font-mono text-[10px] font-bold">YYMMDD / DDMMYY</code>).</li>
                         <li><strong>Hạn trả đề xuất:</strong> Tự động tính toán cộng ngày làm việc theo đúng SLA cấu hình quy trình mặc định (loại trừ Thứ Bảy, Chủ Nhật và các Ngày Lễ) dựa trên ngày nhận đề xuất.</li>
-                        <li><strong>Ngày giao 1 cửa đề xuất (completedDate & exportDate):</strong> Tự động tìm kiếm trong toàn bộ cơ sở dữ liệu các hồ sơ khác nằm <strong>chung một đợt giao một cửa</strong> (<code className="bg-slate-100 text-slate-800 px-1 py-0.2 rounded font-mono text-[10px] font-bold">exportBatch</code>) đã được điền ngày để trích xuất điền đồng bộ. Nếu đợt giao chưa có hồ sơ nào có ngày, hệ thống tự động kế thừa từ các mốc thời gian hoàn thành trước đó (Ngày ký duyệt, Ngày làm xong) để khôi phục chính xác nhất.</li>
+                        <li><strong>Ngày giao 1 cửa đề xuất:</strong> Tự động đồng bộ từ các hồ sơ chung đợt giao một cửa (<code className="bg-slate-100 text-slate-800 px-1 py-0.2 rounded font-mono text-[10px] font-bold">exportBatch</code>) hoặc kế thừa từ các mốc thời gian hoàn thành trước đó (Ngày ký duyệt, Ngày làm xong).</li>
                     </ul>
                 </div>
             </div>
@@ -731,208 +1052,443 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
                                     const isHandedOver = (item.record.status === RecordStatus.HANDOVER || item.record.status === RecordStatus.RETURNED || !!item.record.exportBatch) && !!item.record.exportBatch;
 
                                     return (
-                                        <tr 
-                                            key={item.record.id} 
-                                            className={`hover:bg-slate-50/80 transition-colors ${
-                                                isSelected ? 'bg-blue-50/20' : ''
-                                            }`}
-                                        >
-                                            <td className="px-4 py-3 text-center">
-                                                <input
-                                                    id={`check_record_${item.record.id}`}
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    onChange={(e) => handleSelectRow(item.record.id, e.target.checked)}
-                                                    className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
-                                                />
-                                            </td>
-                                            
-                                            <td className="px-4 py-3 font-mono font-bold text-slate-700">
-                                                {item.record.code || 'N/A'}
-                                            </td>
-
-                                            <td className="px-4 py-3 font-medium text-slate-800">
-                                                <p className="truncate font-semibold max-w-[160px]">{item.record.customerName || 'Chưa rõ'}</p>
-                                                <p className="text-[10px] text-slate-400 font-normal truncate max-w-[160px]">{item.record.phoneNumber}</p>
-                                            </td>
-
-                                            <td className="px-4 py-3">
-                                                <div className="flex flex-col gap-1 max-w-[160px]">
-                                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold w-fit ${
-                                                        item.record.status === RecordStatus.RETURNED ? 'bg-emerald-100 text-emerald-800' :
-                                                        item.record.status === RecordStatus.HANDOVER ? 'bg-blue-100 text-blue-800' :
-                                                        'bg-slate-100 text-slate-700'
-                                                    }`}>
-                                                        {item.record.status}
-                                                    </span>
-                                                    {item.record.exportBatch && (
-                                                        <span className="text-[10px] font-mono font-bold text-indigo-600">
-                                                            📦 Đợt giao: #{item.record.exportBatch}
-                                                        </span>
-                                                    )}
-                                                    <span className="text-[10px] text-slate-500 font-medium truncate" title={item.record.recordType || ''}>
-                                                        {item.record.recordType}
-                                                    </span>
-                                                </div>
-                                            </td>
-
-                                            {/* Received & Deadline Cell */}
-                                            <td className="px-4 py-3">
-                                                <div className="flex flex-col gap-2">
-                                                    {/* receivedDate */}
+                                        <React.Fragment key={item.record.id}>
+                                            <tr 
+                                                className={`hover:bg-slate-50/80 transition-colors ${
+                                                    isSelected ? 'bg-blue-50/20' : ''
+                                                } ${expandedRecordId === item.record.id ? 'border-l-4 border-l-indigo-500 bg-indigo-50/20' : ''}`}
+                                            >
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        id={`check_record_${item.record.id}`}
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={(e) => handleSelectRow(item.record.id, e.target.checked)}
+                                                        className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer h-3.5 w-3.5"
+                                                    />
+                                                </td>
+                                                
+                                                <td className="px-4 py-3 font-mono font-bold text-slate-700">
                                                     <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] font-bold text-slate-400 w-14">Ngày nhận:</span>
-                                                        <span className={`font-mono px-1 py-0.5 rounded text-[10px] shrink-0 ${
-                                                            item.currentReceivedDate ? 'text-slate-500 font-normal' : 'text-red-500 bg-red-50 font-bold'
-                                                        }`}>
-                                                            {item.currentReceivedDate || 'Trống'}
-                                                        </span>
-                                                        <ArrowRight size={10} className="text-slate-400 shrink-0" />
-                                                        <input
-                                                            id={`input_rec_date_${item.record.id}`}
-                                                            type="date"
-                                                            value={editedRecDate}
-                                                            onChange={(e) => handleManualDateChange(item.record.id, 'receivedDate', e.target.value)}
-                                                            className={`font-mono text-[11px] px-1.5 py-0.5 rounded border w-28 ${
-                                                                item.currentReceivedDate 
-                                                                ? 'border-slate-200 text-slate-600 bg-white' 
-                                                                : 'border-amber-300 text-amber-800 bg-amber-50/50 font-semibold'
-                                                            } outline-none focus:border-blue-500`}
-                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleToggleExpand(item)}
+                                                            className={`p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-100 transition-colors ${
+                                                                expandedRecordId === item.record.id ? 'text-indigo-600 bg-indigo-50' : ''
+                                                            }`}
+                                                            title="Sửa chi tiết ngày quy trình & trạng thái"
+                                                        >
+                                                            <Calendar size={14} />
+                                                        </button>
+                                                        <span className="truncate">{item.record.code || 'N/A'}</span>
                                                     </div>
-                                                    {!item.currentReceivedDate && (
-                                                        <span className="text-[9px] text-amber-600 font-medium italic pl-14">
-                                                            🔍 {item.receivedDateSource}
-                                                        </span>
-                                                    )}
+                                                </td>
 
-                                                    {/* deadline */}
-                                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                                        <span className="text-[10px] font-bold text-slate-400 w-14">Hạn trả:</span>
-                                                        <span className={`font-mono px-1 py-0.5 rounded text-[10px] shrink-0 ${
-                                                            item.currentDeadline ? 'text-slate-500 font-normal' : 'text-red-500 bg-red-50 font-bold'
+                                                <td className="px-4 py-3 font-medium text-slate-800">
+                                                    <p className="truncate font-semibold max-w-[160px]">{item.record.customerName || 'Chưa rõ'}</p>
+                                                    <p className="text-[10px] text-slate-400 font-normal truncate max-w-[160px]">{item.record.phoneNumber}</p>
+                                                </td>
+
+                                                <td className="px-4 py-3">
+                                                    <div className="flex flex-col gap-1 max-w-[160px]">
+                                                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold w-fit ${
+                                                            item.record.status === RecordStatus.RETURNED ? 'bg-emerald-100 text-emerald-800' :
+                                                            item.record.status === RecordStatus.HANDOVER ? 'bg-blue-100 text-blue-800' :
+                                                            'bg-slate-100 text-slate-700'
                                                         }`}>
-                                                            {item.currentDeadline || 'Trống'}
+                                                            {item.record.status}
                                                         </span>
-                                                        <ArrowRight size={10} className="text-slate-400 shrink-0" />
-                                                        <input
-                                                            id={`input_deadline_date_${item.record.id}`}
-                                                            type="date"
-                                                            value={editedDeadlineDate}
-                                                            onChange={(e) => handleManualDateChange(item.record.id, 'deadline', e.target.value)}
-                                                            className={`font-mono text-[11px] px-1.5 py-0.5 rounded border w-28 ${
-                                                                item.currentDeadline 
-                                                                ? 'border-slate-200 text-slate-600 bg-white' 
-                                                                : 'border-rose-300 text-rose-800 bg-rose-50/50 font-semibold'
-                                                            } outline-none focus:border-blue-500`}
-                                                        />
+                                                        {item.isPremature && (
+                                                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800 animate-pulse mt-0.5 w-fit">
+                                                                ⚠️ Lỗi Trả KQ 00:00
+                                                            </span>
+                                                        )}
+                                                        {item.record.exportBatch && (
+                                                            <span className="text-[10px] font-mono font-bold text-indigo-600">
+                                                                📦 Đợt giao: #{item.record.exportBatch}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-[10px] text-slate-500 font-medium truncate" title={item.record.recordType || ''}>
+                                                            {item.record.recordType}
+                                                        </span>
                                                     </div>
-                                                    {!item.currentDeadline && (
-                                                        <span className="text-[9px] text-rose-600 font-medium italic pl-14">
-                                                            🔍 {item.deadlineSource}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
+                                                </td>
 
-                                            {/* Handover Dates Cell */}
-                                            <td className="px-4 py-3">
-                                                {isHandedOver ? (
+                                                {/* Received & Deadline Cell */}
+                                                <td className="px-4 py-3">
                                                     <div className="flex flex-col gap-2">
-                                                        {/* completedDate */}
+                                                        {/* receivedDate */}
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-bold text-slate-400 w-14">Hoàn thành:</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 w-14">Ngày nhận:</span>
                                                             <span className={`font-mono px-1 py-0.5 rounded text-[10px] shrink-0 ${
-                                                                item.currentCompletedDate ? 'text-slate-500 font-normal' : 'text-red-500 bg-red-50 font-bold'
+                                                                item.currentReceivedDate ? 'text-slate-500 font-normal' : 'text-red-500 bg-red-50 font-bold'
                                                             }`}>
-                                                                {item.currentCompletedDate || 'Trống'}
+                                                                {item.currentReceivedDate || 'Trống'}
                                                             </span>
                                                             <ArrowRight size={10} className="text-slate-400 shrink-0" />
                                                             <input
-                                                                id={`input_comp_date_${item.record.id}`}
+                                                                id={`input_rec_date_${item.record.id}`}
                                                                 type="date"
-                                                                value={editedCompletedDate}
-                                                                onChange={(e) => handleManualDateChange(item.record.id, 'completedDate', e.target.value)}
+                                                                value={editedRecDate}
+                                                                onChange={(e) => handleManualDateChange(item.record.id, 'receivedDate', e.target.value)}
                                                                 className={`font-mono text-[11px] px-1.5 py-0.5 rounded border w-28 ${
-                                                                    item.currentCompletedDate 
+                                                                    item.currentReceivedDate 
                                                                     ? 'border-slate-200 text-slate-600 bg-white' 
-                                                                    : 'border-purple-300 text-purple-800 bg-purple-50/50 font-semibold'
+                                                                    : 'border-amber-300 text-amber-800 bg-amber-50/50 font-semibold'
                                                                 } outline-none focus:border-blue-500`}
                                                             />
                                                         </div>
-                                                        {!item.currentCompletedDate && (
-                                                            <span className="text-[9px] text-purple-600 font-medium italic pl-14">
-                                                                🔍 {item.completedDateSource}
+                                                        {!item.currentReceivedDate && (
+                                                            <span className="text-[9px] text-amber-600 font-medium italic pl-14">
+                                                                🔍 {item.receivedDateSource}
                                                             </span>
                                                         )}
 
-                                                        {/* exportDate */}
+                                                        {/* deadline */}
                                                         <div className="flex items-center gap-1.5 mt-0.5">
-                                                            <span className="text-[10px] font-bold text-slate-400 w-14">Ngày xuất:</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 w-14">Hạn trả:</span>
                                                             <span className={`font-mono px-1 py-0.5 rounded text-[10px] shrink-0 ${
-                                                                item.currentExportDate ? 'text-slate-500 font-normal' : 'text-red-500 bg-red-50 font-bold'
+                                                                item.currentDeadline ? 'text-slate-500 font-normal' : 'text-red-500 bg-red-50 font-bold'
                                                             }`}>
-                                                                {item.currentExportDate || 'Trống'}
+                                                                {item.currentDeadline || 'Trống'}
                                                             </span>
                                                             <ArrowRight size={10} className="text-slate-400 shrink-0" />
                                                             <input
-                                                                id={`input_exp_date_${item.record.id}`}
+                                                                id={`input_deadline_date_${item.record.id}`}
                                                                 type="date"
-                                                                value={editedExportDate}
-                                                                onChange={(e) => handleManualDateChange(item.record.id, 'exportDate', e.target.value)}
+                                                                value={editedDeadlineDate}
+                                                                onChange={(e) => handleManualDateChange(item.record.id, 'deadline', e.target.value)}
                                                                 className={`font-mono text-[11px] px-1.5 py-0.5 rounded border w-28 ${
-                                                                    item.currentExportDate 
+                                                                    item.currentDeadline 
                                                                     ? 'border-slate-200 text-slate-600 bg-white' 
-                                                                    : 'border-indigo-300 text-indigo-800 bg-indigo-50/50 font-semibold'
+                                                                    : 'border-rose-300 text-rose-800 bg-rose-50/50 font-semibold'
                                                                 } outline-none focus:border-blue-500`}
                                                             />
                                                         </div>
-                                                        {!item.currentExportDate && (
-                                                            <span className="text-[9px] text-indigo-600 font-medium italic pl-14">
-                                                                🔍 {item.exportDateSource}
+                                                        {!item.currentDeadline && (
+                                                            <span className="text-[9px] text-rose-600 font-medium italic pl-14">
+                                                                🔍 {item.deadlineSource}
                                                             </span>
                                                         )}
                                                     </div>
-                                                ) : (
-                                                    <span className="text-slate-400 italic text-[11px] font-medium">
-                                                        Chưa giao 1 cửa (Không có đợt)
-                                                    </span>
-                                                )}
-                                            </td>
-                                            
-                                            {/* Giải trình phi địa giới cell */}
-                                            <td className="px-4 py-3 bg-slate-50/10">
-                                                {isNonGeographicHandover(item.record) ? (
-                                                    <div className="flex flex-col gap-1.5 p-2 bg-indigo-50/40 rounded-lg border border-indigo-100/50">
-                                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 uppercase">
-                                                            ⚠️ Phi địa giới: {getNormalizedWard(item.record.ward)} ➡️ {getNormalizedWard(item.record.handoverWard)}
+                                                </td>
+
+                                                {/* Handover Dates Cell */}
+                                                <td className="px-4 py-3">
+                                                    {isHandedOver ? (
+                                                        <div className="flex flex-col gap-2">
+                                                            {/* completedDate */}
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] font-bold text-slate-400 w-14">Hoàn thành:</span>
+                                                                <span className={`font-mono px-1 py-0.5 rounded text-[10px] shrink-0 ${
+                                                                    item.currentCompletedDate ? 'text-slate-500 font-normal' : 'text-red-500 bg-red-50 font-bold'
+                                                                }`}>
+                                                                    {item.currentCompletedDate || 'Trống'}
+                                                                </span>
+                                                                <ArrowRight size={10} className="text-slate-400 shrink-0" />
+                                                                <input
+                                                                    id={`input_comp_date_${item.record.id}`}
+                                                                    type="date"
+                                                                    value={editedCompletedDate}
+                                                                    onChange={(e) => handleManualDateChange(item.record.id, 'completedDate', e.target.value)}
+                                                                    className={`font-mono text-[11px] px-1.5 py-0.5 rounded border w-28 ${
+                                                                        item.currentCompletedDate 
+                                                                        ? 'border-slate-200 text-slate-600 bg-white' 
+                                                                        : 'border-purple-300 text-purple-800 bg-purple-50/50 font-semibold'
+                                                                    } outline-none focus:border-blue-500`}
+                                                                />
+                                                            </div>
+                                                            {!item.currentCompletedDate && (
+                                                                <span className="text-[9px] text-purple-600 font-medium italic pl-14">
+                                                                    🔍 {item.completedDateSource}
+                                                                </span>
+                                                            )}
+
+                                                            {/* exportDate */}
+                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <span className="text-[10px] font-bold text-slate-400 w-14">Ngày xuất:</span>
+                                                                <span className={`font-mono px-1 py-0.5 rounded text-[10px] shrink-0 ${
+                                                                    item.currentExportDate ? 'text-slate-500 font-normal' : 'text-red-500 bg-red-50 font-bold'
+                                                                }`}>
+                                                                    {item.currentExportDate || 'Trống'}
+                                                                </span>
+                                                                <ArrowRight size={10} className="text-slate-400 shrink-0" />
+                                                                <input
+                                                                    id={`input_exp_date_${item.record.id}`}
+                                                                    type="date"
+                                                                    value={editedExportDate}
+                                                                    onChange={(e) => handleManualDateChange(item.record.id, 'exportDate', e.target.value)}
+                                                                    className={`font-mono text-[11px] px-1.5 py-0.5 rounded border w-28 ${
+                                                                        item.currentExportDate 
+                                                                        ? 'border-slate-200 text-slate-600 bg-white' 
+                                                                        : 'border-indigo-300 text-indigo-800 bg-indigo-50/50 font-semibold'
+                                                                    } outline-none focus:border-blue-500`}
+                                                                />
+                                                            </div>
+                                                            {!item.currentExportDate && (
+                                                                <span className="text-[9px] text-indigo-600 font-medium italic pl-14">
+                                                                    🔍 {item.exportDateSource}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-slate-400 italic text-[11px] font-medium">
+                                                            Chưa giao 1 cửa (Không có đợt)
                                                         </span>
-                                                        
-                                                        <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-700 cursor-pointer select-none">
+                                                    )}
+                                                </td>
+                                                
+                                                {/* Giải trình phi địa giới cell */}
+                                                <td className="px-4 py-3 bg-slate-50/10">
+                                                    {isNonGeographicHandover(item.record) ? (
+                                                        <div className="flex flex-col gap-1.5 p-2 bg-indigo-50/40 rounded-lg border border-indigo-100/50">
+                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 uppercase">
+                                                                ⚠️ Phi địa giới: {getNormalizedWard(item.record.ward)} ➡️ {getNormalizedWard(item.record.handoverWard)}
+                                                            </span>
+                                                            
+                                                            <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-700 cursor-pointer select-none">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={!!agreedNonGeo[item.record.id]}
+                                                                    onChange={(e) => setAgreedNonGeo(prev => ({ ...prev, [item.record.id]: e.target.checked }))}
+                                                                    className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer h-3 w-3"
+                                                                />
+                                                                Đồng ý thực hiện
+                                                            </label>
+                                                            
                                                             <input
-                                                                type="checkbox"
-                                                                checked={!!agreedNonGeo[item.record.id]}
-                                                                onChange={(e) => setAgreedNonGeo(prev => ({ ...prev, [item.record.id]: e.target.checked }))}
-                                                                className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer h-3 w-3"
+                                                                type="text"
+                                                                value={explanationNonGeo[item.record.id] !== undefined ? explanationNonGeo[item.record.id] : (item.record.notes || '')}
+                                                                onChange={(e) => setExplanationNonGeo(prev => ({ ...prev, [item.record.id]: e.target.value }))}
+                                                                placeholder="Nhập lý do giải trình..."
+                                                                className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-[10px] outline-none focus:border-indigo-500 font-medium"
                                                             />
-                                                            Đồng ý thực hiện
-                                                        </label>
-                                                        
-                                                        <input
-                                                            type="text"
-                                                            value={explanationNonGeo[item.record.id] !== undefined ? explanationNonGeo[item.record.id] : (item.record.notes || '')}
-                                                            onChange={(e) => setExplanationNonGeo(prev => ({ ...prev, [item.record.id]: e.target.value }))}
-                                                            placeholder="Nhập lý do giải trình..."
-                                                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-[10px] outline-none focus:border-indigo-500 font-medium"
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-slate-400 italic text-[11px] font-medium">
-                                                        Không áp dụng (Địa bàn đồng nhất)
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
+                                                        </div>
+                                                    ) : item.isPremature ? (
+                                                        <div className="flex flex-col gap-1.5 p-2 bg-rose-50/60 rounded-lg border border-rose-150 shadow-sm">
+                                                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 uppercase">
+                                                                💡 Giải pháp khắc phục đề xuất
+                                                            </span>
+                                                            <p className="text-[10.5px] text-slate-700 leading-relaxed font-semibold">
+                                                                Phục hồi về <span className="bg-indigo-50 text-indigo-700 px-1 py-0.5 rounded font-bold font-mono text-[10px]">{item.proposedStatus}</span>
+                                                            </p>
+                                                            <p className="text-[9.5px] text-slate-500 font-medium">
+                                                                Xóa các mốc ngày tương lai: <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[9px] font-bold text-slate-600">{item.datesToClear?.join(', ')}</code>
+                                                            </p>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-slate-400 italic text-[11px] font-medium">
+                                                            Không áp dụng (Địa bàn đồng nhất)
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+
+                                            {/* EXPANDED ROW DETAIL TUNING */}
+                                            {expandedRecordId === item.record.id && expandedRecordEdits && (
+                                                <tr className="bg-indigo-50/20 border-y border-indigo-100">
+                                                    <td colSpan={7} className="p-4">
+                                                        <div className="bg-white rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-4 p-4">
+                                                            {/* Header */}
+                                                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+                                                                        <Calendar size={18} />
+                                                                    </span>
+                                                                    <div>
+                                                                        <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                                                                            Cấu hình Trạng thái & Tiến độ chi tiết quy trình
+                                                                        </h4>
+                                                                        <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                                                            Mã hồ sơ: <span className="font-mono font-bold text-slate-600 bg-slate-100 px-1 py-0.5 rounded">{item.record.code}</span> - {item.record.customerName}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={handleAutoClearFutureDates}
+                                                                        className="px-2.5 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-[10px] font-bold hover:bg-amber-100 transition-all flex items-center gap-1 cursor-pointer"
+                                                                        title="Xóa nhanh mốc thời gian của các bước sau trạng thái hiện tại"
+                                                                    >
+                                                                        🧹 Dọn ngày thừa phía sau
+                                                                    </button>
+                                                                    
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleSaveExpandedEdits(item.record)}
+                                                                        disabled={updating}
+                                                                        className="px-3.5 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                                                                    >
+                                                                        <Save size={12} /> {updating ? 'Đang lưu...' : 'Lưu hồ sơ này'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Body */}
+                                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                                {/* Column 1: Status selection */}
+                                                                <div className="flex flex-col gap-2.5 p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 justify-between">
+                                                                    <div className="flex flex-col gap-1.5">
+                                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                                            Trạng thái quy trình
+                                                                        </label>
+                                                                        <select
+                                                                            value={expandedRecordEdits.status}
+                                                                            onChange={(e) => handleExpandedEditChange('status', e.target.value as RecordStatus)}
+                                                                            className="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white focus:border-indigo-500 outline-none cursor-pointer"
+                                                                        >
+                                                                            {Object.values(RecordStatus).map((st) => (
+                                                                                <option key={st} value={st}>
+                                                                                    {st}
+                                                                                </option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                    <p className="text-[9px] text-slate-400 leading-relaxed font-medium">
+                                                                        * Thay đổi trạng thái hồ sơ về đúng bước thực tế nếu hồ sơ bị gán nhầm sang Đã trả kết quả. Bấm dọn dẹp ngày thừa để tự động dọn mốc ngày không hợp lệ.
+                                                                    </p>
+                                                                </div>
+
+                                                                {/* Column 2: Stage 1 */}
+                                                                <div className="flex flex-col gap-3">
+                                                                    <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider pb-1 border-b border-indigo-100/40">
+                                                                        1. Nhận & Giao việc
+                                                                    </span>
+                                                                    
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="text-[10px] font-bold text-slate-500">Ngày tiếp nhận:</span>
+                                                                        <input
+                                                                            type="date"
+                                                                            value={expandedRecordEdits.receivedDate}
+                                                                            onChange={(e) => handleExpandedEditChange('receivedDate', e.target.value)}
+                                                                            className="p-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white outline-none focus:border-indigo-500"
+                                                                        />
+                                                                    </div>
+
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="text-[10px] font-bold text-slate-500">Hạn trả (SLA):</span>
+                                                                        <input
+                                                                            type="date"
+                                                                            value={expandedRecordEdits.deadline}
+                                                                            onChange={(e) => handleExpandedEditChange('deadline', e.target.value)}
+                                                                            className="p-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white outline-none focus:border-indigo-500"
+                                                                        />
+                                                                    </div>
+
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="text-[10px] font-bold text-slate-500">Ngày giao nhân viên:</span>
+                                                                        <input
+                                                                            type="date"
+                                                                            value={expandedRecordEdits.assignedDate}
+                                                                            onChange={(e) => handleExpandedEditChange('assignedDate', e.target.value)}
+                                                                            className="p-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white outline-none focus:border-indigo-500"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Column 3: Stage 2 */}
+                                                                <div className="flex flex-col gap-3">
+                                                                    <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider pb-1 border-b border-indigo-100/40">
+                                                                        2. Thực hiện & Kiểm tra
+                                                                    </span>
+
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="text-[10px] font-bold text-slate-500">Ngày làm xong (CV):</span>
+                                                                        <input
+                                                                            type="date"
+                                                                            value={expandedRecordEdits.completedWorkDate}
+                                                                            onChange={(e) => handleExpandedEditChange('completedWorkDate', e.target.value)}
+                                                                            className="p-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white outline-none focus:border-indigo-500"
+                                                                        />
+                                                                    </div>
+
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="text-[10px] font-bold text-slate-500">Ngày trình kiểm tra:</span>
+                                                                        <input
+                                                                            type="date"
+                                                                            value={expandedRecordEdits.pendingCheckDate}
+                                                                            onChange={(e) => handleExpandedEditChange('pendingCheckDate', e.target.value)}
+                                                                            className="p-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white outline-none focus:border-indigo-500"
+                                                                        />
+                                                                    </div>
+
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="text-[10px] font-bold text-slate-500">Ngày đã kiểm tra:</span>
+                                                                        <input
+                                                                            type="date"
+                                                                            value={expandedRecordEdits.checkedDate}
+                                                                            onChange={(e) => handleExpandedEditChange('checkedDate', e.target.value)}
+                                                                            className="p-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white outline-none focus:border-indigo-500"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Column 4: Stage 3 */}
+                                                                <div className="flex flex-col gap-3">
+                                                                    <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider pb-1 border-b border-indigo-100/40">
+                                                                        3. Trình ký & Bàn giao
+                                                                    </span>
+
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <span className="text-[10px] font-bold text-slate-500">Trình ký:</span>
+                                                                            <input
+                                                                                type="date"
+                                                                                value={expandedRecordEdits.submissionDate}
+                                                                                onChange={(e) => handleExpandedEditChange('submissionDate', e.target.value)}
+                                                                                className="p-1 border border-slate-200 rounded-lg text-[11px] font-mono bg-white outline-none focus:border-indigo-500"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <span className="text-[10px] font-bold text-slate-500">Ký duyệt:</span>
+                                                                            <input
+                                                                                type="date"
+                                                                                value={expandedRecordEdits.approvalDate}
+                                                                                onChange={(e) => handleExpandedEditChange('approvalDate', e.target.value)}
+                                                                                className="p-1 border border-slate-200 rounded-lg text-[11px] font-mono bg-white outline-none focus:border-indigo-500"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <span className="text-[10px] font-bold text-slate-500">Giao 1 cửa:</span>
+                                                                            <input
+                                                                                type="date"
+                                                                                value={expandedRecordEdits.completedDate}
+                                                                                onChange={(e) => handleExpandedEditChange('completedDate', e.target.value)}
+                                                                                className="p-1 border border-slate-200 rounded-lg text-[11px] font-mono bg-white outline-none focus:border-indigo-500"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <span className="text-[10px] font-bold text-slate-500">Xuất báo cáo:</span>
+                                                                            <input
+                                                                                type="date"
+                                                                                value={expandedRecordEdits.exportDate}
+                                                                                onChange={(e) => handleExpandedEditChange('exportDate', e.target.value)}
+                                                                                className="p-1 border border-slate-200 rounded-lg text-[11px] font-mono bg-white outline-none focus:border-indigo-500"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="text-[10px] font-bold text-slate-500">Ngày trả kết quả dân:</span>
+                                                                        <input
+                                                                            type="date"
+                                                                            value={expandedRecordEdits.resultReturnedDate}
+                                                                            onChange={(e) => handleExpandedEditChange('resultReturnedDate', e.target.value)}
+                                                                            className="p-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white outline-none focus:border-indigo-500"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
                                     );
                                 })}
                             </tbody>

@@ -315,37 +315,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
     // Chỉ áp dụng logic này nếu trạng thái khác với ban đầu (hoặc là tạo mới)
     // Hoặc user admin ép kiểu
     if (hasAdminRights && finalData.status) {
-        const now = new Date().toISOString();
-        
-        // BACKFILL LOGIC: Nếu thay đổi trạng thái, đảm bảo các ngày của tiến trình trước đó (hoặc trạng thái cũ) 
-        // được chốt lại để không bị mất màu trên Timeline do thiếu Date.
-        if (initialData?.status && finalData.status !== initialData?.status) {
-            const flow = [
-                RecordStatus.RECEIVED, RecordStatus.ASSIGNED, RecordStatus.IN_PROGRESS, 
-                RecordStatus.COMPLETED_WORK, RecordStatus.PENDING_CHECK, RecordStatus.CHECKED, 
-                RecordStatus.PENDING_SIGN, RecordStatus.SIGNED, RecordStatus.HANDOVER
-            ];
-            // Tạm dùng initialData.status để lấp ngày (để đóng băng tiến độ cũ)
-            const prevIdx = flow.indexOf(initialData.status);
-            if (prevIdx >= 0) {
-                if (prevIdx >= flow.indexOf(RecordStatus.ASSIGNED) && !finalData.assignedDate) finalData.assignedDate = now;
-                if (prevIdx >= flow.indexOf(RecordStatus.COMPLETED_WORK) && !finalData.completedWorkDate) finalData.completedWorkDate = now;
-                if (prevIdx >= flow.indexOf(RecordStatus.PENDING_CHECK) && !finalData.pendingCheckDate) finalData.pendingCheckDate = now;
-                if (prevIdx >= flow.indexOf(RecordStatus.CHECKED) && !finalData.checkedDate) finalData.checkedDate = now;
-                if (prevIdx >= flow.indexOf(RecordStatus.PENDING_SIGN) && !finalData.submissionDate) finalData.submissionDate = now;
-                if (prevIdx >= flow.indexOf(RecordStatus.SIGNED) && !finalData.approvalDate) finalData.approvalDate = now;
-            }
-            // Auto fill current forward progress as well if going forward
-            const newIdx = flow.indexOf(finalData.status);
-            if (newIdx >= 0) {
-                if (newIdx >= flow.indexOf(RecordStatus.ASSIGNED) && !finalData.assignedDate) finalData.assignedDate = now;
-                if (newIdx >= flow.indexOf(RecordStatus.COMPLETED_WORK) && !finalData.completedWorkDate) finalData.completedWorkDate = now;
-                if (newIdx >= flow.indexOf(RecordStatus.PENDING_CHECK) && !finalData.pendingCheckDate) finalData.pendingCheckDate = now;
-                if (newIdx >= flow.indexOf(RecordStatus.CHECKED) && !finalData.checkedDate) finalData.checkedDate = now;
-                if (newIdx >= flow.indexOf(RecordStatus.PENDING_SIGN) && !finalData.submissionDate) finalData.submissionDate = now;
-                if (newIdx >= flow.indexOf(RecordStatus.SIGNED) && !finalData.approvalDate) finalData.approvalDate = now;
-            }
-        }
+        // Removed cascade backfill logic to ensure accurate historical reporting. Only manual dates or explicit step dates are preserved.
 
         // Logic làm sạch dữ liệu cũ khi quay lui trạng thái
         // 1. Nếu quay về RECEIVED (Tiếp nhận) -> Xóa hết các bước sau

@@ -2170,7 +2170,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                             label: "TRẢ KẾT QUẢ",
                                             date: record.resultReturnedDate,
                                             icon: FileCheck,
-                                            forceActive: record.status === RecordStatus.RETURNED || !!record.resultReturnedDate,
+                                            forceActive: record.status === RecordStatus.RETURNED,
                                             subText: record.resultReturnedDate ? (() => {
                                                 let details = '';
                                                 if (record.receiverName) details += `${record.receiverName}`;
