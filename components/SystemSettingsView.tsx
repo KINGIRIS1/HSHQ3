@@ -5,7 +5,6 @@ import { Holiday, UserRole, RolePermissions, DepartmentPermissions, DEFAULT_ROLE
 import { fetchHolidays, saveHolidays, testDatabaseConnection, saveUpdateInfo, fetchUpdateInfo, getSystemSetting, saveSystemSetting } from '../services/api';
 import { APP_VERSION } from '../constants';
 import { confirmAction, getGcnWorkflowsList, GcnWorkflow } from '../utils/appHelpers';
-import DuplicateFinder from './DuplicateFinder';
 
 interface SystemSettingsViewProps {
   onDeleteAllData: () => Promise<boolean>;
@@ -13,8 +12,6 @@ interface SystemSettingsViewProps {
   employees: Employee[];
   currentUserRole?: UserRole;
   records?: RecordFile[];
-  onTransferPendingOneStopRecords?: (cutoffDate?: string) => Promise<{ success: boolean; count: number }>;
-  onSyncMissingFieldsFromArchive?: (onlyScan?: boolean, preCalculatedUpdates?: any[]) => Promise<{ success: boolean; count: number; readCount?: number; generatedCount?: number; categoryStats?: any; updates?: any[]; error?: any }>;
   onViewRecord?: (record: RecordFile) => void;
 }
 
@@ -228,12 +225,10 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   employees,
   currentUserRole,
   records = [],
-  onTransferPendingOneStopRecords,
-  onSyncMissingFieldsFromArchive,
   onViewRecord
 }) => {
   const isAdminOrSub = currentUserRole === UserRole.ADMIN || currentUserRole === UserRole.SUBADMIN;
-  const [activeTab, setActiveTab] = useState<'general' | 'holidays' | 'permissions' | 'data' | 'sla' | 'duplicates'>(
+  const [activeTab, setActiveTab] = useState<'general' | 'holidays' | 'permissions' | 'data' | 'sla'>(
       currentUserRole === UserRole.TEAM_LEADER ? 'sla' : 'general'
   );
   const [isDeletingData, setIsDeletingData] = useState(false);
@@ -244,20 +239,6 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [manualVersion, setManualVersion] = useState('');
   const [manualUrl, setManualUrl] = useState('');
   const [isSavingUpdate, setIsSavingUpdate] = useState(false);
-
-  // Sync state for One-Stop pending records
-  const [syncCutoffDate, setSyncCutoffDate] = useState('2026-07-10');
-  const [isSyncingOneStop, setIsSyncingOneStop] = useState(false);
-  const [isScanningArchive, setIsScanningArchive] = useState(false);
-  const [isCommittingArchive, setIsCommittingArchive] = useState(false);
-  const [scanResult, setScanResult] = useState<{
-    scanned: boolean;
-    readCount: number;
-    generatedCount: number;
-    totalCount: number;
-    categoryStats?: any;
-    updates: any[];
-  } | null>(null);
 
   // Holiday States
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -582,182 +563,6 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       }
   };
 
-  // --- BACKUP & RESTORE HANDLERS ---
-  const [isBackingUp, setIsBackingUp] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
-
-  const handleBackupData = async () => {
-      if (!await confirmAction("BẮT ĐẦU SAO LƯU HỆ THỐNG:\nHệ thống sẽ thu thập toàn bộ cơ sở dữ liệu bao gồm Hồ sơ, Hợp đồng, Nhân viên, Người dùng, Danh mục đơn giá, Ngày lễ và tài liệu Lưu trữ.\n\nBạn có chắc chắn muốn tiến hành sao lưu toàn bộ dữ liệu để tải về không?")) {
-          return;
-      }
-
-      setIsBackingUp(true);
-      try {
-          const { fetchRecords } = await import('../services/apiRecords');
-          const { fetchContracts, fetchPriceList } = await import('../services/apiContracts');
-          const { fetchEmployees, fetchUsers } = await import('../services/apiPeople');
-          const { fetchArchiveRecords } = await import('../services/apiArchive');
-
-          const [
-              recordsData,
-              contractsData,
-              employeesData,
-              usersData,
-              priceListData,
-              holidaysData,
-              archiveSaoluc,
-              archiveVaoso,
-              archiveCongvan
-          ] = await Promise.all([
-              fetchRecords().catch(() => []),
-              fetchContracts().catch(() => []),
-              fetchEmployees().catch(() => []),
-              fetchUsers().catch(() => []),
-              fetchPriceList().catch(() => []),
-              fetchHolidays().catch(() => []),
-              fetchArchiveRecords('saoluc').catch(() => []),
-              fetchArchiveRecords('vaoso').catch(() => []),
-              fetchArchiveRecords('congvan').catch(() => [])
-          ]);
-
-          const backupObj = {
-              backup_version: APP_VERSION,
-              backup_time: new Date().toISOString(),
-              land_records: recordsData,
-              contracts: contractsData,
-              employees: employeesData,
-              users: usersData,
-              price_list: priceListData,
-              holidays: holidaysData,
-              archive_records: [
-                  ...archiveSaoluc,
-                  ...archiveVaoso,
-                  ...archiveCongvan
-              ]
-          };
-
-          const blob = new Blob([JSON.stringify(backupObj, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          const timeStr = new Date().toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
-          a.href = url;
-          a.download = `backup_toan_bo_du_lieu_${timeStr}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          
-          alert("Sao lưu dữ liệu thành công! Tệp tin sao lưu đã được tải xuống máy tính của bạn.");
-      } catch (err) {
-          console.error("Lỗi khi sao lưu dữ liệu:", err);
-          alert("Có lỗi xảy ra khi thực hiện sao lưu: " + (err instanceof Error ? err.message : String(err)));
-      } finally {
-          setIsBackingUp(false);
-      }
-  };
-
-  const handleRestoreData = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      if (!await confirmAction("CẢNH BÁO: Bạn đang thực hiện KHÔI PHỤC dữ liệu hệ thống từ tệp tin sao lưu.\nHành động này sẽ tải tệp lên và ghi đè/bổ sung vào cơ sở dữ liệu hiện tại.\n\nBạn có chắc chắn muốn tiến hành khôi phục không?")) {
-          e.target.value = '';
-          return;
-      }
-
-      if (!await confirmAction("XÁC NHẬN LẦN CUỐI: Toàn bộ dữ liệu tương ứng trong tệp sao lưu sẽ được ghi nhận vào hệ thống. Nhấn OK để thực hiện khôi phục ngay.")) {
-          e.target.value = '';
-          return;
-      }
-
-      setIsRestoring(true);
-      try {
-          const text = await file.text();
-          const backupObj = JSON.parse(text);
-
-          if (!backupObj.land_records) {
-              throw new Error("Tệp sao lưu không đúng định dạng hoặc thiếu trường dữ liệu 'land_records'.");
-          }
-
-          // 1. Restore to LocalStorage cache
-          const { CACHE_KEYS, saveToCache } = await import('../services/apiCore');
-          saveToCache(CACHE_KEYS.RECORDS, backupObj.land_records);
-          if (backupObj.contracts) saveToCache(CACHE_KEYS.CONTRACTS, backupObj.contracts);
-          if (backupObj.employees) saveToCache(CACHE_KEYS.EMPLOYEES, backupObj.employees);
-          if (backupObj.users) saveToCache(CACHE_KEYS.USERS, backupObj.users);
-          if (backupObj.price_list) saveToCache(CACHE_KEYS.PRICE_LIST, backupObj.price_list);
-          if (backupObj.holidays) saveToCache(CACHE_KEYS.HOLIDAYS, backupObj.holidays);
-          if (backupObj.archive_records) saveToCache('offline_archive_records', backupObj.archive_records);
-
-          // 2. If Supabase is configured, sync to Supabase!
-          const { isConfigured, supabase } = await import('../services/supabaseClient');
-          if (isConfigured) {
-              const CHUNK_SIZE = 100;
-
-              // Helper to upsert collection
-              const upsertCollection = async (tableName: string, data: any[], mapFn?: (item: any) => any) => {
-                  if (!data || data.length === 0) return;
-                  const mappedData = mapFn ? data.map(mapFn) : data;
-                  
-                  for (let i = 0; i < mappedData.length; i += CHUNK_SIZE) {
-                      const chunk = mappedData.slice(i, i + CHUNK_SIZE);
-                      const { error } = await supabase.from(tableName).upsert(chunk);
-                      if (error) {
-                          console.error(`Lỗi khôi phục bảng ${tableName}, chunk ${i}:`, error);
-                          throw error;
-                      }
-                  }
-              };
-
-              const { mapContractToDb, mapEmployeeToDb, mapUserToDb, mapPriceToDb, getDbColumns, mapPayloadToDb, sanitizeData } = await import('../services/apiCore');
-              const { RECORD_DB_COLUMNS } = await import('../services/apiRecords');
-
-              const actualCols = await getDbColumns('land_records');
-              
-              // Restore land records
-              const sanitizedRecords = backupObj.land_records.map((r: any) => {
-                  const sanitized = sanitizeData(r, RECORD_DB_COLUMNS);
-                  return mapPayloadToDb(sanitized, actualCols);
-              });
-              await upsertCollection('land_records', sanitizedRecords);
-
-              // Restore contracts
-              if (backupObj.contracts) {
-                  await upsertCollection('contracts', backupObj.contracts, mapContractToDb);
-              }
-
-              // Restore employees
-              if (backupObj.employees) {
-                  await upsertCollection('employees', backupObj.employees, mapEmployeeToDb);
-              }
-
-              // Restore users
-              if (backupObj.users) {
-                  await upsertCollection('users', backupObj.users, mapUserToDb);
-              }
-
-              // Restore price_list
-              if (backupObj.price_list) {
-                  await upsertCollection('price_list', backupObj.price_list, mapPriceToDb);
-              }
-
-              // Restore archive_records
-              if (backupObj.archive_records) {
-                  await upsertCollection('archive_records', backupObj.archive_records);
-              }
-          }
-
-          alert("Khôi phục dữ liệu thành công! Trang web sẽ tự động tải lại để áp dụng các thay đổi.");
-          window.location.reload();
-      } catch (err) {
-          console.error("Lỗi khi khôi phục dữ liệu:", err);
-          alert("Khôi phục thất bại: " + (err instanceof Error ? err.message : String(err)));
-      } finally {
-          setIsRestoring(false);
-          e.target.value = '';
-      }
-  };
-
   // --- HOLIDAY HANDLERS ---
   const handleAddHoliday = () => {
       if (!tempName.trim()) { alert("Vui lòng nhập tên ngày lễ"); return; }
@@ -845,14 +650,6 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                     className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'data' ? 'border-red-600 text-red-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                 >
                     <AlertTriangle size={16} /> Dữ liệu
-                </button>
-            )}
-            {isAdminOrSub && (
-                <button 
-                    onClick={() => setActiveTab('duplicates')}
-                    className={`px-4 py-3 text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'duplicates' ? 'border-amber-600 text-amber-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                >
-                    <Copy size={16} /> Trùng mã hồ sơ
                 </button>
             )}
         </div>
@@ -1718,327 +1515,6 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
             {activeTab === 'data' && (
                 <div className="max-w-4xl mx-auto space-y-8">
-                    {/* Chuyển xử lý hồ sơ Một cửa tồn đọng */}
-                    <div className="border border-blue-100 rounded-[2rem] overflow-hidden bg-white shadow-xl shadow-blue-50">
-                        <div className="bg-blue-50/50 p-6 border-b border-blue-50 flex items-center justify-between">
-                            <div>
-                                <h3 className="text-blue-800 font-black flex items-center gap-2 uppercase tracking-widest text-xs"> 
-                                    <RefreshCw className="text-blue-600" size={18} /> Chuyển hồ sơ Một cửa tồn đọng
-                                </h3>
-                                <p className="text-[11px] text-blue-500 font-medium mt-1">Đồng bộ hàng loạt các hồ sơ còn tồn đọng ở khâu tiếp nhận về phòng chuyên môn.</p>
-                            </div>
-                        </div>
-                        <div className="p-8 space-y-6">
-                            <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                                <div className="space-y-1">
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Ngày giới hạn nhận (Trước ngày)</label>
-                                    <input 
-                                        type="date" 
-                                        value={syncCutoffDate} 
-                                        onChange={(e) => setSyncCutoffDate(e.target.value)} 
-                                        className="mt-1 block w-full md:w-48 border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div className="text-left md:text-right">
-                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Hồ sơ chưa chuyển tìm thấy</span>
-                                    <span className="text-3xl font-black text-blue-600 tracking-tight">
-                                        {records.filter(r => r.isDeptSynced !== true && r.receivedDate && r.receivedDate.split('T')[0] < syncCutoffDate).length}
-                                    </span>
-                                    <span className="text-xs font-bold text-slate-400 ml-1">hồ sơ</span>
-                                </div>
-                            </div>
-
-                            <p className="text-sm text-slate-500 leading-relaxed font-medium">
-                                Tính năng này sẽ quét qua toàn bộ cơ sở dữ liệu để tìm những hồ sơ đã tiếp nhận Một cửa <strong>trước ngày {syncCutoffDate.split('-').reverse().join('/')}</strong> nhưng chưa được chuyển xử lý về các phòng chuyên môn (còn ở tài khoản tiếp nhận). Sau khi thực hiện, hệ thống sẽ tự động cập nhật trạng thái đã chuyển chuyên môn cho toàn bộ các hồ sơ này để các phòng ban thụ lý tức thì.
-                            </p>
-
-                            <div className="pt-4 border-t border-slate-100 flex justify-end">
-                                <button 
-                                    onClick={async () => {
-                                        const count = records.filter(r => r.isDeptSynced !== true && r.receivedDate && r.receivedDate.split('T')[0] < syncCutoffDate).length;
-                                        if (count === 0) {
-                                            alert("Không tìm thấy hồ sơ nào chưa chuyển phù hợp với điều kiện ngày đã chọn.");
-                                            return;
-                                        }
-                                        if (await confirmAction(`Bạn có chắc chắn muốn chuyển ${count} hồ sơ Một cửa tồn đọng trước ngày ${syncCutoffDate.split('-').reverse().join('/')} về các phòng chuyên môn?`)) {
-                                            setIsSyncingOneStop(true);
-                                            try {
-                                                if (onTransferPendingOneStopRecords) {
-                                                    const res = await onTransferPendingOneStopRecords(syncCutoffDate);
-                                                    if (res && res.success) {
-                                                        alert(`Đã chuyển xử lý thành công ${res.count} hồ sơ về các phòng chuyên môn.`);
-                                                        if (onHolidaysChanged) onHolidaysChanged(); // Refresh data
-                                                    } else {
-                                                        alert("Đã xảy ra lỗi trong quá trình chuyển xử lý hồ sơ.");
-                                                    }
-                                                } else {
-                                                    alert("Lỗi: Chức năng đồng bộ chưa được định nghĩa.");
-                                                }
-                                            } catch (err) {
-                                                console.error(err);
-                                                alert("Có lỗi xảy ra: " + (err instanceof Error ? err.message : String(err)));
-                                            } finally {
-                                                setIsSyncingOneStop(false);
-                                            }
-                                        }
-                                    }}
-                                    disabled={isSyncingOneStop}
-                                    className="w-full sm:w-auto px-6 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-blue-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
-                                >
-                                    {isSyncingOneStop ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
-                                    {isSyncingOneStop ? 'Đang chuyển xử lý...' : 'Chuyển xử lý hàng loạt'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Khôi phục & đồng bộ thông tin hồ sơ cũ */}
-                    <div className="border border-emerald-100 rounded-[2rem] overflow-hidden bg-white shadow-xl shadow-emerald-50">
-                        <div className="bg-emerald-50/50 p-6 border-b border-emerald-50 flex items-center justify-between">
-                            <div>
-                                <h3 className="text-emerald-800 font-black flex items-center gap-2 uppercase tracking-widest text-xs"> 
-                                    <Database className="text-emerald-600" size={18} /> Khôi phục & đồng bộ hồ sơ cũ
-                                </h3>
-                                <p className="text-[11px] text-emerald-500 font-medium mt-1">Khôi phục đầy đủ và điền thông tin còn thiếu cho các hồ sơ cũ từ dữ liệu lưu trữ.</p>
-                            </div>
-                        </div>
-                        <div className="p-8 space-y-6">
-                            <p className="text-sm text-slate-500 leading-relaxed font-medium">
-                                Tính năng này sẽ quét qua toàn bộ cơ sở dữ liệu để đối chiếu các hồ sơ tiếp nhận cũ với hồ sơ lưu trữ gốc (Vào sổ GCN, Sao lục, Công văn). Hệ thống sẽ phân tích dữ liệu, báo cáo số lượng thông tin có thể khôi phục trước khi thực hiện đồng bộ thực tế.
-                            </p>
-
-                            {scanResult && (
-                                <div className="p-6 bg-emerald-50/40 border border-emerald-100 rounded-2xl space-y-4">
-                                    <div className="flex items-center gap-2 text-emerald-800 font-black text-sm uppercase tracking-wider">
-                                        <CheckCircle size={18} className="text-emerald-600" /> Kết quả phân tích (Quét thành công)
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="p-4 bg-white border border-emerald-50 rounded-xl shadow-sm">
-                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tổng số hồ sơ cập nhật</div>
-                                            <div className="text-2xl font-black text-emerald-700 mt-1">{scanResult.totalCount}</div>
-                                            <div className="text-[11px] text-slate-500 font-medium mt-1">Hồ sơ có thay đổi</div>
-                                        </div>
-
-                                        <div className="p-4 bg-white border border-emerald-50 rounded-xl shadow-sm">
-                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Khớp & Khôi phục từ lưu trữ</div>
-                                            <div className="text-2xl font-black text-blue-600 mt-1">{scanResult.readCount}</div>
-                                            <div className="text-[11px] text-slate-500 font-medium mt-1">Đọc thông tin từ lưu trữ gốc</div>
-                                        </div>
-
-                                        <div className="p-4 bg-white border border-emerald-50 rounded-xl shadow-sm">
-                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tự sinh hạn hạn xử lý (SLA)</div>
-                                            <div className="text-2xl font-black text-amber-600 mt-1">{scanResult.generatedCount}</div>
-                                            <div className="text-[11px] text-slate-500 font-medium mt-1">Tính theo quy trình loại hồ sơ</div>
-                                        </div>
-                                    </div>
-
-                                    {scanResult.categoryStats && (
-                                        <div className="pt-4 border-t border-slate-100/60 space-y-3">
-                                            <div className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Phân tích chi tiết theo nhóm chuyên môn:</div>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                                {/* Hồ sơ Đo đạc */}
-                                                <div className="p-4 bg-white/70 border border-slate-100 rounded-xl space-y-1.5 shadow-sm">
-                                                    <div className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                                        Hồ sơ đo đạc
-                                                    </div>
-                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
-                                                        <span>Khôi phục từ lưu trữ:</span>
-                                                        <span className="text-blue-600 font-bold">{scanResult.categoryStats.measurement?.readCount || 0}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
-                                                        <span>Tự sinh hạn (SLA):</span>
-                                                        <span className="text-amber-600 font-bold">{scanResult.categoryStats.measurement?.generatedCount || 0}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-[11px] pt-1.5 border-t border-slate-100 text-slate-700 font-extrabold">
-                                                        <span>Cần cập nhật:</span>
-                                                        <span>{scanResult.categoryStats.measurement?.totalCount || 0}</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Hồ sơ Cấp giấy */}
-                                                <div className="p-4 bg-white/70 border border-slate-100 rounded-xl space-y-1.5 shadow-sm">
-                                                    <div className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                        Hồ sơ cấp giấy
-                                                    </div>
-                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
-                                                        <span>Khôi phục từ lưu trữ:</span>
-                                                        <span className="text-blue-600 font-bold">{scanResult.categoryStats.registration?.readCount || 0}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
-                                                        <span>Tự sinh hạn (SLA):</span>
-                                                        <span className="text-amber-600 font-bold">{scanResult.categoryStats.registration?.generatedCount || 0}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-[11px] pt-1.5 border-t border-slate-100 text-slate-700 font-extrabold">
-                                                        <span>Cần cập nhật:</span>
-                                                        <span>{scanResult.categoryStats.registration?.totalCount || 0}</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Hồ sơ Lưu trữ */}
-                                                <div className="p-4 bg-white/70 border border-slate-100 rounded-xl space-y-1.5 shadow-sm">
-                                                    <div className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                                                        Hồ sơ lưu trữ
-                                                    </div>
-                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
-                                                        <span>Khôi phục từ lưu trữ:</span>
-                                                        <span className="text-blue-600 font-bold">{scanResult.categoryStats.archive?.readCount || 0}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
-                                                        <span>Tự sinh hạn (SLA):</span>
-                                                        <span className="text-amber-600 font-bold">{scanResult.categoryStats.archive?.generatedCount || 0}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-[11px] pt-1.5 border-t border-slate-100 text-slate-700 font-extrabold">
-                                                        <span>Cần cập nhật:</span>
-                                                        <span>{scanResult.categoryStats.archive?.totalCount || 0}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {scanResult.totalCount === 0 ? (
-                                        <p className="text-xs text-slate-500 font-medium text-center py-2">
-                                            Tất cả hồ sơ trong hệ thống hiện đã đầy đủ thông tin hoặc không tìm thấy dữ liệu đối chiếu khớp. Không cần thực hiện đồng bộ.
-                                        </p>
-                                    ) : (
-                                        <p className="text-xs text-emerald-700 font-bold leading-relaxed bg-emerald-50 p-3 rounded-lg border border-emerald-100">
-                                            * Lưu ý: Khi nhấn "Xác nhận & Đồng bộ ngay", {scanResult.totalCount} hồ sơ trên sẽ được cập nhật đồng loạt vào cơ sở dữ liệu thực tế. Các thay đổi bao gồm: điền thông tin Ngày nhận, Ngày hẹn trả, Nhân viên, Đợt giao một cửa còn thiếu.
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-3 justify-end">
-                                {scanResult && (
-                                    <button
-                                        onClick={() => setScanResult(null)}
-                                        disabled={isCommittingArchive}
-                                        className="w-full sm:w-auto px-5 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95"
-                                    >
-                                        Hủy bỏ / Quét lại
-                                    </button>
-                                )}
-
-                                {!scanResult ? (
-                                    <button 
-                                        onClick={async () => {
-                                            setIsScanningArchive(true);
-                                            try {
-                                                if (onSyncMissingFieldsFromArchive) {
-                                                    const res = await onSyncMissingFieldsFromArchive(true); // onlyScan = true
-                                                    if (res && res.success) {
-                                                        setScanResult({
-                                                            scanned: true,
-                                                            readCount: res.readCount || 0,
-                                                            generatedCount: res.generatedCount || 0,
-                                                            totalCount: res.count || 0,
-                                                            categoryStats: res.categoryStats,
-                                                            updates: res.updates || []
-                                                        });
-                                                    } else {
-                                                        alert("Đã xảy ra lỗi khi quét: " + (res?.error ? String(res.error) : "Lỗi không xác định"));
-                                                    }
-                                                } else {
-                                                    alert("Lỗi: Chức năng quét dữ liệu chưa được định nghĩa.");
-                                                }
-                                            } catch (err) {
-                                                console.error(err);
-                                                alert("Có lỗi xảy ra: " + (err instanceof Error ? err.message : String(err)));
-                                            } finally {
-                                                setIsScanningArchive(false);
-                                            }
-                                        }}
-                                        disabled={isScanningArchive}
-                                        className="w-full sm:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
-                                    >
-                                        {isScanningArchive ? <Loader2 className="animate-spin" size={14} /> : <Database size={14} />}
-                                        {isScanningArchive ? 'Đang phân tích hệ thống...' : 'Quét & Phân tích thông tin'}
-                                    </button>
-                                ) : (
-                                    scanResult.totalCount > 0 && (
-                                        <button 
-                                            onClick={async () => {
-                                                if (await confirmAction(`Bạn có chắc chắn muốn tiến hành đồng bộ và ghi đè ${scanResult.totalCount} hồ sơ cũ lên cơ sở dữ liệu?`)) {
-                                                    setIsCommittingArchive(true);
-                                                    try {
-                                                        if (onSyncMissingFieldsFromArchive) {
-                                                            const res = await onSyncMissingFieldsFromArchive(false, scanResult.updates); // onlyScan = false
-                                                            if (res && res.success) {
-                                                                alert(`Đồng bộ thành công! Đã cập nhật ${res.count} hồ sơ.`);
-                                                                setScanResult(null);
-                                                                if (onHolidaysChanged) onHolidaysChanged(); // Refresh data
-                                                            } else {
-                                                                alert("Đã xảy ra lỗi khi đồng bộ: " + (res?.error ? String(res.error) : "Lỗi không xác định"));
-                                                            }
-                                                        }
-                                                    } catch (err) {
-                                                        console.error(err);
-                                                        alert("Có lỗi xảy ra khi ghi dữ liệu: " + (err instanceof Error ? err.message : String(err)));
-                                                    } finally {
-                                                        setIsCommittingArchive(false);
-                                                    }
-                                                }
-                                            }}
-                                            disabled={isCommittingArchive}
-                                            className="w-full sm:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
-                                        >
-                                            {isCommittingArchive ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle size={14} />}
-                                            {isCommittingArchive ? 'Đang đồng bộ...' : 'Xác nhận & Đồng bộ ngay'}
-                                        </button>
-                                    )
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Sao lưu & Khôi phục dữ liệu */}
-                    <div className="border border-indigo-100 rounded-[2rem] overflow-hidden bg-white shadow-xl shadow-indigo-50">
-                        <div className="bg-indigo-50/50 p-6 border-b border-indigo-50 flex items-center justify-between">
-                            <div>
-                                <h3 className="text-indigo-800 font-black flex items-center gap-2 uppercase tracking-widest text-xs"> 
-                                    <Database className="text-indigo-600" size={18} /> Sao lưu & Khôi phục hệ thống
-                                </h3>
-                                <p className="text-[11px] text-indigo-500 font-medium mt-1">Xuất dữ liệu hệ thống ra tệp tin để lưu trữ dự phòng hoặc phục hồi khi cần thiết.</p>
-                            </div>
-                        </div>
-                        <div className="p-8 space-y-6">
-                            <p className="text-sm text-slate-500 leading-relaxed font-medium">
-                                Tính năng này cho phép bạn tải về một bản sao lưu chứa đầy đủ tất cả hồ sơ, hợp đồng, đơn giá dịch vụ, nhân viên, ngày nghỉ lễ và danh mục lưu trữ. Bạn có thể sử dụng tệp tin này để lưu trữ an toàn hoặc khôi phục dữ liệu cho hệ thống bất kỳ lúc nào.
-                            </p>
-
-                            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center">
-                                {/* Khôi phục */}
-                                <div className="flex items-center gap-3 w-full sm:w-auto">
-                                    <label className={`w-full sm:w-auto px-6 py-3.5 border border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer ${isRestoring ? 'opacity-50 pointer-events-none' : ''}`}>
-                                        {isRestoring ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
-                                        {isRestoring ? 'Đang khôi phục...' : 'Khôi phục từ tệp tin'}
-                                        <input 
-                                            type="file" 
-                                            accept=".json" 
-                                            onChange={handleRestoreData} 
-                                            disabled={isRestoring || isBackingUp} 
-                                            className="hidden" 
-                                        />
-                                    </label>
-                                </div>
-
-                                {/* Sao lưu */}
-                                <button 
-                                    onClick={handleBackupData}
-                                    disabled={isBackingUp || isRestoring}
-                                    className="w-full sm:w-auto px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 active:scale-95 shrink-0"
-                                >
-                                    {isBackingUp ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}
-                                    {isBackingUp ? 'Đang xuất dữ liệu...' : 'Sao lưu dữ liệu ngay'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Vùng nguy hiểm */}
                     <div className="border-2 border-red-100 rounded-[2rem] overflow-hidden bg-white shadow-xl shadow-red-50">
                         <div className="bg-red-50 p-5 border-b border-red-100">
@@ -2067,11 +1543,7 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 </div>
             )}
 
-            {activeTab === 'duplicates' && isAdminOrSub && (
-                <div className="max-w-4xl mx-auto h-full flex flex-col">
-                    <DuplicateFinder records={records} onViewRecord={onViewRecord || (() => {})} />
-                </div>
-            )}
+
         </div>
     </div>
   );

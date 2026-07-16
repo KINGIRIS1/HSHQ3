@@ -1742,8 +1742,6 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
           onDeleteAllData={props.handleDeleteAllData}
           onHolidaysChanged={props.onRefreshData}
           records={props.records}
-          onTransferPendingOneStopRecords={props.handleTransferPendingOneStopRecords}
-          onSyncMissingFieldsFromArchive={props.handleSyncMissingFieldsFromArchive}
           onViewRecord={props.handleViewRecord}
         />
       );
