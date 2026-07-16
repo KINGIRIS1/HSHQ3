@@ -110,7 +110,7 @@ export const exportReportToExcel = async (
         }
     });
 
-    // Table Header (Cập nhật cột theo yêu cầu: Loại Thủ Tục đặt sau Chủ Sử Dụng và thêm đầy đủ các trường giống mẫu cập nhật thông tin)
+    // Table Header (Cập nhật cột theo yêu cầu: Loại Thủ Tục đặt sau Chủ Sử Dụng)
     const tableHeader = [
         "STT", 
         "Mã Hồ Sơ", 
@@ -119,33 +119,16 @@ export const exportReportToExcel = async (
         "Địa Chỉ (Xã)", 
         "Tờ",
         "Thửa",
-        "Loại HĐ/TL", 
+        "Loại HĐ/TL", // Yêu cầu 2: Loại hồ sơ thanh lý (Trích lục, đo đạc...)
         "NV Xử Lý",
         "Số Biên Lai", 
-        "Giá trị HĐ", 
-        "Giá trị TL", 
+        "Giá trị HĐ", // Yêu cầu 3: Đổi từ Thành Tiền -> Giá trị HĐ
+        "Giá trị TL", // Yêu cầu 1: Thêm cột Giá trị thanh lý
         "Ngày Nhận", 
         "Hẹn Trả", 
         "Ngày hoàn thành",
         "Ngày trả kết quả",
-        "Trạng Thái",
-        // Các trường bổ sung từ mẫu cập nhật thông tin
-        "ĐỢT BAN GIAO",
-        "NGÀY GIAO NHÂN VIÊN",
-        "NGƯỜI ĐƯỢC GIAO",
-        "NGƯỜI KIỂM TRA",
-        "NGÀY TRÌNH KIỂM TRA",
-        "LÃNH ĐẠO TRÌNH",
-        "NGÀY TRÌNH KÝ",
-        "NGÀY GIAO 1 CỬA",
-        "NGÀY TRẢ KẾT QUẢ CẬP NHẬT",
-        "SỐ ĐO ĐẠC",
-        "SỐ TRÍCH LỤC",
-        "SỐ PHÁT HÀNH",
-        "SỐ VÀO SỔ",
-        "NGÀY CẤP SỔ",
-        "NGƯỜI NHẬN KẾT QUẢ",
-        "GHI CHÚ CHUNG"
+        "Trạng Thái"
     ];
 
     // Sắp xếp danh sách hồ sơ: Chủ sử dụng (customerName), sau đó đến Loại thủ tục (recordType)
@@ -179,24 +162,7 @@ export const exportReportToExcel = async (
             formatDate(r.deadline),
             formatDate(r.completedDate),      
             formatDate(r.resultReturnedDate),
-            STATUS_LABELS[r.status],
-            // Giá trị các trường bổ sung
-            r.exportBatch !== null && r.exportBatch !== undefined ? String(r.exportBatch) : '',
-            formatDate(r.assignedDate),
-            getEmployeeName(r.assignedTo || undefined) || r.assignedTo || '',
-            getEmployeeName(r.checkedBy || undefined) || r.checkedBy || '',
-            formatDate(r.pendingCheckDate),
-            getEmployeeName(r.submittedTo || undefined) || r.submittedTo || '',
-            formatDate(r.submissionDate),
-            formatDate(r.completedDate),
-            formatDate(r.resultReturnedDate),
-            r.measurementNumber || '',
-            r.excerptNumber || '',
-            r.issueNumber || '',
-            r.entryNumber || '',
-            formatDate(r.issueDate),
-            r.receiverName || '',
-            r.notes || ''
+            STATUS_LABELS[r.status]
         ];
     });
 
@@ -257,37 +223,20 @@ export const exportReportToExcel = async (
         { wch: 5 },  // STT
         { wch: 15 }, // Mã HS
         { wch: 25 }, // Chủ SD
-        { wch: 25 }, // Loại Thủ Tục
-        { wch: 18 }, // Địa Chỉ (Xã)
+        { wch: 18 }, // Địa Chỉ
         { wch: 7 },  // Tờ
         { wch: 7 },  // Thửa
-        { wch: 15 }, // Loại HĐ/TL
+        { wch: 25 }, // Loại Thủ Tục
+        { wch: 15 }, // Loại HĐ/TL (New)
         { wch: 20 }, // NV Xử Lý
         { wch: 12 }, // Số BL
         { wch: 15 }, // Giá trị HĐ
-        { wch: 15 }, // Giá trị TL
+        { wch: 15 }, // Giá trị TL (New)
         { wch: 12 }, // Ngày Nhận
         { wch: 12 }, // Hẹn Trả
         { wch: 14 }, // Ngày hoàn thành
         { wch: 14 }, // Ngày trả kết quả
-        { wch: 15 }, // Trạng thái
-        // Các cột mới
-        { wch: 12 }, // Đợt Ban Giao
-        { wch: 18 }, // Ngày Giao Nhân Viên
-        { wch: 20 }, // Người Được Giao
-        { wch: 20 }, // Người Kiểm Tra
-        { wch: 18 }, // Ngày Trình Kiểm Tra
-        { wch: 20 }, // Lãnh Đạo Trình
-        { wch: 18 }, // Ngày Trình Ký
-        { wch: 18 }, // Ngày Giao 1 Cửa
-        { wch: 18 }, // Ngày Trả Kết Quả Cập Nhật
-        { wch: 15 }, // Số Đo Đạc
-        { wch: 15 }, // Số Trích Lục
-        { wch: 15 }, // Số Phát Hành
-        { wch: 15 }, // Số Vào Sổ
-        { wch: 15 }, // Ngày Cấp Sổ
-        { wch: 20 }, // Người Nhận Kết Quả
-        { wch: 35 }  // Ghi Chú Chung
+        { wch: 15 }  // Trạng thái
     ];
 
     // Apply Styles
@@ -310,30 +259,22 @@ export const exportReportToExcel = async (
             const cellRef = XLSX.utils.encode_cell({ r, c });
             if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" };
             
-            // Căn giữa các cột dạng mã, ngày tháng, đợt, trạng thái, căn phải số tiền, còn lại căn trái
-            const centerCols = [0, 1, 4, 5, 8, 9, 12, 13, 14, 15, 16, 17, 18, 21, 23, 24, 25, 30];
-            if (centerCols.includes(c)) ws[cellRef].s = centerStyle;
+            // Căn giữa: STT, Tờ, Thửa, NV, BL, Ngày, Trạng thái. Căn phải: Tiền.
+            // Index: 0(STT), 4(Tờ), 5(Thửa), 8(NV), 9(BL), 10(HĐ), 11(TL), 12(NgayNhan), 13(Hen), 14(Xong), 15(TraKQ), 16(Status)
+            if ([0, 4, 5, 8, 9, 12, 13, 14, 15, 16].includes(c)) ws[cellRef].s = centerStyle;
             else if (c === 10 || c === 11) ws[cellRef].s = rightStyle;
             else ws[cellRef].s = cellStyle;
         }
     }
 
     const lastRow = dataStartIdx + totalDataRows + 2;
-    // Căn chỉnh chữ ký nằm lệch phải cho bảng rộng
-    const rightColStart = totalCols - 5;
+    // Footer adjustments for wider table
+    const rightColStart = totalCols - 2;
     const rightColEnd = totalCols;
 
-    const footerData = Array(totalCols + 1).fill("");
-    footerData[0] = "NGƯỜI LẬP BIỂU";
-    footerData[rightColStart] = "THỦ TRƯỞNG ĐƠN VỊ";
-
-    const footerSubData = Array(totalCols + 1).fill("");
-    footerSubData[0] = "(Ký, họ tên)";
-    footerSubData[rightColStart] = "(Ký, họ tên, đóng dấu)";
-
     XLSX.utils.sheet_add_aoa(ws, [
-        footerData,
-        footerSubData
+        ["NGƯỜI LẬP BIỂU", "", "", "", "", "", "", "", "", "", "", "", "", "", "THỦ TRƯỞNG ĐƠN VỊ", ""],
+        ["(Ký, họ tên)", "", "", "", "", "", "", "", "", "", "", "", "", "", "(Ký, họ tên, đóng dấu)", ""]
     ], { origin: `A${lastRow}` });
     
     ws['!merges'].push(

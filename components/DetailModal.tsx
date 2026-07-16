@@ -1737,7 +1737,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, recor
                                     <p className="text-sm font-bold text-green-800">
                                         {record.paymentAmount !== null && record.paymentAmount !== undefined 
                                             ? record.paymentAmount.toLocaleString('vi-VN') + ' đ' 
-                                            : '---'}
+                                            : '0 đ'}
                                     </p>
                                 </div>
                             </div>
