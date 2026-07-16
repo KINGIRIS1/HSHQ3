@@ -724,6 +724,18 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
             }
         }
         if (field === 'status') {
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            // Tự động điền ngày thay đổi vào ngày trình ký (submissionDate) và ngày ký (approvalDate) khi chọn 'Đã ký duyệt'
+            if (value === RecordStatus.SIGNED) {
+                newData.submissionDate = todayStr;
+                newData.approvalDate = todayStr;
+            } else if (value === RecordStatus.PENDING_SIGN) {
+                newData.submissionDate = todayStr;
+            } else if (value === RecordStatus.HANDOVER) {
+                newData.completedDate = todayStr;
+            }
+
             if (isRegType(newData.recordType) || isRegistration(newData.recordType)) {
                 if (String(value).startsWith('step_')) {
                     const idx = parseInt(String(value).replace('step_', ''), 10);
@@ -731,11 +743,19 @@ const RecordForm: React.FC<RecordFormProps> = ({ onSave, wards, records, holiday
                     if (helper && helper.steps && helper.steps[idx]) {
                         newData.currentStepIndex = idx;
                         newData.status = helper.steps[idx].overallStatus;
+                        if (newData.status === RecordStatus.SIGNED) {
+                            newData.submissionDate = todayStr;
+                            newData.approvalDate = todayStr;
+                        } else if (newData.status === RecordStatus.PENDING_SIGN) {
+                            newData.submissionDate = todayStr;
+                        }
                     }
                 } else {
                     newData.status = value;
                     newData.currentStepIndex = null;
                 }
+            } else {
+                newData.status = value;
             }
         }
         if (field === 'recordType' || field === 'receivedDate' || field === 'hasTax' || field === 'transferToDNLis' || field === 'hasCheckedSMK') {

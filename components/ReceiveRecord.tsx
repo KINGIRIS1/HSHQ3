@@ -505,9 +505,10 @@ const ReceiveRecord: React.FC<ReceiveRecordProps> = ({ onSave, onDelete, wards, 
             >
                 <PlusCircle size={16} /> Nhập mới
             </button>
-            <button onClick={() => setViewMode('bulk')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'bulk' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}>
+            {/* Ẩn Tiếp nhận hàng loạt tại tab hồ sơ theo yêu cầu */}
+            {/* <button onClick={() => setViewMode('bulk')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'bulk' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}>
                 <FileSpreadsheet size={16} /> Tiếp nhận hàng loạt
-            </button>
+            </button> */}
             <button 
                 onClick={() => setViewMode('vphc')} 
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'vphc' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}

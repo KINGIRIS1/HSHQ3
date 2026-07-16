@@ -1698,6 +1698,19 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
           onUpdateRecord={props.handleAddOrUpdateRecord}
           onRefreshData={props.onRefreshData}
           holidays={holidays}
+          onUpdateExcerptRecord={(id, num, type) =>
+            props.handleQuickUpdate(
+              id,
+              type === "trichluc" ? "excerptNumber" : "measurementNumber",
+              num,
+            )
+          }
+          wards={wards}
+          onAddWard={(w) => props.setWards((prev) => [...prev, w])}
+          onDeleteWard={(w) =>
+            props.setWards((prev) => prev.filter((x) => x !== w))
+          }
+          onResetWards={props.onResetWards}
         />
       );
     case "barcode_generator":

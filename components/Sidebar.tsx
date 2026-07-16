@@ -55,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: 'all_records', label: 'Hồ sơ đo đạc', icon: FileText, visible: true, badge: !isOneDoor ? warningRecordsCount : 0, badgeColor: 'bg-red-600' },
     { id: 'registration_records', label: 'Hồ sơ cấp giấy', icon: FileSignature, visible: false },
     { id: 'archive_records', label: 'Lưu trữ', icon: FolderArchive, visible: true },
-    { id: 'excerpt_management', label: 'Số TL/TĐ', icon: BookOpen, visible: !isOneDoor },
+    { id: 'excerpt_management', label: 'Số TL/TĐ', icon: BookOpen, visible: false },
     { id: 'utilities', label: 'Tiện ích', icon: PenTool, visible: true },
     // Đã xóa menu "DS Ký kiểm tra" và "DS Giao 1 cửa" để đưa vào làm tab con của "Hồ sơ đo đạc"
     { id: 'reports', label: 'Báo cáo & Thống kê', icon: BarChart3, visible: !isOneDoor },

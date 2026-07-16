@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { FolderCog, ExternalLink, Loader2, Download, CheckCircle, AlertCircle, X, Calculator, FileText, Gavel, Info, Table2, Grid, FileSpreadsheet, Layers, Database, Calendar } from 'lucide-react';
+import { FolderCog, ExternalLink, Loader2, Download, CheckCircle, AlertCircle, X, Calculator, FileText, Gavel, Info, Table2, Grid, FileSpreadsheet, Layers, Database, Calendar, BookOpen } from 'lucide-react';
 import { User as UserType, RecordFile, NotifyFunction, NotifyType, Employee, UserRole, Holiday } from '../types';
 import { getEmployeeTeam } from './AssignModal';
+import ExcerptManagement from './ExcerptManagement';
 import SoanBienBanTab from './utilities/SoanBienBanTab';
 import CungCapThongTinTab from './utilities/CungCapThongTinTab';
 import VPHCTab from './utilities/VPHCTab';
@@ -24,9 +25,31 @@ interface UtilitiesViewProps {
     onUpdateRecord?: (r: RecordFile) => Promise<any>;
     onRefreshData?: () => void;
     holidays?: Holiday[];
+    
+    // Props for ExcerptManagement
+    onUpdateExcerptRecord?: (recordId: string, number: string, type: 'trichluc' | 'trichdo') => void;
+    wards?: string[];
+    onAddWard?: (ward: string) => void;
+    onDeleteWard?: (ward: string) => void;
+    onResetWards?: () => void;
 }
 
-const UtilitiesView: React.FC<UtilitiesViewProps> = ({ currentUser, employees = [], initialRecordForCorrection, recordForMinutes, onClearRecordForMinutes, records, onUpdateRecord, onRefreshData, holidays = [] }) => {
+const UtilitiesView: React.FC<UtilitiesViewProps> = ({ 
+    currentUser, 
+    employees = [], 
+    initialRecordForCorrection, 
+    recordForMinutes, 
+    onClearRecordForMinutes, 
+    records, 
+    onUpdateRecord, 
+    onRefreshData, 
+    holidays = [],
+    onUpdateExcerptRecord,
+    wards = [],
+    onAddWard,
+    onDeleteWard,
+    onResetWards
+}) => {
   const userEmp = employees.find(e => e.id === currentUser.employeeId);
   const teamName = userEmp ? getEmployeeTeam(userEmp) : '';
   const isAdmin = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUBADMIN;
@@ -35,8 +58,12 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({ currentUser, employees = 
   const isSpecialTeam = isAdmin || isOneDoor || isDirector;
 
   const allowedTabs = React.useMemo(() => {
-    return ['bienban', 'vphc', 'thongtin', 'chinhly', 'tachthua', 'saiso', 'chuyendoi', 'dongbothutuc', 'dongbocsv', 'suadoingay'];
-  }, []);
+    const tabs = ['bienban', 'vphc', 'thongtin', 'chinhly', 'tachthua', 'saiso', 'chuyendoi', 'dongbothutuc', 'dongbocsv', 'suadoingay'];
+    if (!isOneDoor) {
+        tabs.push('excerpt_management');
+    }
+    return tabs;
+  }, [isOneDoor]);
 
   const [activeTab, setActiveTab] = useState<string>('bienban');
   const [defaultExportPath, setDefaultExportPath] = useState('');
@@ -207,9 +234,17 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({ currentUser, employees = 
                       <Calendar size={16} /> Sửa đổi Ngày
                   </button>
               )}
+              {allowedTabs.includes('excerpt_management') && (
+                  <button 
+                      onClick={() => setActiveTab('excerpt_management')}
+                      className={`px-4 py-2 text-sm font-bold rounded-md transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'excerpt_management' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                      <BookOpen size={16} /> Số TL/TĐ
+                  </button>
+              )}
           </div>
           
-          {activeTab !== 'saiso' && activeTab !== 'chinhly' && activeTab !== 'tachthua' && activeTab !== 'chuyendoi' && activeTab !== 'dongbothutuc' && activeTab !== 'dongbocsv' && activeTab !== 'suadoingay' && (
+          {activeTab !== 'saiso' && activeTab !== 'chinhly' && activeTab !== 'tachthua' && activeTab !== 'chuyendoi' && activeTab !== 'dongbothutuc' && activeTab !== 'dongbocsv' && activeTab !== 'suadoingay' && activeTab !== 'excerpt_management' && (
             <div className="flex-1 flex justify-end items-center gap-3 pr-4">
                 <button 
                     onClick={handleConfigurePath}
@@ -299,6 +334,21 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({ currentUser, employees = 
                   holidays={holidays}
               />
           </div>
+
+          {/* TAB 11: QUẢN LÝ SỐ TRÍCH LỤC / TRÍCH ĐO (Số TL/TĐ) */}
+          {allowedTabs.includes('excerpt_management') && (
+              <div className={`w-full h-full flex flex-col bg-[#f1f5f9] ${activeTab === 'excerpt_management' ? 'block' : 'hidden'}`}>
+                  <ExcerptManagement 
+                      currentUser={currentUser as any}
+                      records={records || []}
+                      onUpdateRecord={onUpdateExcerptRecord || (() => {})}
+                      wards={wards || []}
+                      onAddWard={onAddWard || (() => {})}
+                      onDeleteWard={onDeleteWard || (() => {})}
+                      onResetWards={onResetWards || (() => {})}
+                  />
+              </div>
+          )}
       </div>
     </div>
   );
