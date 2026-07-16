@@ -7,7 +7,7 @@
   "description": "Phan mem quan ly ho so dia chinh",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "tsc && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "server": "node server/index.js",
     "lint": "tsc --noEmit",
@@ -40,7 +40,13 @@
     "recharts": "^2.12.2",
     "tsx": "^4.21.0",
     "vite": "^5.1.4",
-    "xlsx-js-style": "^1.2.0"
+    "xlsx-js-style": "^1.2.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.18",
+    "esbuild": "^0.28.1",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.2.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -49,15 +55,9 @@
     "@types/node": "^25.3.0",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
-    "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.4.18",
     "concurrently": "^8.2.2",
     "electron": "^29.1.0",
     "electron-builder": "^24.13.3",
-    "esbuild": "^0.28.1",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5.2.2",
     "wait-on": "^7.2.0"
   }
 }

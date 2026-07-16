@@ -57,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: 'all_records', label: 'Hồ sơ đo đạc', icon: FileText, visible: true, badge: !isOneDoor ? warningRecordsCount : 0, badgeColor: 'bg-red-600' },
     // Đã xóa menu "Giao hồ sơ" (assign_tasks) để đưa vào làm tab con của "Hồ sơ đo đạc"
     { id: 'archive_records', label: 'Hồ sơ lưu trữ', icon: FolderArchive, visible: true },
-    { id: 'excerpt_management', label: 'Số trích lục', icon: BookOpen, visible: !isOneDoor },
+    { id: 'excerpt_management', label: 'Số trích lục', icon: BookOpen, visible: false },
     { id: 'barcode_generator', label: 'Tạo mã vạch', icon: ScanBarcode, visible: true },
     { id: 'utilities', label: 'Tiện ích', icon: PenTool, visible: true },
     { id: 'check_list', label: 'DS Ký kiểm tra', icon: ClipboardList, visible: isAdmin || isSubadmin },

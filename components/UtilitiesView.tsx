@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { FolderCog, ExternalLink, Loader2, Download, CheckCircle, AlertCircle, X, Calculator, FileText, Gavel, Info, Table2, Grid, FileSpreadsheet, Layers, Database, Calendar, BookOpen } from 'lucide-react';
 import { User as UserType, RecordFile, NotifyFunction, NotifyType, Employee, UserRole, Holiday } from '../types';
 import { getEmployeeTeam } from './AssignModal';
-import ExcerptManagement from './ExcerptManagement';
 import SoanBienBanTab from './utilities/SoanBienBanTab';
 import CungCapThongTinTab from './utilities/CungCapThongTinTab';
 import VPHCTab from './utilities/VPHCTab';
@@ -14,6 +13,7 @@ import ChuyenDoiToBanDoTab from './utilities/ChuyenDoiToBanDoTab';
 import DongBoThuTucTab from './utilities/DongBoThuTucTab';
 import DongBoCSVTab from './utilities/DongBoCSVTab';
 import SuaDoiNgayTab from './utilities/SuaDoiNgayTab';
+import ExcerptManagement from './ExcerptManagement';
 
 interface UtilitiesViewProps {
     currentUser: UserType;
@@ -25,8 +25,6 @@ interface UtilitiesViewProps {
     onUpdateRecord?: (r: RecordFile) => Promise<any>;
     onRefreshData?: () => void;
     holidays?: Holiday[];
-    
-    // Props for ExcerptManagement
     onUpdateExcerptRecord?: (recordId: string, number: string, type: 'trichluc' | 'trichdo') => void;
     wards?: string[];
     onAddWard?: (ward: string) => void;
@@ -60,7 +58,7 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({
   const allowedTabs = React.useMemo(() => {
     const tabs = ['bienban', 'vphc', 'thongtin', 'chinhly', 'tachthua', 'saiso', 'chuyendoi', 'dongbothutuc', 'dongbocsv', 'suadoingay'];
     if (!isOneDoor) {
-        tabs.push('excerpt_management');
+      tabs.push('excerpt_management');
     }
     return tabs;
   }, [isOneDoor]);
@@ -335,11 +333,11 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({
               />
           </div>
 
-          {/* TAB 11: QUẢN LÝ SỐ TRÍCH LỤC / TRÍCH ĐO (Số TL/TĐ) */}
+          {/* TAB 11: QUẢN LÝ SỐ TRÍCH LỤC / TRÍCH ĐO */}
           {allowedTabs.includes('excerpt_management') && (
               <div className={`w-full h-full flex flex-col bg-[#f1f5f9] ${activeTab === 'excerpt_management' ? 'block' : 'hidden'}`}>
                   <ExcerptManagement 
-                      currentUser={currentUser as any}
+                      currentUser={currentUser}
                       records={records || []}
                       onUpdateRecord={onUpdateExcerptRecord || (() => {})}
                       wards={wards || []}
