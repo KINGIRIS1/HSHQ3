@@ -2,7 +2,7 @@
   "name": "he-thong-quan-ly-ho-so",
   "private": true,
   "version": "2.1.0",
-  "main": "electron/main.js",
+  "main": "dist/server.cjs",
   "author": "DonViHanhChinh",
   "description": "Phan mem quan ly ho so dia chinh",
   "scripts": {
@@ -12,7 +12,7 @@
     "server": "node server/index.js",
     "lint": "tsc --noEmit",
     "preview": "vite preview",
-    "electron:dev": "wait-on tcp:5173 && electron .",
+    "electron:dev": "wait-on tcp:5173 && electron electron/main.js",
     "electron:build": "npm run build && electron-builder --win --x64 -p never"
   },
   "dependencies": {

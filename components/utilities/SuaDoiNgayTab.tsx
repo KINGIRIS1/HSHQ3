@@ -677,17 +677,7 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
             let successCount = 0;
             const itemsToUpdate = filteredResults.filter(item => selectedRecordIds.has(item.record.id));
 
-            // Validate non-geographic agreements
-            const unconfirmedNonGeo = itemsToUpdate.filter(item => {
-                return isNonGeographicHandover(item.record) && !agreedNonGeo[item.record.id];
-            });
-
-            if (unconfirmedNonGeo.length > 0) {
-                const firstCode = unconfirmedNonGeo[0].record.code || 'N/A';
-                notify(`Hồ sơ ${firstCode} là giao phi địa giới nhưng chưa xác nhận đồng ý giải trình. Vui lòng kiểm tra lại.`, 'error');
-                setUpdating(false);
-                return;
-            }
+            // Validate non-geographic agreements (Chức năng giải trình phi địa giới đã được gỡ bỏ)
 
             for (const item of itemsToUpdate) {
                 const edits = manualEdits[item.record.id];
@@ -735,14 +725,7 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
                     }
                 }
 
-                // If non-geographic handover, save the explanation text
-                if (isNonGeographicHandover(item.record)) {
-                    const expText = explanationNonGeo[item.record.id] !== undefined
-                        ? explanationNonGeo[item.record.id]
-                        : (item.record.notes || '');
-                    
-                    updatedPayload.notes = expText.trim() || null;
-                }
+                // Chức năng lưu giải trình phi địa giới đã được gỡ bỏ
 
                 const res = await onUpdateRecord(updatedPayload);
                 if (res) {
@@ -1037,7 +1020,6 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
                                     <th className="px-4 py-3 w-40">Trạng thái / Đợt</th>
                                     <th className="px-4 py-3 w-64">Thời hạn xử lý (Nhận ➡️ Hẹn)</th>
                                     <th className="px-4 py-3 w-64">Bàn giao 1 cửa (Hoàn thành ➡️ Ngày xuất)</th>
-                                    <th className="px-4 py-3 w-80">Giải trình phi địa giới</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs">
@@ -1237,57 +1219,12 @@ const SuaDoiNgayTab: React.FC<Props> = ({ notify, records, onUpdateRecord, onRef
                                                         </span>
                                                     )}
                                                 </td>
-                                                
-                                                {/* Giải trình phi địa giới cell */}
-                                                <td className="px-4 py-3 bg-slate-50/10">
-                                                    {isNonGeographicHandover(item.record) ? (
-                                                        <div className="flex flex-col gap-1.5 p-2 bg-indigo-50/40 rounded-lg border border-indigo-100/50">
-                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 uppercase">
-                                                                ⚠️ Phi địa giới: {getNormalizedWard(item.record.ward)} ➡️ {getNormalizedWard(item.record.handoverWard)}
-                                                            </span>
-                                                            
-                                                            <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-700 cursor-pointer select-none">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={!!agreedNonGeo[item.record.id]}
-                                                                    onChange={(e) => setAgreedNonGeo(prev => ({ ...prev, [item.record.id]: e.target.checked }))}
-                                                                    className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer h-3 w-3"
-                                                                />
-                                                                Đồng ý thực hiện
-                                                            </label>
-                                                            
-                                                            <input
-                                                                type="text"
-                                                                value={explanationNonGeo[item.record.id] !== undefined ? explanationNonGeo[item.record.id] : (item.record.notes || '')}
-                                                                onChange={(e) => setExplanationNonGeo(prev => ({ ...prev, [item.record.id]: e.target.value }))}
-                                                                placeholder="Nhập lý do giải trình..."
-                                                                className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-[10px] outline-none focus:border-indigo-500 font-medium"
-                                                            />
-                                                        </div>
-                                                    ) : item.isPremature ? (
-                                                        <div className="flex flex-col gap-1.5 p-2 bg-rose-50/60 rounded-lg border border-rose-150 shadow-sm">
-                                                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 uppercase">
-                                                                💡 Giải pháp khắc phục đề xuất
-                                                            </span>
-                                                            <p className="text-[10.5px] text-slate-700 leading-relaxed font-semibold">
-                                                                Phục hồi về <span className="bg-indigo-50 text-indigo-700 px-1 py-0.5 rounded font-bold font-mono text-[10px]">{item.proposedStatus}</span>
-                                                            </p>
-                                                            <p className="text-[9.5px] text-slate-500 font-medium">
-                                                                Xóa các mốc ngày tương lai: <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[9px] font-bold text-slate-600">{item.datesToClear?.join(', ')}</code>
-                                                            </p>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-slate-400 italic text-[11px] font-medium">
-                                                            Không áp dụng (Địa bàn đồng nhất)
-                                                        </span>
-                                                    )}
-                                                </td>
                                             </tr>
 
                                             {/* EXPANDED ROW DETAIL TUNING */}
                                             {expandedRecordId === item.record.id && expandedRecordEdits && (
                                                 <tr className="bg-indigo-50/20 border-y border-indigo-100">
-                                                    <td colSpan={7} className="p-4">
+                                                    <td colSpan={6} className="p-4">
                                                         <div className="bg-white rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-4 p-4">
                                                             {/* Header */}
                                                             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
