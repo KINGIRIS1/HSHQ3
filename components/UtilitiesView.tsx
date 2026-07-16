@@ -213,7 +213,7 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({
                       onClick={() => setActiveTab('dongbothutuc')}
                       className={`px-4 py-2 text-sm font-bold rounded-md transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'dongbothutuc' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
-                      <Layers size={16} /> Đồng bộ thủ tục
+                      <Layers size={16} /> Kiểm tra & Sửa mã trùng
                   </button>
               )}
               {allowedTabs.includes('dongbocsv') && (
