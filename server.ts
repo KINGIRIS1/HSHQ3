@@ -1,4 +1,5 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 // @ts-ignore
 import jsonServer from 'json-server';
 import path from 'path';
