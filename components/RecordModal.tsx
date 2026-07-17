@@ -605,27 +605,31 @@ const RecordModal: React.FC<RecordModalProps> = ({ isOpen, onClose, onSubmit, in
                             <h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-1.5">
                                 <Clock size={12} className="text-gray-400" /> Tiến trình thời gian
                             </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 mb-1">Ngày trình kiểm tra</label>
-                                    <input 
-                                        type="date" 
-                                        disabled={!canEditTimelineDates}
-                                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 font-medium bg-white" 
-                                        value={dateVal(formData.pendingCheckDate)} 
-                                        onChange={(e) => handleChange('pendingCheckDate', e.target.value || null)} 
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-purple-700 mb-1">Ngày trình ký</label>
-                                    <input 
-                                        type="date" 
-                                        disabled={!canEditTimelineDates}
-                                        className="w-full border border-purple-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 bg-purple-50 font-semibold text-purple-800" 
-                                        value={dateVal(formData.submissionDate)} 
-                                        onChange={(e) => handleChange('submissionDate', e.target.value || null)} 
-                                    />
-                                </div>
+                            <div className={`grid grid-cols-1 ${currentView === 'personal_profile' ? 'md:grid-cols-1' : 'md:grid-cols-3'} gap-4`}>
+                                {currentView !== 'personal_profile' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 mb-1">Ngày trình kiểm tra</label>
+                                            <input 
+                                                type="date" 
+                                                disabled={!canEditTimelineDates}
+                                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 font-medium bg-white" 
+                                                value={dateVal(formData.pendingCheckDate)} 
+                                                onChange={(e) => handleChange('pendingCheckDate', e.target.value || null)} 
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-purple-700 mb-1">Ngày trình ký</label>
+                                            <input 
+                                                type="date" 
+                                                disabled={!canEditTimelineDates}
+                                                className="w-full border border-purple-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 bg-purple-50 font-semibold text-purple-800" 
+                                                value={dateVal(formData.submissionDate)} 
+                                                onChange={(e) => handleChange('submissionDate', e.target.value || null)} 
+                                            />
+                                        </div>
+                                    </>
+                                )}
                                 <div>
                                     <label className="block text-xs font-bold text-green-700 mb-1">Ngày giao một cửa</label>
                                     <input 

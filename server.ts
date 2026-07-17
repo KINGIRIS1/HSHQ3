@@ -120,8 +120,20 @@ server.post('/custom/update-missing', (req: Request, res: Response) => {
         try {
             const dbRecords = db.get('records').value();
             let updatedCount = 0;
+
+            // Map incoming data by normalized code for O(1) lookup (reduces complexity to O(N + M))
+            const incomingMap = new Map<string, any>();
+            incomingData.forEach((i: any) => {
+                if (i && i.code) {
+                    const normalizedCode = i.code.toString().trim();
+                    incomingMap.set(normalizedCode, i);
+                }
+            });
+
             dbRecords.forEach((dbRecord: any) => {
-                const match = incomingData.find((i: any) => i.code && dbRecord.code && i.code.toString().trim() === dbRecord.code.toString().trim());
+                if (!dbRecord || !dbRecord.code) return;
+                const normalizedCode = dbRecord.code.toString().trim();
+                const match = incomingMap.get(normalizedCode);
                 if (match) {
                     let changed = false;
                     Object.keys(match).forEach(key => {

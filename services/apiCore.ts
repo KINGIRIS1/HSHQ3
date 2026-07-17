@@ -19,9 +19,90 @@ export const CACHE_KEYS = {
 };
 
 // --- HELPERS ---
-export const saveToCache = (key: string, data: any) => {
+// Memory cache for super-fast synchronous reading
+const memoryCache: Record<string, any> = {};
+
+// --- INDEXEDDB HELPER ---
+const DB_NAME = 'OfflineDB';
+const STORE_NAME = 'CacheStore';
+const DB_VERSION = 1;
+
+let dbPromise: Promise<IDBDatabase> | null = null;
+
+const getDB = (): Promise<IDBDatabase> => {
+    if (!dbPromise) {
+        dbPromise = new Promise((resolve, reject) => {
+            if (typeof window === 'undefined' || !window.indexedDB) {
+                reject(new Error('IndexedDB not supported'));
+                return;
+            }
+            const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+        });
+    }
+    return dbPromise;
+};
+
+export const saveToIndexedDB = async (key: string, data: any): Promise<void> => {
     try {
-        localStorage.setItem(key, JSON.stringify(data));
+        if (typeof window === 'undefined') return;
+        const db = await getDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.put(data, key);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    } catch (err) {
+        console.warn('Failed to save to IndexedDB', err);
+    }
+};
+
+export const getFromIndexedDB = async <T>(key: string, fallback: T): Promise<T> => {
+    try {
+        if (typeof window === 'undefined') return fallback;
+        const db = await getDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.get(key);
+            request.onsuccess = () => {
+                resolve(request.result !== undefined ? request.result as T : fallback);
+            };
+            request.onerror = () => {
+                resolve(fallback);
+            };
+        });
+    } catch (err) {
+        console.warn('Failed to get from IndexedDB', err);
+        return fallback;
+    }
+};
+
+export const saveToMemoryCache = (key: string, data: any) => {
+    memoryCache[key] = data;
+};
+
+export const saveToCache = (key: string, data: any) => {
+    memoryCache[key] = data;
+    if (typeof window === 'undefined') return;
+
+    try {
+        if (key === CACHE_KEYS.RECORDS && Array.isArray(data) && data.length > 500) {
+            const truncated = data.slice(0, 500);
+            localStorage.setItem(key, JSON.stringify(truncated));
+            console.info(`Saved truncated ${key} (500 items) to LocalStorage.`);
+        } else {
+            localStorage.setItem(key, JSON.stringify(data));
+        }
     } catch (e: any) {
         if (e.name === 'QuotaExceededError' || e?.message?.includes('quota')) {
             console.warn(`LocalStorage full when saving ${key}. Attempting to truncate...`);
@@ -35,17 +116,28 @@ export const saveToCache = (key: string, data: any) => {
                 }
             }
         } else {
-            console.warn('LocalStorage full or error:', e);
+            console.warn('LocalStorage save error:', e);
         }
     }
+
+    // Always asynchronously write the FULL data to IndexedDB
+    saveToIndexedDB(key, data);
 };
 
 export const getFromCache = <T>(key: string, fallback: T): T => {
+    if (memoryCache[key] !== undefined) {
+        return memoryCache[key];
+    }
+
+    if (typeof window === 'undefined') return fallback;
+
     try {
         const cached = localStorage.getItem(key);
         if (cached) {
             console.log(`[Offline Mode] Loaded data from cache: ${key}`);
-            return JSON.parse(cached);
+            const parsed = JSON.parse(cached);
+            memoryCache[key] = parsed;
+            return parsed;
         }
     } catch (e) {
         console.warn('Error reading cache:', e);

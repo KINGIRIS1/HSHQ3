@@ -7,7 +7,7 @@ import { fetchRecords, fetchEmployees, fetchUsers, fetchUpdateInfo, fetchHoliday
     updateRecordsBatchById
 } from '../services/api';
 import { supabase } from '../services/supabaseClient';
-import { mapRecordFromDb, saveToCache, getFromCache, CACHE_KEYS } from '../services/apiCore';
+import { mapRecordFromDb, saveToCache, getFromCache, CACHE_KEYS, getFromIndexedDB, saveToMemoryCache } from '../services/apiCore';
 import { DEFAULT_WARDS as STATIC_WARDS, APP_VERSION, MOCK_EMPLOYEES, MOCK_USERS } from '../constants';
 import { addToOfflineQueue } from '../utils/offlineSync';
 import { isRegType, getGcnWorkflowStepsHelper, calculateDeadline, removeVietnameseTones, isMeasurementType, isArchiveType } from '../utils/appHelpers';
@@ -107,6 +107,37 @@ export const useAppData = (currentUser: User | null) => {
     const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
     const [latestVersion, setLatestVersion] = useState('');
     const [updateUrl, setUpdateUrl] = useState<string | null>(null);
+
+    // Load full collections from IndexedDB at startup
+    useEffect(() => {
+        const loadFullCache = async () => {
+            try {
+                const fullRecords = await getFromIndexedDB<RecordFile[]>(CACHE_KEYS.RECORDS, []);
+                if (fullRecords && fullRecords.length > 0) {
+                    setRecords(fullRecords);
+                    saveToMemoryCache(CACHE_KEYS.RECORDS, fullRecords);
+                }
+                const fullEmployees = await getFromIndexedDB<Employee[]>(CACHE_KEYS.EMPLOYEES, []);
+                if (fullEmployees && fullEmployees.length > 0) {
+                    setEmployees(fullEmployees);
+                    saveToMemoryCache(CACHE_KEYS.EMPLOYEES, fullEmployees);
+                }
+                const fullUsers = await getFromIndexedDB<User[]>(CACHE_KEYS.USERS, []);
+                if (fullUsers && fullUsers.length > 0) {
+                    setUsers(fullUsers);
+                    saveToMemoryCache(CACHE_KEYS.USERS, fullUsers);
+                }
+                const fullHolidays = await getFromIndexedDB<Holiday[]>(CACHE_KEYS.HOLIDAYS, []);
+                if (fullHolidays && fullHolidays.length > 0) {
+                    setHolidays(fullHolidays);
+                    saveToMemoryCache(CACHE_KEYS.HOLIDAYS, fullHolidays);
+                }
+            } catch (err) {
+                console.error("Lỗi khi tải cache từ IndexedDB:", err);
+            }
+        };
+        loadFullCache();
+    }, []);
 
     const loadData = useCallback(async () => {
         hasCheckedAutoTransitionRef.current = false;

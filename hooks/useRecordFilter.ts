@@ -14,9 +14,19 @@ export const useRecordFilter = (
     // Filter States
     // CẬP NHẬT: Sử dụng Object để lưu search term riêng cho từng view
     const [searchStates, setSearchStates] = useState<Record<string, string>>({});
+    const [debouncedSearchStates, setDebouncedSearchStates] = useState<Record<string, string>>({});
     
     // Lấy search term của view hiện tại (mặc định rỗng nếu chưa có)
     const searchTerm = searchStates[currentView] || '';
+    const debouncedSearchTerm = debouncedSearchStates[currentView] || '';
+
+    // Debounce the search input by 200ms
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchStates(searchStates);
+        }, 200);
+        return () => clearTimeout(handler);
+    }, [searchStates]);
 
     // Hàm set search term chỉ cập nhật cho view hiện tại
     const setSearchTerm = (term: string) => {
@@ -395,22 +405,43 @@ export const useRecordFilter = (
         return result;
     }, [records, currentView, currentUser, employees, users, handoverTab]);
 
+    // Pre-normalize records once for lightning-fast search matches
+    const normalizedRecords = useMemo(() => {
+        return activeTabRecords.map(r => ({
+            record: r,
+            normalizedCode: removeVietnameseTones(r.code || '').toLowerCase(),
+            normalizedCustomerName: removeVietnameseTones(r.customerName || '').toLowerCase(),
+            normalizedWard: removeVietnameseTones(r.ward || '').toLowerCase(),
+            normalizedContent: removeVietnameseTones(r.content || '').toLowerCase(),
+            normalizedIssueNumber: removeVietnameseTones(r.issueNumber || '').toLowerCase(),
+            normalizedEntryNumber: removeVietnameseTones(r.entryNumber || '').toLowerCase(),
+        }));
+    }, [activeTabRecords]);
+
     const filteredRecords = useMemo(() => {
         let result = [...activeTabRecords];
 
-        // Search Term (Sử dụng searchTerm đã được tách theo view)
-        if (searchTerm) {
-            const lowerSearch = removeVietnameseTones(searchTerm);
-            result = result.filter(r => {
-                if (removeVietnameseTones(r.code).includes(lowerSearch)) return true;
-                if (removeVietnameseTones(r.customerName).includes(lowerSearch)) return true;
-                if (r.phoneNumber && r.phoneNumber.includes(searchTerm)) return true;
-                if (removeVietnameseTones(r.ward || '').includes(lowerSearch)) return true;
-                if (r.content && removeVietnameseTones(r.content).includes(lowerSearch)) return true;
-                if (r.issueNumber && removeVietnameseTones(r.issueNumber).includes(lowerSearch)) return true;
-                if (r.entryNumber && removeVietnameseTones(r.entryNumber).includes(lowerSearch)) return true;
-                return false;
-            });
+        // Search Term (Sử dụng debouncedSearchTerm đã được tách theo view)
+        if (debouncedSearchTerm) {
+            const lowerSearch = removeVietnameseTones(debouncedSearchTerm).toLowerCase().trim();
+            const matchedList: RecordFile[] = [];
+            
+            for (let i = 0; i < normalizedRecords.length; i++) {
+                const item = normalizedRecords[i];
+                const r = item.record;
+                if (
+                    item.normalizedCode.includes(lowerSearch) ||
+                    item.normalizedCustomerName.includes(lowerSearch) ||
+                    item.normalizedWard.includes(lowerSearch) ||
+                    item.normalizedContent.includes(lowerSearch) ||
+                    item.normalizedIssueNumber.includes(lowerSearch) ||
+                    item.normalizedEntryNumber.includes(lowerSearch) ||
+                    (r.phoneNumber && r.phoneNumber.includes(debouncedSearchTerm))
+                ) {
+                    matchedList.push(r);
+                }
+            }
+            result = matchedList;
         }
 
         // Procedure, Status, Employee Filters
@@ -554,7 +585,7 @@ export const useRecordFilter = (
         });
 
         return result;
-    }, [activeTabRecords, searchTerm, filterProcedure, filterStatus, filterEmployee, filterDate, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, showAdvancedDateFilter, warningFilter, currentView, sortConfig, handoverTab, currentUser, filterArchive]);
+    }, [activeTabRecords, debouncedSearchTerm, filterProcedure, filterStatus, filterEmployee, filterDate, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, showAdvancedDateFilter, warningFilter, currentView, sortConfig, handoverTab, currentUser, filterArchive, normalizedRecords]);
 
     const paginatedRecords = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;

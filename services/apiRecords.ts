@@ -42,6 +42,59 @@ export const fetchRecords = async (): Promise<RecordFile[]> => {
 
   try {
     let allRecords: any[] = [];
+    const actualColumns = await getDbColumns('land_records');
+    const hasUpdatedAt = actualColumns.some(col => col.toLowerCase() === 'updated_at' || col.toLowerCase() === 'updatedat');
+    const cachedRecords = getFromCache<RecordFile[]>(CACHE_KEYS.RECORDS, []);
+    
+    let lastSync = typeof window !== 'undefined' ? localStorage.getItem('last_sync_records') : null;
+    
+    if (hasUpdatedAt && cachedRecords.length > 0 && lastSync) {
+        console.log(`[Sync] Performing incremental sync since ${lastSync}...`);
+        const colName = actualColumns.find(col => col.toLowerCase() === 'updated_at' || col.toLowerCase() === 'updatedat') || 'updated_at';
+        
+        try {
+            const { data, error } = await supabase
+                .from('land_records')
+                .select('*')
+                .gt(colName, lastSync);
+                
+            if (error) throw error;
+            
+            if (data && data.length > 0) {
+                console.log(`[Sync] Found ${data.length} updated records since last sync.`);
+                const mergedMap = new Map();
+                cachedRecords.forEach((r: any) => {
+                    if (r.id) mergedMap.set(r.id, r);
+                });
+                data.forEach((item: any) => {
+                    if (item.id) {
+                        mergedMap.set(item.id, mapRecordFromDb(item));
+                    }
+                });
+                const mergedRecords = Array.from(mergedMap.values());
+                
+                // Sort by receivedDate descending, then ID ascending
+                mergedRecords.sort((a, b) => {
+                    const dateA = a.receivedDate ? new Date(a.receivedDate).getTime() : 0;
+                    const dateB = b.receivedDate ? new Date(b.receivedDate).getTime() : 0;
+                    if (dateA !== dateB) return dateB - dateA;
+                    return String(a.id).localeCompare(String(b.id));
+                });
+                
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('last_sync_records', new Date().toISOString());
+                }
+                saveToCache(CACHE_KEYS.RECORDS, mergedRecords);
+                return mergedRecords;
+            } else {
+                console.log(`[Sync] No new or updated records found since last sync.`);
+                return cachedRecords;
+            }
+        } catch (syncErr) {
+            console.warn("Incremental sync failed, falling back to full fetch:", syncErr);
+        }
+    }
+
     let from = 0;
     const step = 1000;
     let hasMore = true;
@@ -86,6 +139,9 @@ export const fetchRecords = async (): Promise<RecordFile[]> => {
     const uniqueRecords = Array.from(uniqueMap.values());
     
     console.log(`[Fetch] Total fetched: ${uniqueRecords.length}`);
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('last_sync_records', new Date().toISOString());
+    }
     saveToCache(CACHE_KEYS.RECORDS, uniqueRecords);
     return uniqueRecords as RecordFile[];
 
