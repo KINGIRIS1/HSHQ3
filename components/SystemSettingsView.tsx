@@ -235,6 +235,25 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [dbTestStatus, setDbTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [dbTestMsg, setDbTestMsg] = useState('');
   
+  // Sync Mode States
+  const [syncMode, setSyncMode] = useState<'server_pagination' | 'client_full'>(() => {
+      if (typeof window !== 'undefined') {
+          return (localStorage.getItem('data_sync_mode') as 'server_pagination' | 'client_full') || 'server_pagination';
+      }
+      return 'server_pagination';
+  });
+
+  const handleSaveSyncMode = (mode: 'server_pagination' | 'client_full') => {
+      setSyncMode(mode);
+      if (typeof window !== 'undefined') {
+          localStorage.setItem('data_sync_mode', mode);
+          if (mode === 'server_pagination') {
+              localStorage.removeItem('last_sync_records');
+          }
+          window.location.reload();
+      }
+  };
+
   // Update State (Manual Config)
   const [manualVersion, setManualVersion] = useState('');
   const [manualUrl, setManualUrl] = useState('');
@@ -669,6 +688,53 @@ const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                             <button onClick={handleTestDatabase} disabled={dbTestStatus === 'testing'} className="w-full md:w-auto px-6 py-2.5 bg-blue-50 border border-blue-200 text-blue-700 font-medium text-sm rounded-xl hover:bg-blue-100 transition-colors shadow-sm flex items-center justify-center gap-2"> 
                                 {dbTestStatus === 'testing' ? <Loader2 className="animate-spin" size={16} /> : 'Kiểm tra kết nối'} 
                             </button>
+                        </div>
+                    </div>
+
+                    {/* Sync Mode Configuration */}
+                    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                        <h3 className="font-black text-gray-700 flex items-center gap-2 mb-3 tracking-tight">
+                            <RefreshCw size={18} className="text-blue-500" /> Chế độ đồng bộ & Tải dữ liệu hồ sơ
+                        </h3>
+                        <p className="text-xs text-gray-500 mb-5 leading-relaxed font-medium">
+                            Chọn phương thức tải dữ liệu phù hợp với hiệu năng máy tính của bạn. "Phân trang phía Server" tối ưu tốc độ cho máy cấu hình yếu, tránh bị chậm lag khi cơ sở dữ liệu có hàng ngàn hồ sơ.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div 
+                                onClick={() => handleSaveSyncMode('server_pagination')}
+                                className={`border rounded-2xl p-5 flex items-start gap-4 cursor-pointer transition-all ${syncMode === 'server_pagination' ? 'border-blue-500 bg-blue-50/10 ring-2 ring-blue-500/10' : 'border-gray-200 hover:border-blue-300 hover:bg-slate-50/50'}`}
+                            >
+                                <input 
+                                    type="radio" 
+                                    name="syncMode" 
+                                    value="server_pagination" 
+                                    checked={syncMode === 'server_pagination'} 
+                                    onChange={() => handleSaveSyncMode('server_pagination')}
+                                    className="mt-1 text-blue-600 focus:ring-blue-500 h-4 w-4 shrink-0" 
+                                />
+                                <div>
+                                    <span className="text-sm font-black block text-gray-800 tracking-tight">Phân trang phía Server (Tốc độ tối đa, khuyên dùng)</span>
+                                    <span className="text-[11px] text-gray-500 block mt-2 leading-relaxed">Chỉ tải dữ liệu của trang hiện tại từ Cloud. Các thao tác tìm kiếm, lọc, sắp xếp được thực hiện trực tiếp trên Server. Khởi động ứng dụng tức thì, không hao bộ nhớ RAM.</span>
+                                </div>
+                            </div>
+
+                            <div 
+                                onClick={() => handleSaveSyncMode('client_full')}
+                                className={`border rounded-2xl p-5 flex items-start gap-4 cursor-pointer transition-all ${syncMode === 'client_full' ? 'border-blue-500 bg-blue-50/10 ring-2 ring-blue-500/10' : 'border-gray-200 hover:border-blue-300 hover:bg-slate-50/50'}`}
+                            >
+                                <input 
+                                    type="radio" 
+                                    name="syncMode" 
+                                    value="client_full" 
+                                    checked={syncMode === 'client_full'} 
+                                    onChange={() => handleSaveSyncMode('client_full')}
+                                    className="mt-1 text-blue-600 focus:ring-blue-500 h-4 w-4 shrink-0" 
+                                />
+                                <div>
+                                    <span className="text-sm font-black block text-gray-800 tracking-tight">Đồng bộ lưu Cache ngoại tuyến (Offline Sync)</span>
+                                    <span className="text-[11px] text-gray-500 block mt-2 leading-relaxed">Tải tăng dần (Incremental Sync) và lưu toàn bộ hồ sơ đất đai về bộ nhớ IndexedDB của trình duyệt. Tra cứu cực nhanh ngay cả khi không có kết nối mạng LAN/Internet.</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

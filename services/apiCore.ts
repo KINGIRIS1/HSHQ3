@@ -91,36 +91,30 @@ export const saveToMemoryCache = (key: string, data: any) => {
     memoryCache[key] = data;
 };
 
+// Preload all keys from IndexedDB to memoryCache asynchronously on startup
+if (typeof window !== 'undefined') {
+    const preloadCache = async () => {
+        try {
+            const keys = Object.values(CACHE_KEYS);
+            for (const key of keys) {
+                const data = await getFromIndexedDB(key, undefined);
+                if (data !== undefined) {
+                    memoryCache[key] = data;
+                }
+            }
+            console.log('Successfully preloaded all cache keys from IndexedDB to memoryCache.');
+        } catch (err) {
+            console.warn('Failed to preload cache keys from IndexedDB', err);
+        }
+    };
+    preloadCache();
+}
+
 export const saveToCache = (key: string, data: any) => {
     memoryCache[key] = data;
     if (typeof window === 'undefined') return;
 
-    try {
-        if (key === CACHE_KEYS.RECORDS && Array.isArray(data) && data.length > 500) {
-            const truncated = data.slice(0, 500);
-            localStorage.setItem(key, JSON.stringify(truncated));
-            console.info(`Saved truncated ${key} (500 items) to LocalStorage.`);
-        } else {
-            localStorage.setItem(key, JSON.stringify(data));
-        }
-    } catch (e: any) {
-        if (e.name === 'QuotaExceededError' || e?.message?.includes('quota')) {
-            console.warn(`LocalStorage full when saving ${key}. Attempting to truncate...`);
-            if (Array.isArray(data) && data.length > 500) {
-                try {
-                    const truncated = data.slice(0, 500);
-                    localStorage.setItem(key, JSON.stringify(truncated));
-                    console.info(`Successfully saved truncated ${key} (500 items) to free space.`);
-                } catch (err) {
-                    console.warn(`Failed to save even truncated ${key}`, err);
-                }
-            }
-        } else {
-            console.warn('LocalStorage save error:', e);
-        }
-    }
-
-    // Always asynchronously write the FULL data to IndexedDB
+    // Save the FULL data directly to IndexedDB to bypass the 5MB limit of LocalStorage completely
     saveToIndexedDB(key, data);
 };
 
@@ -131,16 +125,20 @@ export const getFromCache = <T>(key: string, fallback: T): T => {
 
     if (typeof window === 'undefined') return fallback;
 
-    try {
-        const cached = localStorage.getItem(key);
-        if (cached) {
-            console.log(`[Offline Mode] Loaded data from cache: ${key}`);
-            const parsed = JSON.parse(cached);
-            memoryCache[key] = parsed;
-            return parsed;
+    // Since IndexedDB is async and may not have finished preloading yet on immediate first renders,
+    // we provide a fallback to localStorage ONLY for small config keys (NOT heavy records list)
+    // to preserve immediate settings loads while keeping the heavy lists purely in IndexedDB.
+    if (key !== CACHE_KEYS.RECORDS) {
+        try {
+            const cached = localStorage.getItem(key);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                memoryCache[key] = parsed;
+                return parsed;
+            }
+        } catch (e) {
+            // ignore
         }
-    } catch (e) {
-        console.warn('Error reading cache:', e);
     }
     return fallback;
 };
@@ -353,6 +351,22 @@ export const markRecordAsSyncedInCache = (id: string) => {
     }
 };
 
+const removeVietnameseTonesInCore = (str: string): string => {
+    if (!str) return '';
+    let res = str.toLowerCase();
+    res = res.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    res = res.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    res = res.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    res = res.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    res = res.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    res = res.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    res = res.replace(/đ/g, "d");
+    res = res.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, ""); 
+    res = res.replace(/\u02C6|\u0306|\u031B/g, ""); 
+    res = res.replace(/ + /g, " ");
+    return res.trim();
+};
+
 export const mapRecordFromDb = (item: any): any => {
     if (!item) return item;
     const r = { ...item };
@@ -449,6 +463,16 @@ export const mapRecordFromDb = (item: any): any => {
     if (r.rejectDate === undefined && (r.rejectdate !== undefined || r.reject_date !== undefined)) {
         r.rejectDate = r.rejectdate || r.reject_date;
     }
+
+    const codePart = removeVietnameseTonesInCore(r.code || '');
+    const namePart = removeVietnameseTonesInCore(r.customerName || '');
+    const wardPart = removeVietnameseTonesInCore(r.ward || '');
+    const contentPart = removeVietnameseTonesInCore(r.content || '');
+    const issuePart = removeVietnameseTonesInCore(r.issueNumber || '');
+    const entryPart = removeVietnameseTonesInCore(r.entryNumber || '');
+    const phonePart = r.phoneNumber ? r.phoneNumber.trim() : '';
+
+    r._normalizedSearchString = `${codePart}|${namePart}|${wardPart}|${contentPart}|${issuePart}|${entryPart}|${phonePart}`.toLowerCase();
 
     return r;
 };

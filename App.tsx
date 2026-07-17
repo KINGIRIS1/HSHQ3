@@ -16,6 +16,8 @@ import { updateRecordApi, saveEmployeeApi, saveUserApi, forceUpdateRecordsBatchA
 import { migrateCungCapTaiLieu, migrateCongVanToLandRecords, saveArchiveRecord, fetchArchiveRecords } from './services/apiArchive';
 import * as XLSX from 'xlsx-js-style';
 import { CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { supabase, isConfigured } from './services/supabaseClient';
+import { mapRecordFromDb } from './services/apiCore';
 
 import { useAppData } from './hooks/useAppData';
 import { useRecordFilter } from './hooks/useRecordFilter';
@@ -213,10 +215,17 @@ function App() {
       records: rawRecords, employees, users, wards, holidays, rolePermissions, departmentPermissions, connectionStatus, 
       isUpdateAvailable, latestVersion, updateUrl,
       setEmployees, setUsers, setRecords, setWards,
-      loadData, handleAddOrUpdateRecord, handleDeleteRecord, handleImportRecords,
+      loadData, 
+      handleAddOrUpdateRecord: rawHandleAddOrUpdateRecord, 
+      handleDeleteRecord: rawHandleDeleteRecord, 
+      handleImportRecords: rawHandleImportRecords,
       handleSaveEmployee, handleDeleteEmployee, handleDeleteAllData, handleUpdateUser, handleDeleteUser,
-      handleTransferPendingOneStopRecords, handleSyncMissingFieldsFromArchive
+      handleTransferPendingOneStopRecords: rawHandleTransferPendingOneStopRecords, 
+      handleSyncMissingFieldsFromArchive: rawHandleSyncMissingFieldsFromArchive
   } = useAppData(currentUser);
+
+  // Trigger state to notify useRecordFilter to refetch in server-side pagination mode
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   // Re-fetch data from database when user successfully logs in
   useEffect(() => {
@@ -226,14 +235,43 @@ function App() {
   }, [currentUser, loadData]);
 
   const handleAddOrUpdateWithToast = useCallback(async (recordData: any, forceDeleteOnWithdrawn: boolean = false) => {
-      const res = await handleAddOrUpdateRecord(recordData, forceDeleteOnWithdrawn);
+      const res = await rawHandleAddOrUpdateRecord(recordData, forceDeleteOnWithdrawn);
       if (res) {
           setToast({ type: 'success', message: recordData.id ? `Đã cập nhật hồ sơ thành công: ${res.code}` : `Đã tiếp nhận hồ sơ mới: ${res.code}` });
+          setRefreshCounter(prev => prev + 1);
       } else if (recordData.status !== RecordStatus.WITHDRAWN) {
           setToast({ type: 'error', message: 'Lỗi khi lưu hồ sơ.' });
       }
       return res;
-  }, [handleAddOrUpdateRecord, setToast]);
+  }, [rawHandleAddOrUpdateRecord, setToast]);
+
+  const handleDeleteRecord = useCallback(async (id: string) => {
+      const success = await rawHandleDeleteRecord(id);
+      if (success) {
+          setRefreshCounter(prev => prev + 1);
+      }
+      return success;
+  }, [rawHandleDeleteRecord]);
+
+  const handleImportRecords = useCallback(async (imported: any[], onProgress?: (processed: number, total: number) => void) => {
+      const res = await rawHandleImportRecords(imported, onProgress);
+      if (res) {
+          setRefreshCounter(prev => prev + 1);
+      }
+      return res;
+  }, [rawHandleImportRecords]);
+
+  const handleTransferPendingOneStopRecords = useCallback(async () => {
+      const res = await rawHandleTransferPendingOneStopRecords();
+      setRefreshCounter(prev => prev + 1);
+      return res;
+  }, [rawHandleTransferPendingOneStopRecords]);
+
+  const handleSyncMissingFieldsFromArchive = useCallback(async () => {
+      const res = await rawHandleSyncMissingFieldsFromArchive();
+      setRefreshCounter(prev => prev + 1);
+      return res;
+  }, [rawHandleSyncMissingFieldsFromArchive]);
 
   const records = useMemo(() => {
       return rawRecords;
@@ -246,7 +284,7 @@ function App() {
   const { activeRemindersCount } = useReminderSystem(records, handleUpdateRecordState);
 
   // Filtering Logic
-  const recordFilterProps = useRecordFilter(records, currentUser, currentView, employees, users);
+  const recordFilterProps = useRecordFilter(records, currentUser, currentView, employees, users, refreshCounter);
 
   // TỰ ĐỘNG BỎ TÍCH CHỌN KHI CHUYỂN TAB ĐỂ TRÁNH NHẦM LẪN GIAO HỒ SƠ CHỒNG CHÉO
   useEffect(() => {
@@ -315,7 +353,27 @@ function App() {
 
   const handleExportReportExcel = async (fromDateStr: string, toDateStr: string, ward: string, title?: string, data?: RecordFile[]) => {
       if (!currentUser) return;
-      await exportReportToExcel(data || records, fromDateStr, toDateStr, ward, employees, title);
+      
+      let exportData = data || records;
+      const syncMode = typeof window !== 'undefined' ? (localStorage.getItem('data_sync_mode') || 'server_pagination') : 'server_pagination';
+      if (!data && syncMode === 'server_pagination' && isConfigured) {
+          try {
+              setToast({ type: 'success', message: 'Đang tải dữ liệu báo cáo từ Server...' });
+              let query = supabase.from('land_records').select('*');
+              if (fromDateStr) query = query.gte('receivedDate', `${fromDateStr}T00:00:00`);
+              if (toDateStr) query = query.lte('receivedDate', `${toDateStr}T23:59:59`);
+              if (ward && ward !== 'all') query = query.eq('ward', ward);
+              
+              const { data: dbData, error } = await query;
+              if (error) throw error;
+              if (dbData) {
+                  exportData = dbData.map((item: any) => mapRecordFromDb(item) as RecordFile);
+              }
+          } catch (err) {
+              console.error("Lỗi khi tải dữ liệu báo cáo để xuất Excel:", err);
+          }
+      }
+      await exportReportToExcel(exportData, fromDateStr, toDateStr, ward, employees, title);
   };
 
   const handleUpdateCurrentAccount = async (data: { name: string; password?: string; department?: string }) => {
@@ -344,8 +402,27 @@ function App() {
       const to = new Date(toDateStr); to.setHours(23, 59, 59, 999); 
       
       let filtered = data;
+      const syncMode = typeof window !== 'undefined' ? (localStorage.getItem('data_sync_mode') || 'server_pagination') : 'server_pagination';
+      
       if (!filtered) {
-          filtered = records.filter(r => { if(!r.receivedDate) return false; const rDate = new Date(r.receivedDate); return rDate >= from && rDate <= to; });
+          if (syncMode === 'server_pagination' && isConfigured) {
+              try {
+                  let query = supabase.from('land_records').select('*');
+                  if (fromDateStr) query = query.gte('receivedDate', `${fromDateStr}T00:00:00`);
+                  if (toDateStr) query = query.lte('receivedDate', `${toDateStr}T23:59:59`);
+                  
+                  const { data: dbData, error } = await query;
+                  if (error) throw error;
+                  if (dbData) {
+                      filtered = dbData.map((item: any) => mapRecordFromDb(item) as RecordFile);
+                  }
+              } catch (err) {
+                  console.error("Lỗi khi tải dữ liệu để tạo báo cáo AI:", err);
+                  filtered = [];
+              }
+          } else {
+              filtered = records.filter(r => { if(!r.receivedDate) return false; const rDate = new Date(r.receivedDate); return rDate >= from && rDate <= to; });
+          }
       }
 
       const formatDateVN = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
@@ -383,7 +460,7 @@ function App() {
 
   const toggleSelectAll = useCallback(() => {
       if (selectedRecordIds.size === recordFilterProps.paginatedRecords.length && recordFilterProps.paginatedRecords.length > 0) setSelectedRecordIds(new Set());
-      else setSelectedRecordIds(new Set(recordFilterProps.paginatedRecords.map(r => r.id)));
+      else setSelectedRecordIds(new Set(recordFilterProps.paginatedRecords.map((r: any) => r.id)));
   }, [selectedRecordIds, recordFilterProps.paginatedRecords]);
 
   const toggleSelectRecord = useCallback((id: string) => {
@@ -1153,8 +1230,12 @@ function App() {
       setIsRejectReasonModalOpen(true);
   }, [records, selectedRecordIds]);
 
-  const handleExportReturnedList = useCallback(() => {
-      const targets = recordFilterProps.filteredRecords;
+  const handleExportReturnedList = useCallback(async () => {
+      let targets = recordFilterProps.filteredRecords;
+      if (recordFilterProps.serverPaginationEnabled) {
+          setToast({ type: 'success', message: 'Đang tải toàn bộ dữ liệu bàn giao từ Server...' });
+          targets = await recordFilterProps.fetchFullFilteredRecords();
+      }
       if (targets.length === 0) {
           setToast({ type: 'error', message: 'Không có hồ sơ nào trong danh sách để xuất!' });
           return;

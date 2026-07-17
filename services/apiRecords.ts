@@ -2,7 +2,7 @@
 import { supabase, isConfigured } from './supabaseClient';
 import { RecordFile } from '../types';
 import { MOCK_RECORDS, API_BASE_URL } from '../constants';
-import { logError, getFromCache, saveToCache, CACHE_KEYS, sanitizeData, normalizeCode, mapRecordFromDb, getDbColumns, mapPayloadToDb } from './apiCore';
+import { logError, getFromCache, saveToCache, CACHE_KEYS, sanitizeData, normalizeCode, mapRecordFromDb, getDbColumns, mapPayloadToDb, getFromIndexedDB } from './apiCore';
 
 export const RECORD_DB_COLUMNS = [
     'id', 'code', 'customerName', 'phoneNumber', 'cccd', 'customerAddress', 'ward', 'landPlot', 'mapSheet', 
@@ -38,6 +38,27 @@ export const fetchRecords = async (): Promise<RecordFile[]> => {
   if (!isConfigured) {
       console.warn("Supabase chưa được cấu hình. Đang dùng dữ liệu Cache/Mock.");
       return getFromCache(CACHE_KEYS.RECORDS, MOCK_RECORDS);
+  }
+
+  // --- Optimized Server Pagination Mode ---
+  const syncMode = typeof window !== 'undefined' ? (localStorage.getItem('data_sync_mode') || 'server_pagination') : 'server_pagination';
+  if (syncMode === 'server_pagination') {
+      try {
+          console.log("[Sync] Server pagination active. Fetching active/in-progress records for workflow badge engine...");
+          const { data, error } = await supabase
+              .from('land_records')
+              .select('*')
+              .not('status', 'in', '("RETURNED","WITHDRAWN","REJECTED","HANDOVER")');
+              
+          if (error) throw error;
+          if (data) {
+              const mapped = data.map(item => mapRecordFromDb(item) as RecordFile);
+              console.log(`[Sync] Mapped ${mapped.length} active records.`);
+              return mapped;
+          }
+      } catch (err) {
+          console.warn("Failed to fetch active records for server pagination, falling back:", err);
+      }
   }
 
   try {

@@ -3,13 +3,16 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { RecordFile, User, UserRole, RecordStatus, Employee } from '../types';
 import { removeVietnameseTones, isRecordOverdue, isRecordApproaching, isArchiveType, isMeasurementType, isRegType, getGcnWorkflowStepsHelper } from '../utils/appHelpers';
 import { REGISTRATION_PROCEDURES } from '../constants';
+import { supabase, isConfigured } from '../services/supabaseClient';
+import { mapRecordFromDb, getDbColumns } from '../services/apiCore';
 
 export const useRecordFilter = (
     records: RecordFile[],
     currentUser: User | null,
     currentView: string,
     employees: Employee[],
-    users: User[] = []
+    users: User[] = [],
+    refreshCounter: number = 0
 ) => {
     // Filter States
     // CẬP NHẬT: Sử dụng Object để lưu search term riêng cho từng view
@@ -20,11 +23,11 @@ export const useRecordFilter = (
     const searchTerm = searchStates[currentView] || '';
     const debouncedSearchTerm = debouncedSearchStates[currentView] || '';
 
-    // Debounce the search input by 200ms
+    // Debounce the search input by 300ms (as requested by user)
     useEffect(() => {
         const handler = setTimeout(() => {
             setDebouncedSearchStates(searchStates);
-        }, 200);
+        }, 300);
         return () => clearTimeout(handler);
     }, [searchStates]);
 
@@ -405,18 +408,7 @@ export const useRecordFilter = (
         return result;
     }, [records, currentView, currentUser, employees, users, handoverTab]);
 
-    // Pre-normalize records once for lightning-fast search matches
-    const normalizedRecords = useMemo(() => {
-        return activeTabRecords.map(r => ({
-            record: r,
-            normalizedCode: removeVietnameseTones(r.code || '').toLowerCase(),
-            normalizedCustomerName: removeVietnameseTones(r.customerName || '').toLowerCase(),
-            normalizedWard: removeVietnameseTones(r.ward || '').toLowerCase(),
-            normalizedContent: removeVietnameseTones(r.content || '').toLowerCase(),
-            normalizedIssueNumber: removeVietnameseTones(r.issueNumber || '').toLowerCase(),
-            normalizedEntryNumber: removeVietnameseTones(r.entryNumber || '').toLowerCase(),
-        }));
-    }, [activeTabRecords]);
+    // Pre-normalization is now done once globally at the apiCore level into r._normalizedSearchString
 
     const filteredRecords = useMemo(() => {
         let result = [...activeTabRecords];
@@ -426,18 +418,13 @@ export const useRecordFilter = (
             const lowerSearch = removeVietnameseTones(debouncedSearchTerm).toLowerCase().trim();
             const matchedList: RecordFile[] = [];
             
-            for (let i = 0; i < normalizedRecords.length; i++) {
-                const item = normalizedRecords[i];
-                const r = item.record;
-                if (
-                    item.normalizedCode.includes(lowerSearch) ||
-                    item.normalizedCustomerName.includes(lowerSearch) ||
-                    item.normalizedWard.includes(lowerSearch) ||
-                    item.normalizedContent.includes(lowerSearch) ||
-                    item.normalizedIssueNumber.includes(lowerSearch) ||
-                    item.normalizedEntryNumber.includes(lowerSearch) ||
-                    (r.phoneNumber && r.phoneNumber.includes(debouncedSearchTerm))
-                ) {
+            for (let i = 0; i < activeTabRecords.length; i++) {
+                const r = activeTabRecords[i];
+                const searchStr = r._normalizedSearchString || (
+                    `${r.code || ''}|${r.customerName || ''}|${r.ward || ''}|${r.content || ''}|${r.issueNumber || ''}|${r.entryNumber || ''}|${r.phoneNumber || ''}`
+                ).toLowerCase();
+
+                if (searchStr.includes(lowerSearch)) {
                     matchedList.push(r);
                 }
             }
@@ -585,14 +572,401 @@ export const useRecordFilter = (
         });
 
         return result;
-    }, [activeTabRecords, debouncedSearchTerm, filterProcedure, filterStatus, filterEmployee, filterDate, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, showAdvancedDateFilter, warningFilter, currentView, sortConfig, handoverTab, currentUser, filterArchive, normalizedRecords]);
+    }, [activeTabRecords, debouncedSearchTerm, filterProcedure, filterStatus, filterEmployee, filterDate, filterSpecificDate, filterAssignedDate, filterFromDate, filterToDate, showAdvancedDateFilter, warningFilter, currentView, sortConfig, handoverTab, currentUser, filterArchive]);
+
+    const totalPages = useMemo(() => {
+        return Math.ceil(filteredRecords.length / itemsPerPage);
+    }, [filteredRecords.length, itemsPerPage]);
 
     const paginatedRecords = useMemo(() => {
-        const start = (currentPage - 1) * itemsPerPage;
-        return filteredRecords.slice(start, start + itemsPerPage);
+        const from = (currentPage - 1) * itemsPerPage;
+        const to = from + itemsPerPage;
+        return filteredRecords.slice(from, to);
     }, [filteredRecords, currentPage, itemsPerPage]);
 
-    const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+    const syncMode = typeof window !== 'undefined' ? (localStorage.getItem('data_sync_mode') || 'server_pagination') : 'server_pagination';
+    const serverPaginationEnabled = syncMode === 'server_pagination';
+
+    const [serverRecords, setServerRecords] = useState<RecordFile[]>([]);
+    const [serverTotalCount, setServerTotalCount] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Build common filter parameters helper for server-side queries
+    const applyServerQueryFilters = (query: any) => {
+        // --- 1. Filter by currentView group ---
+        const isRegistrationView = [
+            'registration_records', 'registration_assign_tasks', 'registration_completed_list', 
+            'registration_pending_check_list', 'registration_check_list', 'registration_handover_list', 
+            'registration_director_completed', 'registration_vao_so',
+            'registration_phieu_chuyen_thue',
+            'registration_tbt', 'registration_in_gcn', 'registration_tham_tra'
+        ].includes(currentView);
+
+        const isArchiveView = [
+            'archive_records', 'archive_assign_tasks', 'archive_completed_list', 
+            'archive_pending_check_list', 'archive_check_list', 'archive_handover_list', 
+            'archive_director_completed'
+        ].includes(currentView);
+
+        const isCongVanView = [
+            'congvan_records', 'congvan_assign_tasks', 'congvan_completed_list', 
+            'congvan_pending_check_list', 'congvan_check_list', 'congvan_handover_list', 
+            'congvan_director_completed'
+        ].includes(currentView);
+
+        const isOtherView = [
+            'other_records', 'other_assign_tasks', 'other_check_list', 'other_handover_list', 'other_director_completed'
+        ].includes(currentView);
+
+        const isMeasurementView = [
+            'all_records', 'assign_tasks', 'completed_list', 'pending_check_list', 'check_list', 'handover_list', 'director_completed'
+        ].includes(currentView);
+
+        if (isRegistrationView) {
+            query = query.or('recordType.ilike.3.%,recordType.ilike.%đăng ký%,recordType.ilike.%cấp giấy%,recordType.ilike.%cấp đổi%,recordType.ilike.%cấp lại%,recordType.ilike.%giao đất%,recordType.ilike.%thu hồi%,recordType.ilike.%chuyển mục đích%,recordType.ilike.%gia hạn%,recordType.ilike.%thừa kế%,recordType.ilike.%tặng cho%,recordType.ilike.%chuyển nhượng%,recordType.ilike.%thế chấp%,recordType.ilike.%xóa thế chấp%');
+        } else if (isArchiveView) {
+            query = query.or('recordType.ilike.1.%,recordType.ilike.%lưu trữ%,recordType.ilike.%sao lục%,recordType.ilike.%công văn%,recordType.ilike.%cung cấp dữ liệu%,recordType.ilike.%cung cấp tài liệu%,recordType.ilike.%cung cấp thông tin%');
+        } else if (isCongVanView) {
+            query = query.or('recordType.ilike.1.1%,recordType.ilike.%công văn%');
+        } else if (isOtherView) {
+            query = query.in('recordType', ['CMD', 'Tòa án', 'Thi hành án']);
+        } else if (isMeasurementView) {
+            query = query.or('recordType.ilike.2.%,recordType.ilike.%đo đạc%,recordType.ilike.%trích đo%,recordType.ilike.%cắm mốc%,recordType.ilike.%trích lục%,recordType.ilike.%số thửa%');
+        }
+
+        // --- 2. Filter for Subadmin ---
+        if (currentUser && currentUser.role === UserRole.SUBADMIN) {
+            if (directorOrLeaderIds && directorOrLeaderIds.size > 0) {
+                const idList = Array.from(directorOrLeaderIds);
+                query = query.not('assignedTo', 'in', `(${idList.join(',')})`)
+                             .not('checkedBy', 'in', `(${idList.join(',')})`)
+                             .not('submittedTo', 'in', `(${idList.join(',')})`);
+            }
+        }
+
+        // --- 3. Filter specialized view department boundaries ---
+        const isSpecializedView = isRegistrationView || isArchiveView || isCongVanView || isOtherView || isMeasurementView;
+        if (isSpecializedView) {
+            const threeDaysAgo = new Date();
+            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+            const dateStr = threeDaysAgo.toISOString().substring(0, 10);
+            query = query.or(`isDeptSynced.is.null,isDeptSynced.eq.true,assignedTo.not.is.null,status.neq.RECEIVED,receivedDate.lt.${dateStr},receivedDate.is.null`);
+        }
+
+        // --- 4. Sub-view Specific Constraints ---
+        const isCheckView = [
+            'check_list', 'registration_check_list', 'archive_check_list', 'congvan_check_list', 'other_check_list'
+        ].includes(currentView);
+        const isPendingCheckView = [
+            'pending_check_list', 'registration_pending_check_list', 'archive_pending_check_list', 'congvan_pending_check_list'
+        ].includes(currentView);
+        const isCompletedWorkView = [
+            'completed_list', 'registration_completed_list', 'archive_completed_list', 'congvan_completed_list'
+        ].includes(currentView);
+        const isDirectorCompletedView = [
+            'director_completed', 'registration_director_completed', 'archive_director_completed', 'congvan_director_completed', 'other_director_completed'
+        ].includes(currentView);
+
+        if (isCheckView) {
+            if (isDirector) {
+                query = query.eq('status', RecordStatus.PENDING_SIGN).eq('submittedTo', currentUser?.employeeId);
+            } else {
+                query = query.eq('status', RecordStatus.PENDING_SIGN);
+            }
+        } else if (isPendingCheckView) {
+            query = query.in('status', [RecordStatus.PENDING_CHECK, RecordStatus.CHECKED]);
+        } else if (isCompletedWorkView) {
+            query = query.in('status', [
+                RecordStatus.ASSIGNED, RecordStatus.IN_PROGRESS, RecordStatus.TBT, 
+                RecordStatus.COMPLETED_WORK, RecordStatus.PENDING_SUPPLEMENT
+            ]);
+            
+            const isUserTeamLeaderOrDelegated = (() => {
+                if (!currentUser) return false;
+                if (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUBADMIN || currentUser.role === UserRole.TEAM_LEADER) return true;
+                return directorOrLeaderIds.has(currentUser.employeeId || '');
+            })();
+
+            if (currentUser && currentUser.role === UserRole.EMPLOYEE && !isUserTeamLeaderOrDelegated) {
+                query = query.eq('assignedTo', currentUser.employeeId);
+            }
+        } else if (isDirectorCompletedView) {
+            query = query.eq('submittedTo', currentUser?.employeeId)
+                         .not('status', 'in', '("PENDING_SIGN","RECEIVED","ASSIGNED","IN_PROGRESS","COMPLETED_WORK")');
+        } else if (isHandoverView) {
+            if (handoverTab === 'today') {
+                query = query.eq('status', RecordStatus.SIGNED);
+            } else if (handoverTab === 'returned') {
+                query = query.eq('status', RecordStatus.RETURNED);
+            } else {
+                query = query.eq('status', RecordStatus.HANDOVER);
+            }
+        } else if (isAssignView) {
+            query = query.eq('status', RecordStatus.RECEIVED).is('assignedTo', null);
+        } else if ([
+            'registration_phieu_chuyen_thue',
+            'registration_tbt',
+            'registration_in_gcn',
+            'registration_tham_tra'
+        ].includes(currentView)) {
+            if (currentView === 'registration_phieu_chuyen_thue') {
+                query = query.in('status', [RecordStatus.IN_PROGRESS, RecordStatus.PENDING_CHECK]);
+            } else if (currentView === 'registration_tbt') {
+                query = query.in('status', [RecordStatus.TBT, RecordStatus.IN_PROGRESS]);
+            } else if (currentView === 'registration_in_gcn') {
+                query = query.eq('status', RecordStatus.IN_PROGRESS);
+            } else if (currentView === 'registration_tham_tra') {
+                query = query.in('status', [RecordStatus.PENDING_CHECK, RecordStatus.IN_PROGRESS]);
+            }
+            
+            const isUserTeamLeaderOrDelegated = (() => {
+                if (!currentUser) return false;
+                if (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUBADMIN || currentUser.role === UserRole.TEAM_LEADER) return true;
+                return directorOrLeaderIds.has(currentUser.employeeId || '');
+            })();
+
+            if (currentUser && currentUser.role === UserRole.EMPLOYEE && !isUserTeamLeaderOrDelegated) {
+                if (currentView === 'registration_tham_tra') {
+                    query = query.or(`checkedBy.eq.${currentUser.employeeId},assignedTo.eq.${currentUser.employeeId}`);
+                } else {
+                    query = query.eq('assignedTo', currentUser.employeeId);
+                }
+            }
+        }
+
+        // --- 5. Custom Filters (Procedure, Status, Employee) ---
+        if (filterProcedure !== 'all') {
+            query = query.eq('recordType', filterProcedure);
+        }
+
+        if (filterStatus !== 'all' && currentView !== 'handover_list' && currentView !== 'other_handover_list') {
+            if (isRegistrationView) {
+                if (filterStatus === 'dnlis') {
+                    query = query.ilike('privateNotes', '%dnlis%');
+                } else if (filterStatus === 'phieu_chuyen_thue') {
+                    query = query.ilike('privateNotes', '%phiếu chuyển%');
+                } else if (filterStatus === 'tbt') {
+                    query = query.or(`status.eq.TBT,privateNotes.ilike.%tbt%,privateNotes.ilike.%thông báo thuế%`);
+                } else if (filterStatus === 'in_gcn') {
+                    query = query.or(`privateNotes.ilike.%in gcn%,privateNotes.ilike.%in giấy chứng nhận%`);
+                } else if (filterStatus === 'tham_tra') {
+                    query = query.or(`status.eq.PENDING_CHECK,privateNotes.ilike.%thẩm tra%`);
+                } else if (filterStatus === 'trinh_ky_gcn') {
+                    query = query.or(`privateNotes.ilike.%trình ký%`);
+                } else if (filterStatus === 'vo_so_gcn') {
+                    query = query.ilike('privateNotes', '%vô số%');
+                } else if (filterStatus === 'giao_1_cua') {
+                    query = query.or(`privateNotes.ilike.%cửa%,privateNotes.ilike.%trả kết quả%`);
+                } else if (filterStatus === 'pending_supplement') {
+                    query = query.eq('status', RecordStatus.PENDING_SUPPLEMENT);
+                } else if (filterStatus === 'withdrawn') {
+                    query = query.eq('status', RecordStatus.WITHDRAWN);
+                } else if (filterStatus === 'rejected') {
+                    query = query.eq('status', RecordStatus.REJECTED);
+                } else if (filterStatus === 'returned') {
+                    query = query.eq('status', RecordStatus.RETURNED);
+                } else if (filterStatus === RecordStatus.RECEIVED) {
+                    query = query.eq('status', RecordStatus.RECEIVED).is('assignedTo', null);
+                } else if (filterStatus === RecordStatus.ASSIGNED) {
+                    query = query.or(`status.eq.ASSIGNED,and(status.eq.RECEIVED,assignedTo.not.is.null)`);
+                } else {
+                    query = query.eq('status', filterStatus);
+                }
+            } else {
+                if (filterStatus === RecordStatus.RECEIVED) {
+                    query = query.eq('status', RecordStatus.RECEIVED).is('assignedTo', null);
+                } else if (filterStatus === RecordStatus.ASSIGNED) {
+                    query = query.or(`status.eq.ASSIGNED,and(status.eq.RECEIVED,assignedTo.not.is.null)`);
+                } else {
+                    query = query.eq('status', filterStatus);
+                }
+            }
+        }
+
+        if (filterEmployee !== 'all' && !isAssignView) {
+            if (filterEmployee === 'unassigned') {
+                query = query.is('assignedTo', null).not('status', 'in', '("HANDOVER","RETURNED","WITHDRAWN")');
+            } else {
+                query = query.eq('assignedTo', filterEmployee);
+            }
+        }
+
+        // --- 6. Date Filters ---
+        if (isHandoverView) {
+            if (handoverTab === 'returned') {
+                if (filterFromDate) query = query.gte('resultReturnedDate', filterFromDate);
+                if (filterToDate) query = query.lte('resultReturnedDate', filterToDate);
+                
+                if (filterArchive === 'not_archived') {
+                    query = query.is('archiveBatch', null);
+                } else if (filterArchive === 'archived') {
+                    query = query.not('archiveBatch', 'is', null);
+                }
+            } else if (handoverTab === 'history') {
+                if (filterDate) {
+                    query = query.or(`exportDate.ilike.${filterDate}%,completedDate.ilike.${filterDate}%`);
+                }
+            }
+        } else {
+            if (filterSpecificDate) {
+                query = query.gte('receivedDate', `${filterSpecificDate}T00:00:00`)
+                             .lte('receivedDate', `${filterSpecificDate}T23:59:59`);
+            } else if (showAdvancedDateFilter) {
+                if (filterFromDate) query = query.gte('receivedDate', `${filterFromDate}T00:00:00`);
+                if (filterToDate) query = query.lte('receivedDate', `${filterToDate}T23:59:59`);
+            } else if (filterDate && filterDate !== 'all') {
+                const now = new Date();
+                let startStr = '';
+                if (filterDate === 'today') {
+                    startStr = now.toISOString().substring(0, 10);
+                    query = query.gte('receivedDate', `${startStr}T00:00:00`);
+                } else if (filterDate === 'yesterday') {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    startStr = yesterday.toISOString().substring(0, 10);
+                    query = query.gte('receivedDate', `${startStr}T00:00:00`)
+                                 .lte('receivedDate', `${startStr}T23:59:59`);
+                } else if (filterDate === 'this_week') {
+                    const day = now.getDay();
+                    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+                    const monday = new Date(now.setDate(diff));
+                    startStr = monday.toISOString().substring(0, 10);
+                    query = query.gte('receivedDate', `${startStr}T00:00:00`);
+                } else if (filterDate === 'this_month') {
+                    startStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+                    query = query.gte('receivedDate', `${startStr}T00:00:00`);
+                } else if (filterDate === 'this_year') {
+                    startStr = `${now.getFullYear()}-01-01`;
+                    query = query.gte('receivedDate', `${startStr}T00:00:00`);
+                }
+            }
+
+            if (filterAssignedDate) {
+                query = query.gte('assignedDate', `${filterAssignedDate}T00:00:00`)
+                             .lte('assignedDate', `${filterAssignedDate}T23:59:59`);
+            }
+        }
+
+        // --- 7. Warning Filters ---
+        if (warningFilter !== 'none' && currentUser) {
+            query = query.not('status', 'in', '("HANDOVER","WITHDRAWN","RETURNED")');
+            if (warningFilter === 'overdue') {
+                query = query.lt('deadline', new Date().toISOString());
+            } else if (warningFilter === 'approaching') {
+                const threeDaysLater = new Date();
+                threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+                query = query.gte('deadline', new Date().toISOString())
+                             .lte('deadline', threeDaysLater.toISOString());
+            }
+            if (currentUser.role === UserRole.EMPLOYEE) {
+                query = query.eq('assignedTo', currentUser.employeeId);
+            }
+        }
+
+        // --- 8. Search Term ---
+        if (debouncedSearchTerm) {
+            const term = debouncedSearchTerm.trim();
+            query = query.or(`code.ilike.%${term}%,customerName.ilike.%${term}%,ward.ilike.%${term}%,content.ilike.%${term}%,issueNumber.ilike.%${term}%,entryNumber.ilike.%${term}%,phoneNumber.ilike.%${term}%`);
+        }
+
+        return query;
+    };
+
+    useEffect(() => {
+        if (!serverPaginationEnabled || !isConfigured) {
+            return;
+        }
+
+        const fetchServerData = async () => {
+            setIsLoading(true);
+            try {
+                let query = supabase.from('land_records').select('*', { count: 'exact' });
+
+                // Apply conditions
+                query = applyServerQueryFilters(query);
+
+                // --- 9. Ordering & Sorting ---
+                const actualColumns = await getDbColumns('land_records');
+                const sortKeyLower = (sortConfig.key || 'receivedDate').toLowerCase();
+                const actualSortKey = actualColumns.find(col => col.toLowerCase() === sortKeyLower) || sortConfig.key || 'receivedDate';
+                query = query.order(actualSortKey, { ascending: sortConfig.direction === 'asc' });
+
+                // --- 10. Range/Pagination limits ---
+                const from = (currentPage - 1) * itemsPerPage;
+                const to = from + itemsPerPage - 1;
+                query = query.range(from, to);
+
+                const { data, count, error } = await query;
+                if (error) throw error;
+
+                if (data) {
+                    const mapped = data.map(item => mapRecordFromDb(item) as RecordFile);
+                    setServerRecords(mapped);
+                    setServerTotalCount(count || 0);
+                }
+            } catch (err) {
+                console.error("Lỗi khi tải dữ liệu phân trang từ Server:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchServerData();
+    }, [
+        serverPaginationEnabled, currentView, currentPage, itemsPerPage, sortConfig,
+        debouncedSearchTerm, filterProcedure, filterStatus, filterEmployee, filterDate, filterSpecificDate,
+        filterAssignedDate, filterFromDate, filterToDate, warningFilter, handoverTab, filterArchive, showAdvancedDateFilter, refreshCounter
+    ]);
+
+    // Fast helper to fetch full filtered records (up to 10000) for exporting to Excel
+    const fetchFullFilteredRecords = async (): Promise<RecordFile[]> => {
+        if (!serverPaginationEnabled || !isConfigured) {
+            return filteredRecords;
+        }
+
+        try {
+            let query = supabase.from('land_records').select('*');
+            query = applyServerQueryFilters(query);
+
+            const actualColumns = await getDbColumns('land_records');
+            const sortKeyLower = (sortConfig.key || 'receivedDate').toLowerCase();
+            const actualSortKey = actualColumns.find(col => col.toLowerCase() === sortKeyLower) || sortConfig.key || 'receivedDate';
+            query = query.order(actualSortKey, { ascending: sortConfig.direction === 'asc' });
+            
+            query = query.limit(10000);
+
+            const { data, error } = await query;
+            if (error) throw error;
+
+            if (data) {
+                return data.map(item => mapRecordFromDb(item) as RecordFile);
+            }
+        } catch (err) {
+            console.error("Lỗi khi tải toàn bộ dữ liệu lọc từ server:", err);
+        }
+        return serverRecords;
+    };
+
+    const finalFilteredRecords = useMemo(() => {
+        if (serverPaginationEnabled && isConfigured) {
+            return serverRecords;
+        }
+        return filteredRecords;
+    }, [serverPaginationEnabled, serverRecords, filteredRecords]);
+
+    const finalPaginatedRecords = useMemo(() => {
+        if (serverPaginationEnabled && isConfigured) {
+            return serverRecords;
+        }
+        return paginatedRecords;
+    }, [serverPaginationEnabled, serverRecords, paginatedRecords]);
+
+    const finalTotalPages = useMemo(() => {
+        if (serverPaginationEnabled && isConfigured) {
+            return Math.ceil(serverTotalCount / itemsPerPage);
+        }
+        return totalPages;
+    }, [serverPaginationEnabled, serverTotalCount, totalPages, itemsPerPage]);
 
     // Warning Counts
     const warningCount = useMemo(() => {
@@ -620,7 +994,13 @@ export const useRecordFilter = (
     }, [activeTabRecords]);
 
     return {
-        filteredRecords, paginatedRecords, totalPages, warningCount,
+        filteredRecords: finalFilteredRecords, 
+        paginatedRecords: finalPaginatedRecords, 
+        totalPages: finalTotalPages, 
+        warningCount,
+        serverPaginationEnabled,
+        isLoading,
+        fetchFullFilteredRecords,
         searchTerm, setSearchTerm,
         filterDate, setFilterDate,
         filterSpecificDate, setFilterSpecificDate,

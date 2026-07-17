@@ -31,3 +31,22 @@ ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "receiptType" text;
 ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "paymentAmount" numeric;
 ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "rejectReason" text;
 ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "rejectDate" timestamp;
+
+-- 3. Thêm cột updated_at để phục vụ tải tăng dần (Incremental Fetch)
+ALTER TABLE land_records ADD COLUMN IF NOT EXISTS "updated_at" timestamp with time zone DEFAULT timezone('utc'::text, now());
+
+-- Tạo trigger tự động cập nhật updated_at cho land_records
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = timezone('utc'::text, now());
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_land_records_updated_at ON land_records;
+CREATE TRIGGER update_land_records_updated_at
+    BEFORE UPDATE ON land_records
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+

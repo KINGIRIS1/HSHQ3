@@ -678,21 +678,42 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
                   record.deadline = calculateDeadline(record.recordType, record.receivedDate, record.hasTax);
               }
 
-              // Synchronize missing fields from the database if record exists by code or customerName
+              record._errors = errors;
+              mappedRecords.push(record);
+          }
+
+          // --- HIGH PERFORMANCE O(N + M) MATCHING USING HASH MAP ---
+          // 1. Map the Excel records by normalized code and customer name: O(M)
+          const excelCodeMap = new Map<string, any>();
+          const excelNameMap = new Map<string, any>();
+
+          mappedRecords.forEach(record => {
               const normCode = record.code ? record.code.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '') : '';
               const normName = record.customerName ? removeVietnameseTones(record.customerName.trim().toLowerCase()) : '';
               
-              const existingRecord = (records || []).find(r => {
-                  if (normCode && r.code) {
-                      const dbCode = r.code.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
-                      if (dbCode === normCode) return true;
-                  }
-                  if (normName && r.customerName) {
-                      const dbName = removeVietnameseTones(r.customerName.trim().toLowerCase());
-                      if (dbName === normName) return true;
-                  }
-                  return false;
-              });
+              if (normCode && !excelCodeMap.has(normCode)) {
+                  excelCodeMap.set(normCode, record);
+              }
+              if (normName && !excelNameMap.has(normName)) {
+                  excelNameMap.set(normName, record);
+              }
+          });
+
+          // 2. Iterate over DB records once to find matches: O(N)
+          (records || []).forEach(r => {
+              const dbCode = r.code ? r.code.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '') : '';
+              const dbName = r.customerName ? removeVietnameseTones(r.customerName.trim().toLowerCase()) : '';
+
+              const matchExcel = (dbCode ? excelCodeMap.get(dbCode) : null) || (dbName ? excelNameMap.get(dbName) : null);
+              if (matchExcel && !matchExcel._matchedDbRecord) {
+                  matchExcel._matchedDbRecord = r;
+              }
+          });
+
+          // 3. Complete parsing details with the matched database record
+          mappedRecords.forEach(record => {
+              const existingRecord = record._matchedDbRecord;
+              delete record._matchedDbRecord; // clean up internal temporary property
 
               if (existingRecord) {
                   record.id = existingRecord.id;
@@ -724,7 +745,9 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
               } else {
                   record.id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9);
               }
-              
+
+              // Run remaining validations on the fully merged record
+              const errors = record._errors || [];
               if (mode === 'create') {
                   const category = currentView ? getTabCategory(currentView) : 'receive';
                   record.isDeptSynced = category !== 'receive';
@@ -740,10 +763,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, em
               } else {
                   if (!record.code) errors.push("Thiếu Mã HS (Bắt buộc để cập nhật).");
               }
-
               record._errors = errors;
-              mappedRecords.push(record);
-          }
+          });
 
           setPreviewData(mappedRecords as PreviewRecord[]);
           setLoading(false);

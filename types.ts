@@ -221,6 +221,7 @@ export interface RecordFile {
   bhkArea?: number | null;
   lucArea?: number | null;
   otherLandArea?: number | null;
+  _normalizedSearchString?: string | null;
 }
 
 // Interface cho Item tách thửa
