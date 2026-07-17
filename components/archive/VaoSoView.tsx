@@ -87,6 +87,14 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
   const [records, setRecords] = useState<ArchiveRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "scanned">(
     "all",
   );
@@ -421,8 +429,8 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
       filtered = filtered.filter((r) => r.data?.dia_danh === filterWard);
 
     // Filter by Search
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const lower = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(
         (r) =>
           r.so_hieu?.toLowerCase().includes(lower) ||
@@ -432,7 +440,7 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
     }
 
     return filtered;
-  }, [records, searchTerm, activeTab, fromDate, toDate, filterWard]);
+  }, [records, debouncedSearchTerm, activeTab, fromDate, toDate, filterWard]);
 
   // Pagination
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
@@ -445,7 +453,7 @@ const VaoSoView: React.FC<VaoSoViewProps> = ({ currentUser, wards }) => {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set()); // Clear selection on tab change
-  }, [activeTab, searchTerm]);
+  }, [activeTab, debouncedSearchTerm]);
 
   const handleAddNew = async () => {
     const newRecord: Partial<ArchiveRecord> = {

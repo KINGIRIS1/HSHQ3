@@ -223,6 +223,22 @@ interface AppRoutesProps {
 }
 
 const AppRoutes: React.FC<AppRoutesProps> = (props) => {
+  // Local state for debounced search term
+  const [localSearchTerm, setLocalSearchTerm] = React.useState(props.searchTerm);
+
+  React.useEffect(() => {
+    setLocalSearchTerm(props.searchTerm);
+  }, [props.searchTerm]);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      if (localSearchTerm !== props.searchTerm) {
+        props.setSearchTerm(localSearchTerm);
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [localSearchTerm]);
+
   // Simplify destructuring to avoid TS errors with complex objects
   const {
     currentView,
@@ -879,8 +895,8 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                 type="text"
                 placeholder="Tìm kiếm..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={props.searchTerm}
-                onChange={(e) => props.setSearchTerm(e.target.value)}
+                value={localSearchTerm}
+                onChange={(e) => setLocalSearchTerm(e.target.value)}
               />
             </div>
           </div>

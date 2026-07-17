@@ -94,6 +94,14 @@ const SaoLucView: React.FC<SaoLucViewProps> = ({
   const [records, setRecords] = useState<ArchiveRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   // Filters
@@ -226,8 +234,8 @@ const SaoLucView: React.FC<SaoLucViewProps> = ({
       list = list.filter((r) => r.data?.assigned_to === filterEmployee);
 
     // Filter by Search
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const lower = debouncedSearchTerm.toLowerCase();
       list = list.filter(
         (r) =>
           (r.so_hieu || "").toLowerCase().includes(lower) ||
@@ -292,7 +300,7 @@ const SaoLucView: React.FC<SaoLucViewProps> = ({
   }, [
     records,
     subTab,
-    searchTerm,
+    debouncedSearchTerm,
     fromDate,
     toDate,
     filterWard,
@@ -305,7 +313,7 @@ const SaoLucView: React.FC<SaoLucViewProps> = ({
   useEffect(() => {
     setSelectedIds(new Set());
     setCurrentPage(1);
-  }, [subTab, handoverTab, searchTerm, fromDate, toDate, filterWard, filterEmployee]);
+  }, [subTab, handoverTab, debouncedSearchTerm, fromDate, toDate, filterWard, filterEmployee]);
 
   const handleAssign = () => {
     if (selectedIds.size === 0) return;

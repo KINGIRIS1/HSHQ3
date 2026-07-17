@@ -109,6 +109,14 @@ const CongVanView: React.FC<CongVanViewProps> = ({
     });
   }, [employees]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   // Filters
@@ -249,8 +257,8 @@ const CongVanView: React.FC<CongVanViewProps> = ({
       list = list.filter((r) => r.data?.assigned_to === filterEmployee);
 
     // Filter by Search
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const lower = debouncedSearchTerm.toLowerCase();
       list = list.filter(
         (r) =>
           (r.so_hieu || "").toLowerCase().includes(lower) ||
@@ -315,7 +323,7 @@ const CongVanView: React.FC<CongVanViewProps> = ({
   }, [
     records,
     subTab,
-    searchTerm,
+    debouncedSearchTerm,
     fromDate,
     toDate,
     filterEmployee,
@@ -327,7 +335,7 @@ const CongVanView: React.FC<CongVanViewProps> = ({
   useEffect(() => {
     setSelectedIds(new Set());
     setCurrentPage(1);
-  }, [subTab, handoverTab, searchTerm, fromDate, toDate, filterEmployee]);
+  }, [subTab, handoverTab, debouncedSearchTerm, fromDate, toDate, filterEmployee]);
 
   const handleAssign = () => {
     if (selectedIds.size === 0) return;
