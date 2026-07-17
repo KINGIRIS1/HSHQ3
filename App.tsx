@@ -250,7 +250,7 @@ function App() {
 
   // TỰ ĐỘNG BỎ TÍCH CHỌN KHI CHUYỂN TAB ĐỂ TRÁNH NHẦM LẪN GIAO HỒ SƠ CHỒNG CHÉO
   useEffect(() => {
-      setSelectedRecordIds(new Set());
+      setSelectedRecordIds(prev => prev.size > 0 ? new Set() : prev);
   }, [currentView, recordFilterProps.handoverTab]);
 
   // Chat Listener

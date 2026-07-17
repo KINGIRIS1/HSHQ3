@@ -12,7 +12,6 @@ import HoSoTachThuaTab from './utilities/HoSoTachThuaTab';
 import ChuyenDoiToBanDoTab from './utilities/ChuyenDoiToBanDoTab';
 import DongBoThuTucTab from './utilities/DongBoThuTucTab';
 import DongBoCSVTab from './utilities/DongBoCSVTab';
-import SuaDoiNgayTab from './utilities/SuaDoiNgayTab';
 import ExcerptManagement from './ExcerptManagement';
 
 interface UtilitiesViewProps {
@@ -56,7 +55,7 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({
   const isSpecialTeam = isAdmin || isOneDoor || isDirector;
 
   const allowedTabs = React.useMemo(() => {
-    const tabs = ['bienban', 'vphc', 'thongtin', 'chinhly', 'tachthua', 'saiso', 'chuyendoi', 'dongbothutuc', 'dongbocsv', 'suadoingay'];
+    const tabs = ['bienban', 'vphc', 'thongtin', 'chinhly', 'tachthua', 'saiso', 'chuyendoi', 'dongbothutuc', 'dongbocsv'];
     if (!isOneDoor) {
       tabs.push('excerpt_management');
     }
@@ -224,14 +223,7 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({
                       <Database size={16} /> Đồng bộ CSV/Excel
                   </button>
               )}
-              {allowedTabs.includes('suadoingay') && (
-                  <button 
-                      onClick={() => setActiveTab('suadoingay')}
-                      className={`px-4 py-2 text-sm font-bold rounded-md transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'suadoingay' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                      <Calendar size={16} /> Sửa đổi Ngày
-                  </button>
-              )}
+
               {allowedTabs.includes('excerpt_management') && (
                   <button 
                       onClick={() => setActiveTab('excerpt_management')}
@@ -242,7 +234,7 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({
               )}
           </div>
           
-          {activeTab !== 'saiso' && activeTab !== 'chinhly' && activeTab !== 'tachthua' && activeTab !== 'chuyendoi' && activeTab !== 'dongbothutuc' && activeTab !== 'dongbocsv' && activeTab !== 'suadoingay' && activeTab !== 'excerpt_management' && (
+          {activeTab !== 'saiso' && activeTab !== 'chinhly' && activeTab !== 'tachthua' && activeTab !== 'chuyendoi' && activeTab !== 'dongbothutuc' && activeTab !== 'dongbocsv' && activeTab !== 'excerpt_management' && (
             <div className="flex-1 flex justify-end items-center gap-3 pr-4">
                 <button 
                     onClick={handleConfigurePath}
@@ -277,7 +269,7 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({
               <CungCapThongTinTab currentUser={currentUser} notify={notify} />
           </div>
 
-          {/* TAB 4: HỒ SƠ CHỈNH LÝ (ĐỔI TÊN) */}
+          {/* TAB 4: HỒ SƠ CHỈNH LÝ */}
           <div className={`w-full h-full flex flex-col bg-[#f1f5f9] ${activeTab === 'chinhly' ? 'block' : 'hidden'}`}>
               <ChinhLyBienDongTab 
                   currentUser={currentUser} 
@@ -319,17 +311,6 @@ const UtilitiesView: React.FC<UtilitiesViewProps> = ({
               <DongBoCSVTab 
                   notify={notify}
                   onRefreshData={onRefreshData}
-              />
-          </div>
-
-          {/* TAB 10: SỬA ĐỔI / ĐỒNG BỘ NGÀY HỒ SƠ */}
-          <div className={`w-full h-full flex flex-col bg-[#f1f5f9] ${activeTab === 'suadoingay' ? 'block' : 'hidden'}`}>
-              <SuaDoiNgayTab 
-                  notify={notify}
-                  records={records || []}
-                  onUpdateRecord={onUpdateRecord}
-                  onRefreshData={onRefreshData}
-                  holidays={holidays}
               />
           </div>
 

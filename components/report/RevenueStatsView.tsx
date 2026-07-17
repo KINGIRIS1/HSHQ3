@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { RecordFile, Employee } from '../../types';
 import { getNormalizedWard, getShortRecordType } from '../../constants';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { DollarSign, Table2, BarChart3, PieChart as PieIcon, TrendingUp, Calendar, FileSpreadsheet, ChevronLeft, ChevronRight, MapPin, Receipt, ArrowUpRight } from 'lucide-react';
+import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { Coins, TrendingUp, PieChart as PieIcon, ChevronLeft, ChevronRight, Receipt, Search, FileSpreadsheet, Users } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
 
 interface RevenueStatsViewProps {
@@ -12,63 +12,91 @@ interface RevenueStatsViewProps {
     toDate: string;
 }
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#06b6d4'];
-
 const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees, fromDate, toDate }) => {
-    // 1. Filter paid records only (records that have a resultReturnedDate and paymentAmount > 0)
-    const paidRecords = useMemo(() => {
+    // 1. Interactive Tab state
+    const [activeTab, setActiveTab] = useState<'all' | 'receipt' | 'invoice'>('all');
+
+    // 2. Dynamic Filter states (fully sharing parent's date & ward filter, and removing collector filter)
+    const [receiverFilter, setReceiverFilter] = useState('all');
+
+    // Filter employees to only those belonging to "Một cửa" (One door department/role)
+    const oneDoorEmployees = useMemo(() => {
+        const filtered = employees.filter(e => {
+            const dept = (e.department || '').toLowerCase();
+            const pos = (e.position || '').toLowerCase();
+            return dept.includes('một cửa') || 
+                   dept.includes('1 cửa') || 
+                   dept.includes('onedoor') || 
+                   dept.includes('one door') ||
+                   pos.includes('một cửa') ||
+                   pos.includes('1 cửa') ||
+                   pos.includes('onedoor') ||
+                   pos.includes('one door');
+        });
+        return filtered.length > 0 ? filtered : employees;
+    }, [employees]);
+
+    // 3. Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(15);
+
+    // Reset pagination when filter or tab changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [receiverFilter, activeTab]);
+
+    // 4. Filter paid records only (records having payment amount > 0)
+    const allPaidRecords = useMemo(() => {
         return records.filter(r => r.paymentAmount !== null && r.paymentAmount !== undefined && r.paymentAmount > 0);
     }, [records]);
 
-    // 2. Pagination State for paid records list
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-
-    // 3. Stats Computations
-    const stats = useMemo(() => {
+    // 5. Calculate Dynamic Summary Metrics for Top Cards based on Filters (excluding receiptType and pagination)
+    const cardStats = useMemo(() => {
         let totalAmount = 0;
         let receiptAmount = 0;
         let invoiceAmount = 0;
-        let totalCount = paidRecords.length;
+        let totalCount = 0;
+        let receiptCount = 0;
+        let invoiceCount = 0;
 
-        paidRecords.forEach(r => {
+        allPaidRecords.forEach(r => {
+            // Apply Receiver filter
+            if (receiverFilter !== 'all' && r.receivedBy !== receiverFilter) return;
+
             const amt = r.paymentAmount || 0;
             totalAmount += amt;
+            totalCount++;
+
             if (r.receiptType === 'invoice') {
                 invoiceAmount += amt;
+                invoiceCount++;
             } else {
                 receiptAmount += amt;
+                receiptCount++;
             }
         });
 
-        return { totalAmount, receiptAmount, invoiceAmount, totalCount };
-    }, [paidRecords]);
+        return { totalAmount, receiptAmount, invoiceAmount, totalCount, receiptCount, invoiceCount };
+    }, [allPaidRecords, receiverFilter]);
 
-    // 4. Group by Receipt Type for Pie Chart
-    const pieData = useMemo(() => {
-        let receiptSum = 0;
-        let invoiceSum = 0;
+    // 6. Get final list of filtered records to display in the table
+    const filteredPaidRecords = useMemo(() => {
+        return allPaidRecords.filter(r => {
+            // Apply Receiver filter
+            if (receiverFilter !== 'all' && r.receivedBy !== receiverFilter) return false;
 
-        paidRecords.forEach(r => {
-            const amt = r.paymentAmount || 0;
-            if (r.receiptType === 'invoice') {
-                invoiceSum += amt;
-            } else {
-                receiptSum += amt;
-            }
+            // Apply Active Tab filter (Receipt vs Invoice)
+            if (activeTab === 'receipt' && r.receiptType !== 'receipt') return false;
+            if (activeTab === 'invoice' && r.receiptType !== 'invoice') return false;
+
+            return true;
         });
+    }, [allPaidRecords, receiverFilter, activeTab]);
 
-        return [
-            { name: 'Biên lai', value: receiptSum },
-            { name: 'Hóa đơn', value: invoiceSum }
-        ].filter(item => item.value > 0);
-    }, [paidRecords]);
-
-    // 5. Group by Ward (Xã / Phường)
+    // 7. Group by Ward for Bar Chart (using filtered subset)
     const wardRevenueData = useMemo(() => {
         const wardStats: Record<string, number> = {};
-
-        paidRecords.forEach(r => {
+        filteredPaidRecords.forEach(r => {
             const ward = getNormalizedWard(r.ward) || 'Khác';
             const amt = r.paymentAmount || 0;
             wardStats[ward] = (wardStats[ward] || 0) + amt;
@@ -77,15 +105,15 @@ const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees,
         return Object.entries(wardStats)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
-    }, [paidRecords]);
+    }, [filteredPaidRecords]);
 
-    // 6. Group by Day (resultReturnedDate) for Daily Trend Line
+    // 8. Group by Day for Daily Trend Line Area (using filtered subset)
     const dailyRevenueData = useMemo(() => {
         const dailyStats: Record<string, number> = {};
-
-        paidRecords.forEach(r => {
-            if (r.resultReturnedDate) {
-                const dateKey = r.resultReturnedDate.split('T')[0];
+        filteredPaidRecords.forEach(r => {
+            const payDateStr = r.resultReturnedDate || r.completedDate;
+            if (payDateStr) {
+                const dateKey = payDateStr.split('T')[0];
                 const amt = r.paymentAmount || 0;
                 dailyStats[dateKey] = (dailyStats[dateKey] || 0) + amt;
             }
@@ -102,13 +130,12 @@ const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees,
                     value: item.value
                 };
             });
-    }, [paidRecords]);
+    }, [filteredPaidRecords]);
 
-    // 7. Group by Record Type category
+    // 9. Group by Record Type for Bar Chart (using filtered subset)
     const recordTypeRevenueData = useMemo(() => {
         const typeStats: Record<string, number> = {};
-
-        paidRecords.forEach(r => {
+        filteredPaidRecords.forEach(r => {
             const type = getShortRecordType(r.recordType) || 'Khác';
             const amt = r.paymentAmount || 0;
             typeStats[type] = (typeStats[type] || 0) + amt;
@@ -117,15 +144,35 @@ const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees,
         return Object.entries(typeStats)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
-    }, [paidRecords]);
+    }, [filteredPaidRecords]);
 
-    // Pagination slice
-    const paginatedPaidRecords = useMemo(() => {
+    // 10. Group by Receipt Type for Pie Chart (using filtered subset)
+    const pieData = useMemo(() => {
+        let receiptSum = 0;
+        let invoiceSum = 0;
+
+        filteredPaidRecords.forEach(r => {
+            const amt = r.paymentAmount || 0;
+            if (r.receiptType === 'invoice') {
+                invoiceSum += amt;
+            } else {
+                receiptSum += amt;
+            }
+        });
+
+        return [
+            { name: 'Biên lai', value: receiptSum },
+            { name: 'Hóa đơn', value: invoiceSum }
+        ].filter(item => item.value > 0);
+    }, [filteredPaidRecords]);
+
+    // 11. Pagination slice of filtered records
+    const paginatedRecords = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
-        return paidRecords.slice(start, start + itemsPerPage);
-    }, [paidRecords, currentPage, itemsPerPage]);
+        return filteredPaidRecords.slice(start, start + itemsPerPage);
+    }, [filteredPaidRecords, currentPage, itemsPerPage]);
 
-    const totalPages = Math.ceil(paidRecords.length / itemsPerPage);
+    const totalPages = Math.ceil(filteredPaidRecords.length / itemsPerPage);
 
     // Helpers
     const formatCurrency = (val: number) => {
@@ -142,10 +189,10 @@ const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees,
         return `${day}/${month}/${year}`;
     };
 
-    // Excel Export function specifically for financial collected payments
+    // Excel Export specifically formatted based on current filtered dataset and criteria
     const handleExportExcel = () => {
-        if (paidRecords.length === 0) {
-            alert('Không có dữ liệu thu tiền để xuất.');
+        if (filteredPaidRecords.length === 0) {
+            alert('Không có dữ liệu nguồn thu để xuất.');
             return;
         }
 
@@ -154,53 +201,52 @@ const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees,
         const tableHeader = [
             "STT", 
             "Mã Hồ Sơ", 
-            "Chủ Sử Dụng", 
-            "Xã/Phường", 
-            "Loại Hồ Sơ", 
-            "Loại Giấy Tờ", 
+            "Thông Tin Chủ Sử Dụng", 
+            "Loại Hồ Sơ",
+            "Ngày Thu Tiền", 
+            "Loại Chứng Từ", 
             "Số Biên Lai/Hóa Đơn", 
-            "Số Tiền Thực Thu (VNĐ)", 
-            "Ngày Trả & Thu Tiền", 
-            "Người Nhận Kết Quả",
-            "Nhân Viên Xử Lý"
+            "Số Tiền Thực Thu (VNĐ)",
+            "Người Nhận Hồ Sơ"
         ];
 
-        const dataRows = paidRecords.map((r, i) => {
-            const emp = employees.find(e => e.id === r.assignedTo);
+        const dataRows = filteredPaidRecords.map((r, i) => {
+            // Resolve Người nhận hồ sơ
+            const receiverEmp = employees.find(e => e.id === r.receivedBy);
+            const receiverName = receiverEmp ? receiverEmp.name : (r.receivedBy || 'Cán bộ Một cửa');
+
             return [
                 i + 1,
                 r.code,
                 r.customerName,
-                getNormalizedWard(r.ward || undefined),
                 r.recordType || '',
+                formatDate(r.resultReturnedDate || r.completedDate),
                 r.receiptType === 'invoice' ? 'Hóa đơn' : 'Biên lai',
                 r.receiptNumber || '',
                 r.paymentAmount || 0,
-                formatDate(r.resultReturnedDate),
-                r.receiverName || '',
-                emp ? emp.name : ''
+                receiverName
             ];
         });
 
-        const formattedFromDate = formatDate(fromDate);
-        const formattedToDate = formatDate(toDate);
+        const formattedFromDate = fromDate ? formatDate(fromDate) : 'Đầu';
+        const formattedToDate = toDate ? formatDate(toDate) : 'Hiện tại';
         const displayDate = `TỪ NGÀY ${formattedFromDate} ĐẾN NGÀY ${formattedToDate}`;
 
         const wsData = [
             ["CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM"],
             ["Độc lập - Tự do - Hạnh phúc"],
             [],
-            ["BÁO CÁO CHI TIẾT SỐ TIỀN THU ĐƯỢC THEO GIAI ĐOẠN"],
+            ["BÁO CÁO CHI TIẾT NGUỒN THU THEO BỘ LỌC"],
             [displayDate.toUpperCase()],
             [],
             [
-                `Tổng số tiền thu được: ${stats.totalAmount.toLocaleString('vi-VN')} VNĐ`,
+                `Tổng tiền thu được: ${cardStats.totalAmount.toLocaleString('vi-VN')} VNĐ`,
                 "",
-                `Trong đó Biên lai: ${stats.receiptAmount.toLocaleString('vi-VN')} VNĐ`,
                 "",
-                `Trong đó Hóa đơn: ${stats.invoiceAmount.toLocaleString('vi-VN')} VNĐ`,
+                `Trong đó Biên lai: ${cardStats.receiptAmount.toLocaleString('vi-VN')} VNĐ`,
                 "",
-                `Tổng số hồ sơ đã thu: ${stats.totalCount} hồ sơ`
+                "",
+                `Trong đó Hóa đơn: ${cardStats.invoiceAmount.toLocaleString('vi-VN')} VNĐ`
             ],
             [],
             tableHeader,
@@ -217,40 +263,45 @@ const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees,
             { s: { r: 4, c: 0 }, e: { r: 4, c: totalCols } },
             { s: { r: 6, c: 0 }, e: { r: 6, c: 2 } },
             { s: { r: 6, c: 3 }, e: { r: 6, c: 5 } },
-            { s: { r: 6, c: 6 }, e: { r: 6, c: 8 } },
-            { s: { r: 6, c: 9 }, e: { r: 6, c: 10 } }
+            { s: { r: 6, c: 6 }, e: { r: 6, c: totalCols } }
         ];
 
-        // Format widths
+        // Format column widths
         ws['!cols'] = [
-            { wch: 5 }, { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 22 }, { wch: 18 }, { wch: 25 }, { wch: 20 }
+            { wch: 5 },  // STT
+            { wch: 15 }, // Mã HS
+            { wch: 25 }, // Thông tin chủ sử dụng
+            { wch: 25 }, // Loại hồ sơ
+            { wch: 18 }, // Ngày thu tiền
+            { wch: 15 }, // Loại chứng từ
+            { wch: 20 }, // Số biên lai/hóa đơn
+            { wch: 22 }, // Số tiền thực thu
+            { wch: 22 }  // Người nhận hồ sơ
         ];
 
         // Formatting styles
         const border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
         const centerAlign = { horizontal: "center", vertical: "center" };
         const rightAlign = { horizontal: "right", vertical: "center" };
-        const leftAlign = { horizontal: "left", vertical: "center" };
 
         if(ws['A1']) ws['A1'].s = { font: { name: "Times New Roman", sz: 14, bold: true }, alignment: { horizontal: "center" } };
         if(ws['A2']) ws['A2'].s = { font: { name: "Times New Roman", sz: 12, bold: true, underline: true }, alignment: { horizontal: "center" } };
-        if(ws['A4']) ws['A4'].s = { font: { name: "Times New Roman", sz: 16, bold: true, color: { rgb: "0F766E" } }, alignment: { horizontal: "center" } };
+        if(ws['A4']) ws['A4'].s = { font: { name: "Times New Roman", sz: 16, bold: true, color: { rgb: "0D9488" } }, alignment: { horizontal: "center" } };
         if(ws['A5']) ws['A5'].s = { font: { name: "Times New Roman", sz: 12, italic: true }, alignment: { horizontal: "center" } };
         
         // Summary row styling
-        const summaryStyle = { font: { name: "Times New Roman", sz: 11, bold: true }, alignment: { horizontal: "left" } };
-        const summCells = ['A7', 'D7', 'G7', 'J7'];
+        const summaryStyle = { font: { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "0F766E" } }, alignment: { horizontal: "left" } };
+        const summCells = ['A7', 'D7', 'G7'];
         summCells.forEach(cell => {
             if (ws[cell]) ws[cell].s = summaryStyle;
         });
 
         // Header style
         const headerStyle = { 
-            font: { name: "Times New Roman", sz: 11, bold: true }, 
+            font: { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } }, 
             border, 
-            fill: { fgColor: { rgb: "0F766E" } }, // Teal primary
-            alignment: { horizontal: "center", vertical: "center", wrapText: true },
-            color: { rgb: "FFFFFF" }
+            fill: { fgColor: { rgb: "0D9488" } }, // Teal primary
+            alignment: { horizontal: "center", vertical: "center", wrapText: true }
         };
 
         const cellStyle = { 
@@ -266,12 +317,7 @@ const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees,
         const headerRowIndex = 8;
         for (let c = 0; c <= totalCols; c++) {
             const cellRef = XLSX.utils.encode_cell({ r: headerRowIndex, c });
-            if (ws[cellRef]) {
-                ws[cellRef].s = {
-                    ...headerStyle,
-                    font: { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } }
-                };
-            }
+            if (ws[cellRef]) ws[cellRef].s = headerStyle;
         }
 
         // Apply styles to data rows
@@ -282,12 +328,11 @@ const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees,
                 const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c });
                 if (!ws[cellRef]) continue;
 
-                // Set numbers for amount column to be excel formatted numbers
                 if (c === 7) {
                     ws[cellRef].t = 'n';
                     ws[cellRef].z = '#,##0';
                     ws[cellRef].s = amountStyle;
-                } else if ([0, 5, 6, 8].includes(c)) {
+                } else if ([0, 4, 5, 6].includes(c)) {
                     ws[cellRef].s = centerStyle;
                 } else {
                     ws[cellRef].s = cellStyle;
@@ -296,241 +341,189 @@ const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees,
         }
 
         XLSX.utils.book_append_sheet(wb, ws, "Bao_Cao_Nguon_Thu");
-        const filename = `Bao_Cao_Thu_Tien_${fromDate}_to_${toDate}.xlsx`;
+        const filename = `Bao_Cao_Thu_Tien_${fromDate || 'all'}_to_${toDate || 'all'}.xlsx`;
         XLSX.writeFile(wb, filename);
     };
 
+    // Cards configuration matching DailyStatsView design style
+    const cards = [
+        {
+            id: 'all' as const,
+            label: 'Tổng nguồn thu',
+            value: formatCurrency(cardStats.totalAmount),
+            count: `${cardStats.totalCount} hồ sơ`,
+            icon: <Coins size={20} />,
+            colorClass: 'text-teal-700',
+            textClass: 'text-teal-600',
+            numClass: 'text-teal-900',
+            bgIcon: 'bg-teal-100',
+            activeClass: 'bg-teal-50/80 border-teal-400 ring-2 ring-teal-300 shadow-sm',
+            inactiveClass: 'bg-white border-slate-200 hover:border-teal-300'
+        },
+        {
+            id: 'receipt' as const,
+            label: 'Thu qua Biên Lai',
+            value: formatCurrency(cardStats.receiptAmount),
+            count: `${cardStats.receiptCount} hồ sơ`,
+            icon: <Receipt size={20} />,
+            colorClass: 'text-blue-700',
+            textClass: 'text-blue-600',
+            numClass: 'text-blue-900',
+            bgIcon: 'bg-blue-100',
+            activeClass: 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-300 shadow-sm',
+            inactiveClass: 'bg-white border-slate-200 hover:border-blue-300'
+        },
+        {
+            id: 'invoice' as const,
+            label: 'Thu qua Hóa Đơn',
+            value: formatCurrency(cardStats.invoiceAmount),
+            count: `${cardStats.invoiceCount} hồ sơ`,
+            icon: <Receipt size={20} />,
+            colorClass: 'text-orange-700',
+            textClass: 'text-orange-600',
+            numClass: 'text-orange-900',
+            bgIcon: 'bg-orange-100',
+            activeClass: 'bg-orange-50/80 border-orange-400 ring-2 ring-orange-300 shadow-sm',
+            inactiveClass: 'bg-white border-slate-200 hover:border-orange-300'
+        }
+    ];
+
     return (
-        <div className="flex flex-col h-full bg-slate-50 overflow-y-auto p-5 space-y-6 custom-scrollbar">
-            {/* Header / Submitter Block */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-5 rounded-2xl border border-gray-100 shadow-sm gap-4">
-                <div className="space-y-1">
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <TrendingUp size={22} className="text-teal-600" />
-                        Báo cáo doanh thu & các nguồn tiền thu được
-                    </h3>
-                    <p className="text-xs text-gray-500 font-medium">
-                        Khoảng thời gian: <span className="font-bold text-teal-700">{formatDate(fromDate)}</span> đến <span className="font-bold text-teal-700">{formatDate(toDate)}</span>
-                    </p>
-                </div>
+        <div className="flex flex-col h-full bg-slate-100 p-4 gap-4 overflow-y-auto">
+            {/* Premium interactive summary cards at the top */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0 animate-fade-in">
+                {cards.map(card => (
+                    <div 
+                        key={card.id}
+                        onClick={() => setActiveTab(card.id)}
+                        className={`p-3.5 rounded-xl border flex items-center gap-4 cursor-pointer transition-all hover:scale-[1.02] ${
+                            activeTab === card.id 
+                                ? card.activeClass
+                                : `${card.inactiveClass} shadow-sm`
+                        }`}
+                    >
+                        <div className={`${card.bgIcon} p-2.5 rounded-lg ${card.colorClass}`}>
+                            {card.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className={`text-xl font-bold leading-tight font-mono truncate ${card.numClass}`}>{card.value}</div>
+                            <div className="flex items-center justify-between mt-0.5">
+                                <div className={`text-[10px] uppercase font-extrabold tracking-wider ${card.textClass}`}>{card.label}</div>
+                                <div className="text-[10px] text-gray-500 font-bold bg-gray-100 px-1.5 py-0.5 rounded-full">{card.count}</div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
 
-            {/* General Overview Metrics Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <div className="bg-gradient-to-br from-teal-500 to-emerald-600 text-white p-5 rounded-2xl shadow-md border border-teal-400/20 relative overflow-hidden">
-                    <div className="absolute right-[-10px] bottom-[-10px] opacity-10">
-                        <DollarSign size={110} />
-                    </div>
-                    <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs uppercase font-bold tracking-wider opacity-90">Tổng nguồn thu</span>
-                        <div className="bg-white/20 p-2 rounded-lg"><DollarSign size={18} /></div>
-                    </div>
-                    <div className="text-2xl font-black font-mono tracking-tight">{formatCurrency(stats.totalAmount)}</div>
-                    <div className="text-xs mt-2 opacity-80 flex items-center gap-1">
-                        <ArrowUpRight size={14} /> Thực thu thực tế trong kỳ
-                    </div>
-                </div>
 
-                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400 uppercase font-extrabold tracking-wider">Thu qua Biên Lai</span>
-                        <div className="bg-blue-50 text-blue-600 p-2 rounded-xl"><Receipt size={18} /></div>
-                    </div>
-                    <div className="mt-4">
-                        <div className="text-xl font-bold font-mono text-slate-800">{formatCurrency(stats.receiptAmount)}</div>
-                        <p className="text-xs text-gray-400 mt-1 font-medium">Sử dụng phôi biên lai thu phí</p>
-                    </div>
-                </div>
 
-                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400 uppercase font-extrabold tracking-wider">Thu qua Hóa Đơn</span>
-                        <div className="bg-orange-50 text-orange-600 p-2 rounded-xl"><Receipt size={18} /></div>
-                    </div>
-                    <div className="mt-4">
-                        <div className="text-xl font-bold font-mono text-slate-800">{formatCurrency(stats.invoiceAmount)}</div>
-                        <p className="text-xs text-gray-400 mt-1 font-medium">Sử dụng hóa đơn GTGT dịch vụ</p>
-                    </div>
-                </div>
 
-                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400 uppercase font-extrabold tracking-wider">Hồ sơ đã thu</span>
-                        <div className="bg-teal-50 text-teal-600 p-2 rounded-xl"><Calendar size={18} /></div>
-                    </div>
-                    <div className="mt-4">
-                        <div className="text-xl font-bold font-mono text-slate-800">{stats.totalCount} <span className="text-sm font-medium text-gray-500">hồ sơ</span></div>
-                        <p className="text-xs text-gray-400 mt-1 font-medium">Đã trả kết quả có ghi nhận thu</p>
-                    </div>
-                </div>
-            </div>
 
-            {/* Graphs / Visual Charts Row */}
-            {paidRecords.length > 0 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Daily Revenue Trend (Line / Area chart) */}
-                    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm lg:col-span-2 flex flex-col h-[320px]">
-                        <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2 mb-3">
-                            <TrendingUp size={16} className="text-teal-600" />
-                            Biểu đồ diễn biến thu tiền theo thời gian
-                        </h4>
-                        <div className="flex-1 min-h-0 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={dailyRevenueData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#0d9488" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                    <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} stroke="#64748b" />
-                                    <YAxis 
-                                        tickLine={false} 
-                                        axisLine={false} 
-                                        fontSize={10} 
-                                        stroke="#64748b" 
-                                        tickFormatter={(v) => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v.toLocaleString('vi-VN')}
-                                    />
-                                    <Tooltip 
-                                        formatter={(val: any) => [formatCurrency(Number(val)), 'Thực thu']}
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                                    />
-                                    <Area type="monotone" dataKey="value" stroke="#0d9488" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
+            {/* List Table directly below */}
+            <div className="flex-1 flex flex-col min-h-[400px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                {/* Header with stats title and export / filter controls */}
+                <div className="p-4 border-b border-slate-150 bg-slate-50/50 flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center shrink-0">
+                    <div className="flex items-center gap-2.5">
+                        <div className={`p-1.5 rounded-lg text-white bg-teal-600`}>
+                            <Coins size={14} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                                Danh sách chi tiết nguồn thu ({filteredPaidRecords.length} hồ sơ)
+                            </h3>
+                            <p className="text-[11px] text-slate-500 mt-0.5 font-medium">
+                                Tổng thu thực tế: <span className="font-bold text-teal-600">{formatCurrency(filteredPaidRecords.reduce((acc, r) => acc + (r.paymentAmount || 0), 0))}</span>
+                            </p>
                         </div>
                     </div>
 
-                    {/* Receipt Type Breakdown (Pie chart) */}
-                    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[320px]">
-                        <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2 mb-3">
-                            <PieIcon size={16} className="text-blue-600" />
-                            Cơ cấu chứng từ thu (Biên lai vs Hóa đơn)
-                        </h4>
-                        <div className="flex-1 min-h-0 w-full relative">
-                            {pieData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={pieData}
-                                            cx="50%"
-                                            cy="45%"
-                                            innerRadius={60}
-                                            outerRadius={80}
-                                            paddingAngle={4}
-                                            dataKey="value"
-                                        >
-                                            {pieData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={index === 0 ? '#3b82f6' : '#f97316'} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip formatter={(val: any) => [formatCurrency(Number(val)), 'Doanh thu']} />
-                                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400">Không có dữ liệu loại chứng từ</div>
-                            )}
+                    <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
+                        {/* Receiver Filter */}
+                        <div className="flex items-center gap-2 bg-white px-3 py-1.5 border border-slate-200 rounded-lg shadow-sm">
+                            <Users size={14} className="text-slate-400 shrink-0" />
+                            <select 
+                                value={receiverFilter} 
+                                onChange={(e) => setReceiverFilter(e.target.value)} 
+                                className="text-xs outline-none bg-transparent font-semibold text-slate-700 border-none p-0 focus:ring-0 cursor-pointer max-w-[180px]"
+                            >
+                                <option value="all">Người nhận HS (Tất cả)</option>
+                                {oneDoorEmployees.map(e => (
+                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                ))}
+                            </select>
                         </div>
-                    </div>
 
-                    {/* Ward (Xã / Phường) Revenue (Bar chart) */}
-                    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[320px]">
-                        <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2 mb-3">
-                            <MapPin size={16} className="text-emerald-600" />
-                            Nguồn thu theo địa bàn hành chính
-                        </h4>
-                        <div className="flex-1 min-h-0 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={wardRevenueData.slice(0, 8)} layout="vertical" margin={{ left: 10, right: 10, top: 0, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                                    <XAxis type="number" fontSize={9} stroke="#64748b" tickLine={false} axisLine={false} tickFormatter={(v) => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v} />
-                                    <YAxis type="category" dataKey="name" fontSize={11} stroke="#64748b" tickLine={false} axisLine={false} width={65} />
-                                    <Tooltip formatter={(val: any) => [formatCurrency(Number(val)), 'Thực thu']} />
-                                    <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} barSize={12} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
+                        {receiverFilter !== 'all' && (
+                            <button 
+                                onClick={() => setReceiverFilter('all')}
+                                className="text-xs font-semibold text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg transition-colors h-[34px]"
+                            >
+                                Xóa lọc
+                            </button>
+                        )}
 
-                    {/* Record Type Category Revenue (Bar chart) */}
-                    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm lg:col-span-2 flex flex-col h-[320px]">
-                        <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2 mb-3">
-                            <BarChart3 size={16} className="text-purple-600" />
-                            Nguồn thu theo phân loại nhóm hồ sơ
-                        </h4>
-                        <div className="flex-1 min-h-0 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={recordTypeRevenueData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                    <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} stroke="#64748b" />
-                                    <YAxis 
-                                        tickLine={false} 
-                                        axisLine={false} 
-                                        fontSize={10} 
-                                        stroke="#64748b" 
-                                        tickFormatter={(v) => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v.toLocaleString('vi-VN')}
-                                    />
-                                    <Tooltip formatter={(val: any) => [formatCurrency(Number(val)), 'Thực thu']} />
-                                    <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={35} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                        <button 
+                            onClick={handleExportExcel}
+                            disabled={filteredPaidRecords.length === 0}
+                            className="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all disabled:opacity-45 disabled:cursor-not-allowed h-[34px]"
+                        >
+                            <FileSpreadsheet size={14} /> Xuất Excel ({filteredPaidRecords.length})
+                        </button>
                     </div>
                 </div>
-            ) : null}
 
-            {/* Detailed table of paid records */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col">
-                <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2 mb-4">
-                    <Table2 size={16} className="text-teal-600" />
-                    Danh sách chi tiết hồ sơ nộp tiền ({paidRecords.length} hồ sơ)
-                </h4>
-
-                <div className="overflow-x-auto rounded-xl border border-gray-100">
-                    <table className="w-full text-left text-sm border-collapse">
-                        <thead className="bg-slate-50 text-xs text-gray-500 uppercase font-bold border-b border-gray-100">
+                {/* Table Container */}
+                <div className="flex-1 overflow-auto">
+                    <table className="w-full text-left text-sm border-collapse min-w-[1000px]">
+                        <thead className="bg-slate-50 text-[10px] text-slate-500 uppercase font-bold border-b border-slate-150 sticky top-0 z-10">
                             <tr>
-                                <th className="p-3 text-center w-12">#</th>
-                                <th className="p-3 w-32">Mã HS</th>
-                                <th className="p-3">Chủ sử dụng</th>
-                                <th className="p-3 w-36">Xã/Phường</th>
-                                <th className="p-3 w-44">Loại thủ tục</th>
-                                <th className="p-3 w-32 text-center">Chứng từ</th>
-                                <th className="p-3 w-32 text-center">Số biên lai/HĐ</th>
+                                <th className="p-3 text-center w-12">STT</th>
+                                <th className="p-3 w-28">Mã hồ sơ</th>
+                                <th className="p-3">Thông tin chủ sử dụng</th>
+                                <th className="p-3 w-44">Loại hồ sơ</th>
+                                <th className="p-3 w-32 text-center">Ngày thu tiền</th>
+                                <th className="p-3 w-28 text-center">Loại chứng từ</th>
+                                <th className="p-3 w-36 text-center">Số biên lai/HĐ</th>
                                 <th className="p-3 w-36 text-right">Số tiền thu</th>
-                                <th className="p-3 w-32 text-center">Ngày thu</th>
-                                <th className="p-3 w-40">Người nhận KQ</th>
+                                <th className="p-3 w-40">Người nhận hồ sơ</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {paginatedPaidRecords.length > 0 ? (
-                                paginatedPaidRecords.map((r, i) => {
+                        <tbody className="divide-y divide-slate-100">
+                            {paginatedRecords.length > 0 ? (
+                                paginatedRecords.map((r, i) => {
                                     const rowIndex = (currentPage - 1) * itemsPerPage + i + 1;
+                                    
+                                    // Resolve Người nhận hồ sơ
+                                    const receiverEmp = employees.find(e => e.id === r.receivedBy);
+                                    const receiverName = receiverEmp ? receiverEmp.name : (r.receivedBy || 'Cán bộ Một cửa');
+
                                     return (
                                         <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="p-3 text-center text-gray-400 font-mono text-xs">{rowIndex}</td>
+                                            <td className="p-3 text-center text-slate-400 font-mono text-xs">{rowIndex}</td>
                                             <td className="p-3 font-semibold text-teal-600 font-mono text-xs">{r.code}</td>
                                             <td className="p-3 font-medium text-slate-800">{r.customerName}</td>
-                                            <td className="p-3 text-gray-600 text-xs">{getNormalizedWard(r.ward)}</td>
-                                            <td className="p-3 text-gray-600 text-xs truncate max-w-[150px]" title={r.recordType || ''}>{r.recordType || ''}</td>
+                                            <td className="p-3 text-slate-600 text-xs font-semibold">{r.recordType}</td>
+                                            <td className="p-3 text-center text-slate-500 text-xs font-semibold">{formatDate(r.resultReturnedDate || r.completedDate)}</td>
                                             <td className="p-3 text-center">
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${r.receiptType === 'invoice' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+                                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border ${
+                                                    r.receiptType === 'invoice' 
+                                                        ? 'bg-orange-50 text-orange-600 border-orange-100' 
+                                                        : 'bg-blue-50 text-blue-600 border-blue-100'
+                                                }`}>
                                                     {r.receiptType === 'invoice' ? 'Hóa đơn' : 'Biên lai'}
                                                 </span>
                                             </td>
                                             <td className="p-3 text-center font-bold font-mono text-xs text-slate-700">{r.receiptNumber || '---'}</td>
-                                            <td className="p-3 text-right font-bold font-mono text-teal-600">{formatCurrency(r.paymentAmount || 0)}</td>
-                                            <td className="p-3 text-center text-gray-500 text-xs font-medium">{formatDate(r.resultReturnedDate)}</td>
-                                            <td className="p-3 text-gray-700 text-xs font-semibold">{r.receiverName || '---'}</td>
+                                            <td className="p-3 text-right font-extrabold font-mono text-teal-600">{formatCurrency(r.paymentAmount || 0)}</td>
+                                            <td className="p-3 text-slate-600 text-xs font-semibold">{receiverName}</td>
                                         </tr>
                                     );
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={10} className="p-10 text-center text-gray-400 font-medium italic">
-                                        Không có dữ liệu thu tiền trong khoảng thời gian này.
+                                    <td colSpan={9} className="p-12 text-center text-slate-400 font-medium italic">
+                                        Không có dữ liệu nguồn thu đáp ứng bộ lọc hiện tại.
                                     </td>
                                 </tr>
                             )}
@@ -538,27 +531,27 @@ const RevenueStatsView: React.FC<RevenueStatsViewProps> = ({ records, employees,
                     </table>
                 </div>
 
-                {/* Pagination footer */}
-                {paidRecords.length > 0 && (
-                    <div className="flex justify-between items-center mt-4 pt-2 border-t border-gray-100">
-                        <span className="text-xs text-gray-500 font-medium">
-                            Hiển thị từ <strong>{(currentPage - 1) * itemsPerPage + 1}</strong> đến <strong>{Math.min(currentPage * itemsPerPage, paidRecords.length)}</strong> trên tổng <strong>{paidRecords.length}</strong> hồ sơ đã nộp tiền
+                {/* Pagination footer matching DailyStatsView */}
+                {filteredPaidRecords.length > 0 && (
+                    <div className="flex justify-between items-center p-4 border-t border-slate-150 bg-slate-50/50 shrink-0">
+                        <span className="text-[11px] text-slate-500 font-medium">
+                            Hiển thị từ <strong>{(currentPage - 1) * itemsPerPage + 1}</strong> đến <strong>{Math.min(currentPage * itemsPerPage, filteredPaidRecords.length)}</strong> trên tổng <strong>{filteredPaidRecords.length}</strong> hồ sơ đã lọc
                         </span>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                             <button
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
-                                className="p-2 rounded-lg border border-gray-200 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                             >
                                 <ChevronLeft size={14} />
                             </button>
-                            <span className="text-xs font-bold text-slate-600 px-3">
+                            <span className="text-[11px] font-bold text-slate-600 min-w-[80px] text-center">
                                 Trang {currentPage} / {totalPages}
                             </span>
                             <button
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
-                                className="p-2 rounded-lg border border-gray-200 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                             >
                                 <ChevronRight size={14} />
                             </button>

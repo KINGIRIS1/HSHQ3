@@ -94,6 +94,7 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
   const [query, setQuery] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<RecordFile | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [showConfirmScan, setShowConfirmScan] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanSuccessMsg, setScanSuccessMsg] = useState<string | null>(null);
   
@@ -360,16 +361,50 @@ const MobileSearchTab: React.FC<MobileSearchTabProps> = ({
             {/* Camera Scan Button */}
             <button
               type="button"
-              onClick={isScanning ? stopScanning : startScanning}
-              className={`px-4 bg-blue-50 border border-blue-200 text-blue-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 active:scale-95 transition-all shadow-sm ${isScanning ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : ''}`}
+              onClick={isScanning ? stopScanning : () => { setShowConfirmScan(!showConfirmScan); setScanError(null); setScanSuccessMsg(null); }}
+              className={`px-4 bg-blue-50 border border-blue-200 text-blue-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 active:scale-95 transition-all shadow-sm ${isScanning ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : ''} ${showConfirmScan ? 'bg-blue-100' : ''}`}
               title="Quét mã vạch biên nhận"
             >
               {isScanning ? <X size={18} /> : <Camera size={18} />}
               <span className="text-xs font-bold shrink-0">
-                {isScanning ? "Hủy" : "Quét mã"}
+                {isScanning ? "Hủy" : showConfirmScan ? "Đóng" : "Quét mã"}
               </span>
             </button>
           </form>
+
+          {/* Camera Scanning Explanation & Consent (Only run when user agrees) */}
+          {showConfirmScan && !isScanning && (
+            <div className="p-3.5 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl text-xs space-y-2.5 animate-fade-in shadow-sm">
+              <div className="flex gap-2 font-bold items-center text-blue-900">
+                <Info size={16} className="text-blue-600 shrink-0" />
+                <span>Yêu cầu kích hoạt Camera</span>
+              </div>
+              <p className="leading-relaxed text-[11px] text-slate-600">
+                Bạn có đồng ý kích hoạt camera để tiến hành quét mã vạch trên phiếu biên nhận không?
+                <br />
+                <span className="font-bold text-slate-700">Giải trình:</span> Camera chỉ được khởi chạy và truyền hình ảnh khi bạn xác nhận đồng ý dưới đây để phục vụ việc nhận diện mã vạch một cách thuận tiện nhất.
+              </p>
+              <div className="flex gap-2 justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmScan(false)}
+                  className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-bold text-[11px] transition-colors"
+                >
+                  Không đồng ý
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConfirmScan(false);
+                    startScanning();
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[11px] transition-colors shadow-sm"
+                >
+                  Đồng ý & Kích hoạt
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Camera Scanning Stream Box */}
           {isScanning && (

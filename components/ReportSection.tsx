@@ -163,7 +163,7 @@ const ReportSection: React.FC<ReportSectionProps> = ({
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const [listFilterType, setListFilterType] = useState<'all' | 'completed' | 'processing' | 'overdue_pending' | 'overdue_completed'>('all');
 
-    const [dailyStatsRecords, setDailyStatsRecords] = useState<RecordFile[]>([]);
+
 
     // --- NEW LOGIC FOR MAIN TABS (Đo đạc vs Lưu trữ) ---
     const allowedMainTabs = useMemo(() => {
@@ -459,18 +459,9 @@ const ReportSection: React.FC<ReportSectionProps> = ({
     const totalPages = Math.ceil(listFilteredRecords.length / itemsPerPage);
 
     // --- STATS CHO CÁC TAB ---
-    // Updated: Hỗ trợ lọc theo nhân viên khi ở tab Employee
+    // Optimized: Calculate general stats directly on filteredData, decoupling it from activeTab to prevent lag when switching tabs
     const generalStats = useMemo(() => {
-        let sourceData = filteredData;
-
-        // Nếu đang ở tab Thống kê theo ngày -> Lọc theo điều kiện của tab đó
-        if (activeTab === 'daily_stats') {
-            sourceData = dailyStatsRecords;
-        }
-        // Nếu đang ở tab Nhân viên và đã chọn nhân viên -> Lọc theo nhân viên đó
-        else if (activeTab === 'employee' && selectedEmpId) {
-            sourceData = filteredData.filter(r => r.assignedTo === selectedEmpId);
-        }
+        const sourceData = filteredData;
 
         const total = sourceData.length;
         // Tính cả SIGNED là completed để đồng bộ logic
@@ -503,7 +494,7 @@ const ReportSection: React.FC<ReportSectionProps> = ({
         const processing = total - completed - withdrawn;
         
         return { total, completed, withdrawn, overduePending, overdueCompleted, processing };
-    }, [filteredData, activeTab, selectedEmpId, dailyStatsRecords]);
+    }, [filteredData]);
 
     const handleQuickReport = (type: 'week' | 'month') => {
         const now = new Date();
@@ -770,8 +761,10 @@ const ReportSection: React.FC<ReportSectionProps> = ({
             </div>
 
             {/* TAB CONTENT */}
-            <div className="flex-1 overflow-hidden bg-slate-100 p-0">
-                {activeTab === 'list' && (
+            <div className="flex-1 overflow-hidden bg-slate-100 p-0 relative">
+                
+                {/* LIST TAB */}
+                <div className={`h-full ${activeTab === 'list' ? 'block' : 'hidden'}`}>
                     <div className="bg-white rounded-none h-full overflow-hidden flex flex-col animate-fade-in-up p-4">
                         {/* Thống kê nhanh danh sách hồ sơ */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 shrink-0 animate-fade-in">
@@ -938,13 +931,15 @@ const ReportSection: React.FC<ReportSectionProps> = ({
                             </div>
                         )}
                     </div>
-                )}
+                </div>
 
-                {activeTab === 'ward_stats' && (
+                {/* WARD STATS TAB */}
+                <div className={`h-full ${activeTab === 'ward_stats' ? 'block' : 'hidden'}`}>
                     <WardStatsView records={filteredData} />
-                )}
+                </div>
 
-                {activeTab === 'employee' && (
+                {/* EMPLOYEE STATS TAB */}
+                <div className={`h-full ${activeTab === 'employee' ? 'block' : 'hidden'}`}>
                     <EmployeeStatsView 
                         records={activeRecords}
                         employees={activeEmployees}
@@ -954,9 +949,10 @@ const ReportSection: React.FC<ReportSectionProps> = ({
                         setSelectedEmpId={setSelectedEmpId}
                         mainTab={mainTab}
                     />
-                )}
+                </div>
 
-                {activeTab === 'ai' && (
+                {/* AI TAB */}
+                <div className={`h-full ${activeTab === 'ai' ? 'block' : 'hidden'}`}>
                     <div className="h-full flex flex-col items-center p-4">
                         {/* AI Toolbar */}
                         <div className="w-full flex justify-between items-center mb-4 bg-white p-3 rounded-xl border border-gray-200 shadow-sm shrink-0">
@@ -996,31 +992,35 @@ const ReportSection: React.FC<ReportSectionProps> = ({
                             )}
                         </div>
                     </div>
-                )}
+                </div>
 
-                {activeTab === 'daily_stats' && (
+                {/* DAILY STATS TAB */}
+                <div className={`h-full ${activeTab === 'daily_stats' ? 'block' : 'hidden'}`}>
                     <DailyStatsView 
                         records={activeRecords} 
                         employees={activeEmployees} 
                         wards={wards} 
-                        onFilteredRecordsChange={setDailyStatsRecords}
                     />
-                )}
+                </div>
 
-                {activeTab === 'overdue' && (
+                {/* OVERDUE STATS TAB */}
+                <div className={`h-full ${activeTab === 'overdue' ? 'block' : 'hidden'}`}>
                     <OverdueStatsView 
                         records={filteredData}
                         employees={activeEmployees}
                     />
-                )}
+                </div>
 
-                {activeTab === 'revenue' && (
-                    <RevenueStatsView 
-                        records={filteredData}
-                        employees={employees}
-                        fromDate={fromDate}
-                        toDate={toDate}
-                    />
+                {/* REVENUE STATS TAB */}
+                {canViewRevenue && (
+                    <div className={`h-full ${activeTab === 'revenue' ? 'block' : 'hidden'}`}>
+                        <RevenueStatsView 
+                            records={filteredData}
+                            employees={employees}
+                            fromDate={fromDate}
+                            toDate={toDate}
+                        />
+                    </div>
                 )}
 
             </div>

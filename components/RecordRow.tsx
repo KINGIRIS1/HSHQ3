@@ -409,11 +409,34 @@ const RecordRow: React.FC<RecordRowProps> = ({
 };
 
 export default React.memo(RecordRow, (prevProps, nextProps) => {
+  // Deep-ish check for visibleColumns values since they are plain boolean objects
+  const visibleColumnsChanged = Object.keys(nextProps.visibleColumns).some(
+    key => prevProps.visibleColumns[key] !== nextProps.visibleColumns[key]
+  );
+
   return (
-    prevProps.record === nextProps.record &&
+    !visibleColumnsChanged &&
     prevProps.isSelected === nextProps.isSelected &&
-    prevProps.visibleColumns === nextProps.visibleColumns &&
     prevProps.isArchiveView === nextProps.isArchiveView &&
-    prevProps.employees.length === nextProps.employees.length
+    prevProps.employees.length === nextProps.employees.length &&
+    prevProps.canPerformAction === nextProps.canPerformAction &&
+    prevProps.record.id === nextProps.record.id &&
+    prevProps.record.status === nextProps.record.status &&
+    prevProps.record.code === nextProps.record.code &&
+    prevProps.record.customerName === nextProps.record.customerName &&
+    prevProps.record.phoneNumber === nextProps.record.phoneNumber &&
+    prevProps.record.assignedTo === nextProps.record.assignedTo &&
+    prevProps.record.mapSheet === nextProps.record.mapSheet &&
+    prevProps.record.landPlot === nextProps.record.landPlot &&
+    prevProps.record.measurementNumber === nextProps.record.measurementNumber &&
+    prevProps.record.excerptNumber === nextProps.record.excerptNumber &&
+    prevProps.record.receiptNumber === nextProps.record.receiptNumber &&
+    prevProps.record.hasDefect === nextProps.record.hasDefect &&
+    prevProps.record.archiveBatch === nextProps.record.archiveBatch &&
+    prevProps.record.isArchived === nextProps.record.isArchived &&
+    prevProps.record.resultReturnedDate === nextProps.record.resultReturnedDate &&
+    prevProps.record.reminderDate === nextProps.record.reminderDate &&
+    prevProps.record.deadline === nextProps.record.deadline &&
+    prevProps.record.receivedDate === nextProps.record.receivedDate
   );
 });

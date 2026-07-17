@@ -1,5 +1,5 @@
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { RecordFile, User, UserRole, RecordStatus, Employee } from '../types';
 import { removeVietnameseTones, isRecordOverdue, isRecordApproaching, isArchiveType, isMeasurementType, isRegType, getGcnWorkflowStepsHelper } from '../utils/appHelpers';
 import { REGISTRATION_PROCEDURES } from '../constants';
@@ -39,19 +39,48 @@ export const useRecordFilter = (
     const [warningFilter, setWarningFilter] = useState<'none' | 'overdue' | 'approaching'>('none');
     const [filterArchive, setFilterArchive] = useState<'all' | 'not_archived' | 'archived'>('all');
 
+    const filterRef = useRef({
+        filterProcedure,
+        filterStatus,
+        filterEmployee,
+        filterDate,
+        filterSpecificDate,
+        filterAssignedDate,
+        filterFromDate,
+        filterToDate,
+        warningFilter,
+        filterArchive
+    });
+
+    useEffect(() => {
+        filterRef.current = {
+            filterProcedure,
+            filterStatus,
+            filterEmployee,
+            filterDate,
+            filterSpecificDate,
+            filterAssignedDate,
+            filterFromDate,
+            filterToDate,
+            warningFilter,
+            filterArchive
+        };
+    });
+
     // Tự động xóa dữ liệu tìm kiếm và các bộ lọc khi chuyển view/tab (theo yêu cầu)
     useEffect(() => {
-        setSearchStates({});
-        setFilterProcedure('all');
-        setFilterStatus('all');
-        setFilterEmployee('all');
-        setFilterDate('');
-        setFilterSpecificDate('');
-        setFilterAssignedDate('');
-        setFilterFromDate('');
-        setFilterToDate('');
-        setWarningFilter('none');
-        setFilterArchive('all');
+        const current = filterRef.current;
+        setSearchStates(prev => Object.keys(prev).length > 0 ? {} : prev);
+        if (current.filterProcedure !== 'all') setFilterProcedure('all');
+        if (current.filterStatus !== 'all') setFilterStatus('all');
+        if (current.filterEmployee !== 'all') setFilterEmployee('all');
+        if (current.filterDate !== '') setFilterDate('');
+        if (current.filterSpecificDate !== '') setFilterSpecificDate('');
+        if (current.filterAssignedDate !== '') setFilterAssignedDate('');
+        if (current.filterFromDate !== '') setFilterFromDate('');
+        if (current.filterToDate !== '') setFilterToDate('');
+        if (current.warningFilter !== 'none') setWarningFilter('none');
+        if (current.filterArchive !== 'all') setFilterArchive('all');
     }, [currentView]);
     
     // Cập nhật type cho handoverTab để hỗ trợ 'returned'
@@ -107,6 +136,37 @@ export const useRecordFilter = (
     ].includes(currentView);
 
     // --- FILTER LOGIC ---
+    // Pre-compute director and leader IDs for fast O(1) Set lookups
+    const directorOrLeaderIds = useMemo(() => {
+        const ids = new Set<string>();
+        employees.forEach(emp => {
+            const dept = (emp.department || '').toLowerCase();
+            const pos = (emp.position || '').toLowerCase();
+            const isDirDept = dept.includes('ban giám đốc') || dept.includes('ban lãnh đạo');
+            const isDirPos = pos.includes('giám đốc') || pos.includes('phó giám đốc') || pos.includes('lãnh đạo');
+            const isLeaderPos = pos.includes('tổ trưởng') || pos.includes('tổ phó') || pos.includes('trưởng phòng') || pos.includes('trưởng nhóm') || pos.includes('nhóm trưởng');
+            if (isDirDept || isDirPos || isLeaderPos) {
+                ids.add(emp.id);
+            }
+        });
+        users.forEach(u => {
+            if (u.employeeId && (u.role === UserRole.TEAM_LEADER || u.role === UserRole.ADMIN)) {
+                ids.add(u.employeeId);
+            }
+        });
+        return ids;
+    }, [employees, users]);
+
+    // Pre-compute subadmin info once for O(1) checks
+    const subAdminEmp = useMemo(() => {
+        if (!currentUser || currentUser.role !== UserRole.SUBADMIN) return null;
+        return employees.find(e => e.id === currentUser.employeeId) || null;
+    }, [currentUser, employees]);
+
+    const subAdminDeptNorm = useMemo(() => {
+        return subAdminEmp?.department ? removeVietnameseTones(subAdminEmp.department.toLowerCase()) : '';
+    }, [subAdminEmp]);
+
     const activeTabRecords = useMemo(() => {
         const uniqueMap = new Map();
         records.forEach(r => { if(r.id) uniqueMap.set(r.id, r); });
@@ -116,36 +176,20 @@ export const useRecordFilter = (
         // --- HELPER STRATEGIES FOR SUBADMINS ---
         const isDirectorOrLeader = (employeeId: string | null | undefined) => {
             if (!employeeId) return false;
-            const emp = employees.find(e => e.id === employeeId);
-            if (emp) {
-                const dept = (emp.department || '').toLowerCase();
-                const pos = (emp.position || '').toLowerCase();
-                const isDirDept = dept.includes('ban giám đốc') || dept.includes('ban lãnh đạo');
-                const isDirPos = pos.includes('giám đốc') || pos.includes('phó giám đốc') || pos.includes('lãnh đạo');
-                const isLeaderPos = pos.includes('tổ trưởng') || pos.includes('tổ phó') || pos.includes('trưởng phòng') || pos.includes('trưởng nhóm') || pos.includes('nhóm trưởng');
-                if (isDirDept || isDirPos || isLeaderPos) return true;
-            }
-            const associatedUser = users.find(u => u.employeeId === employeeId);
-            if (associatedUser) {
-                if (associatedUser.role === UserRole.TEAM_LEADER || associatedUser.role === UserRole.ADMIN) {
-                    return true;
-                }
-            }
-            return false;
+            return directorOrLeaderIds.has(employeeId);
         };
 
-        const isSubAdminAllowedRecord = (r: RecordFile, emp: Employee) => {
-            if (!emp.department) return false;
-            const adminDept = removeVietnameseTones(emp.department.toLowerCase());
+        const isSubAdminAllowedRecord = (r: RecordFile) => {
+            if (!subAdminDeptNorm) return false;
             
             if (isArchiveType(r.recordType)) {
-                return adminDept.includes('luu tru') || adminDept.includes('van phong') || adminDept.includes('hanh chinh') || adminDept.includes('cong van');
+                return subAdminDeptNorm.includes('luu tru') || subAdminDeptNorm.includes('van phong') || subAdminDeptNorm.includes('hanh chinh') || subAdminDeptNorm.includes('cong van');
             }
             if (isRegType(r.recordType)) {
-                return adminDept.includes('dang ky') || adminDept.includes('cap giay');
+                return subAdminDeptNorm.includes('dang ky') || subAdminDeptNorm.includes('cap giay');
             }
             if (isMeasurementType(r.recordType)) {
-                return adminDept.includes('do dac') || adminDept.includes('do ve') || adminDept.includes('ky thuat') || adminDept.includes('to do') || adminDept.includes('dia chinh') || adminDept.includes('noi nghiep') || adminDept.includes('ngoai nghiep');
+                return subAdminDeptNorm.includes('do dac') || subAdminDeptNorm.includes('do ve') || subAdminDeptNorm.includes('ky thuat') || subAdminDeptNorm.includes('to do') || subAdminDeptNorm.includes('dia chinh') || subAdminDeptNorm.includes('noi nghiep') || subAdminDeptNorm.includes('ngoai nghiep');
             }
             return true;
         };
@@ -172,9 +216,8 @@ export const useRecordFilter = (
             
             // --- WORKFLOW CHECK AND SIGNING DEPT BOUNDS FOR SUBADMIN ---
             if (isCheckView || isPendingCheckView || isCompletedWorkView) {
-                const subAdminEmp = employees.find(e => e.id === currentUser.employeeId);
                 if (subAdminEmp) {
-                    result = result.filter(r => isSubAdminAllowedRecord(r, subAdminEmp));
+                    result = result.filter(r => isSubAdminAllowedRecord(r));
                 }
             }
         }

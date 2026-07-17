@@ -8,23 +8,8 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 
-let resolvedFilename = '';
-try {
-  resolvedFilename = __filename;
-} catch (e) {
-  if (typeof import.meta !== 'undefined' && import.meta.url) {
-    resolvedFilename = fileURLToPath(import.meta.url);
-  }
-}
-
-let resolvedDirname = '';
-try {
-  resolvedDirname = __dirname;
-} catch (e) {
-  if (resolvedFilename) {
-    resolvedDirname = path.dirname(resolvedFilename);
-  }
-}
+const resolvedFilename = typeof __filename !== 'undefined' ? __filename : '';
+const resolvedDirname = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
 
 const server = jsonServer.create();
 let dbFile = process.env.DB_PATH || path.join(process.cwd(), 'server/db.json');
