@@ -4,8 +4,8 @@ node_modules
 /.pnpm-store
 
 # Production build output
-dist
-/dist
+# dist
+# /dist
 
 # Editor and IDE files
 .vscode

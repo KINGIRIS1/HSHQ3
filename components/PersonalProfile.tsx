@@ -1397,19 +1397,8 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                     <th className="p-3 w-[110px] text-left">{renderSortHeader('Loại hồ sơ', 'recordType', 'left')}</th>
                                     <th className="p-3 w-[130px] text-center">{renderSortHeader('Ngày giao việc', 'assignedDate', 'center')}</th>
                                     
-                                    {/* Conditional columns for Ngày trình / Ngày trình kiểm tra */}
-                                    {activeTab === 'pending_check' && (
-                                        <th className="p-3 w-[140px] text-center">{renderSortHeader('Ngày trình kiểm tra', 'pendingCheckDate', 'center')}</th>
-                                    )}
-                                    {activeTab === 'pending_sign' && (
-                                        <th className="p-3 w-[110px] text-center">{renderSortHeader('Ngày trình', 'submissionDate', 'center')}</th>
-                                    )}
-                                    {activeTab === 'finished' && (
-                                        <>
-                                            <th className="p-3 w-[140px] text-center">{renderSortHeader('Ngày trình kiểm tra', 'pendingCheckDate', 'center')}</th>
-                                            <th className="p-3 w-[110px] text-center">{renderSortHeader('Ngày trình', 'submissionDate', 'center')}</th>
-                                        </>
-                                    )}
+                                    {/* Conditional columns for Ngày trình / Ngày trình kiểm tra hidden as requested */}
+
 
                                     <th className="p-3 w-[150px] text-center">
                                         {activeTab === 'reminder' 
@@ -1451,19 +1440,8 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                             <td className="p-3 text-gray-600 align-middle text-left"><div className="truncate text-left" title={r.recordType || ''}>{getShortRecordType(r.recordType || undefined)}</div></td>
                                             <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.assignedDate || undefined)}</td>
                                             
-                                            {/* Conditional data cells for Ngày trình / Ngày trình kiểm tra */}
-                                            {activeTab === 'pending_check' && (
-                                                <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.pendingCheckDate || undefined)}</td>
-                                            )}
-                                            {activeTab === 'pending_sign' && (
-                                                <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.submissionDate || undefined)}</td>
-                                            )}
-                                            {activeTab === 'finished' && (
-                                                <>
-                                                    <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.pendingCheckDate || undefined)}</td>
-                                                    <td className="p-3 text-gray-600 align-middle text-center">{formatDate(r.submissionDate || undefined)}</td>
-                                                </>
-                                            )}
+                                            {/* Conditional data cells for Ngày trình / Ngày trình kiểm tra hidden as requested */}
+
                                             
                                             <td className="p-3 align-middle text-center">
                                                 <div className="flex justify-center">
@@ -1716,24 +1694,7 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                             </div>
                                         )}
 
-                                        {activeTab === 'pending_check' && r.pendingCheckDate && (
-                                            <div>
-                                                <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Ngày trình KT</span>
-                                                <span className="font-semibold text-slate-700 block">
-                                                    {formatDate(r.pendingCheckDate || undefined)}
-                                                </span>
-                                            </div>
-                                        )}
-
-                                        {activeTab === 'pending_sign' && r.submissionDate && (
-                                            <div>
-                                                <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Ngày trình ký</span>
-                                                <span className="font-semibold text-slate-700 block">
-                                                    {formatDate(r.submissionDate || undefined)}
-                                                </span>
-                                            </div>
-                                        )}
-
+                                        {/* Mobile view Ngày trình / Ngày trình kiểm tra hidden as requested */}
                                         {activeTab === 'pending_sign' && (
                                             <div>
                                                 <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Lãnh đạo ký duyệt</span>
@@ -1743,26 +1704,6 @@ const PersonalProfile: React.FC<PersonalProfileProps> = ({ user, records, isDire
                                             </div>
                                         )}
 
-                                        {activeTab === 'finished' && (
-                                            <>
-                                                {r.pendingCheckDate && (
-                                                    <div>
-                                                        <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Ngày trình KT</span>
-                                                        <span className="font-semibold text-slate-700 block">
-                                                            {formatDate(r.pendingCheckDate || undefined)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {r.submissionDate && (
-                                                    <div>
-                                                        <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Ngày trình ký</span>
-                                                        <span className="font-semibold text-slate-700 block">
-                                                            {formatDate(r.submissionDate || undefined)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
                                     </div>
 
                                     {/* Action row footer */}
