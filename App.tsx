@@ -450,6 +450,7 @@ function App() {
           if (result.success) {
               setToast({ type: 'success', message: `Đã cập nhật thành công ${result.count} hồ sơ.` });
               loadData();
+              setRefreshCounter(prev => prev + 1);
               return true;
           } else {
               setToast({ type: 'error', message: "Lỗi khi cập nhật dữ liệu. Vui lòng thử lại." });
@@ -1029,6 +1030,7 @@ function App() {
                   await updateRecordApi(withHistory);
                   setToast({ type: 'success', message: successMsg });
                   loadData();
+                  setRefreshCounter(prev => prev + 1);
                   return;
               }
 
@@ -1212,6 +1214,7 @@ function App() {
           setIsAddToBatchModalOpen(false);
           setSelectedRecordIds(new Set());
           loadData();
+          setRefreshCounter(prev => prev + 1);
       } catch (error) {
           console.error(error);
           setToast({ type: 'error', message: 'Lỗi khi chốt đợt bàn giao và xuất file.' });
@@ -1264,6 +1267,7 @@ function App() {
               setToast({ type: 'success', message: `Đã ký duyệt ${updates.length} hồ sơ thành công và chuyển sang bước chờ giao 1 cửa!` });
               setSelectedRecordIds(new Set());
               loadData();
+              setRefreshCounter(prev => prev + 1);
           } catch (error) {
               console.error("Lỗi khi ký duyệt đồng loạt:", error);
               setToast({ type: 'error', message: 'Có lỗi xảy ra khi ký duyệt đồng loạt.' });
@@ -1284,6 +1288,7 @@ function App() {
       setIsRejectReasonModalOpen(false);
       setRejectRecordsTarget([]);
       loadData();
+      setRefreshCounter(prev => prev + 1);
   }, [loadData]);
 
   const handleOpenReturnModal = useCallback((record: RecordFile) => {
@@ -1310,7 +1315,9 @@ function App() {
       setToast({ type: 'success', message: `Hồ sơ ${returnRecord.code} đã được bàn giao kết quả và cập nhật biên lai/hóa đơn!` });
       setIsReturnModalOpen(false);
       setReturnRecord(null);
-  }, [returnRecord]);
+      loadData();
+      setRefreshCounter(prev => prev + 1);
+  }, [returnRecord, loadData]);
 
   const renderGcnWorkflowModals = () => {
       return (
@@ -1921,6 +1928,7 @@ function App() {
                     setSubmitTargetRecords([]);
                     setSelectedRecordIds(new Set());
                     loadData();
+                    setRefreshCounter(prev => prev + 1);
                 } catch (error) {
                     console.error("Lỗi khi trình ký:", error);
                     setToast({ type: 'error', message: 'Có lỗi xảy ra khi trình ký.' });
@@ -1976,6 +1984,7 @@ function App() {
                     setSubmitTargetRecords([]);
                     setSelectedRecordIds(new Set());
                     loadData();
+                    setRefreshCounter(prev => prev + 1);
                 } catch (error) {
                     console.error("Lỗi khi trình kiểm tra:", error);
                     setToast({ type: 'error', message: 'Có lỗi xảy ra khi trình kiểm tra.' });
@@ -2069,6 +2078,7 @@ function App() {
                     setAssignNextStepTargetRecord(null);
                     setAssignNextStepLabel('');
                     loadData();
+                    setRefreshCounter(prev => prev + 1);
                 } catch (error) {
                     console.error("Lỗi khi chuyển bước với nhân viên thụ lý:", error);
                     setToast({ type: 'error', message: 'Có lỗi xảy ra khi chuyển bước.' });

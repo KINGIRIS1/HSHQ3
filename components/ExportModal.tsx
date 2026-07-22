@@ -102,10 +102,9 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
 
   // Filter the list of records to only include those belonging to the active group of the current view
   const groupFilteredRecords = useMemo(() => {
-    if (!currentView) return records;
-    const activeGroup = getViewActiveGroup(currentView);
-    return records.filter(r => getRecordGroup(r) === activeGroup);
-  }, [records, currentView]);
+    // Đã tắt bộ lọc theo chuyên môn để hiển thị toàn bộ danh sách hồ sơ
+    return records;
+  }, [records]);
 
   const getRecordDepartment = (r: RecordFile): string => {
     if (r.assignedTo) {
@@ -264,12 +263,23 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
 
   // Tự động chọn đợt mới nhất khi mở modal hoặc khi danh sách đợt thay đổi
   useEffect(() => {
-    if (isOpen && batchOptions.length > 0) {
-        setSelectedBatchKey(batchOptions[0].key);
-    } else {
+    if (isOpen) {
+      if (batchOptions.length > 0) {
+        // Chỉ đặt mặc định nếu chưa chọn đợt nào, hoặc đợt đã chọn trước đó không còn tồn tại
+        const exists = batchOptions.some(opt => opt.key === selectedBatchKey);
+        if (!selectedBatchKey || !exists) {
+          setSelectedBatchKey(batchOptions[0].key);
+          setSelectedWard('all');
+        }
+      } else {
         setSelectedBatchKey('');
+        setSelectedWard('all');
+      }
+    } else {
+      setSelectedBatchKey('');
+      setSelectedWard('all');
     }
-  }, [isOpen, batchOptions]);
+  }, [isOpen, batchOptions, selectedBatchKey]);
 
   const formatDate = (d: string) => {
       const date = new Date(d);
