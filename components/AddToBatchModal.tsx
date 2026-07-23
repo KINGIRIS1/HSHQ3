@@ -89,10 +89,8 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
       const activeGroup = (targetRecords && targetRecords.length > 0)
           ? getRecordGroup(targetRecords[0])
           : (currentView ? getViewActiveGroup(currentView) : 'measurement');
-      const isReturnedMode = targetRecords.length > 0 && targetRecords.every(r => r.status === RecordStatus.RETURNED);
       return records.filter(r => 
-          getRecordGroup(r) === activeGroup && 
-          (isReturnedMode ? r.status === RecordStatus.RETURNED : r.status !== RecordStatus.RETURNED)
+          getRecordGroup(r) === activeGroup
       );
   }, [records, currentView, targetRecords]);
 
@@ -188,14 +186,10 @@ const AddToBatchModal: React.FC<AddToBatchModalProps> = ({
       const isReturnedMode = targetRecords.length > 0 && targetRecords.every(r => r.status === RecordStatus.RETURNED);
       
       filteredRecordsForBatches.forEach(r => {
-          const matchStatus = isReturnedMode 
-              ? (r.status === RecordStatus.RETURNED)
-              : (r.status === RecordStatus.HANDOVER || r.status === RecordStatus.SIGNED || r.status === RecordStatus.WITHDRAWN || r.status === RecordStatus.REJECTED);
-              
           const batchVal = isReturnedMode ? r.archiveBatch : r.exportBatch;
           const dateVal = isReturnedMode ? r.archiveDate : r.exportDate;
           
-          if (matchStatus && batchVal && dateVal) {
+          if (batchVal && dateVal) {
               const datePart = dateVal.split('T')[0];
               const key = `${datePart}_${batchVal}`;
               

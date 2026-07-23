@@ -1238,7 +1238,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                 </>
               )}
 
-              {isHandoverAny && props.handoverTab === "today" && (
+              {isHandoverAny && (props.handoverTab === "today" || props.handoverTab === "history") && (
                 <>
                   <button
                     onClick={() => {
@@ -1256,7 +1256,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                     <FileOutput size={16} /> Xuất DS
                   </button>
 
-                  {tabAllowedCanPerformAction && props.selectedRecordIds.size > 0 && (
+                  {props.handoverTab === "today" && tabAllowedCanPerformAction && props.selectedRecordIds.size > 0 && (
                     <button
                       onClick={() => {
                         props.setIsAddToBatchModalOpen(true);

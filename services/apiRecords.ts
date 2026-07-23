@@ -207,12 +207,15 @@ export const getNextGlobalRecordCode = async (dateStr: string, wardName?: string
     const prefix = datePrefix;
 
     let suffix = '';
+    // Phương án 2: Tắt hoàn toàn việc sinh mã kèm theo viết tắt của xã ở cuối
+    /*
     if (wardName) {
         const abbr = getShortCode(wardName);
         if (abbr && abbr !== 'CT') {
             suffix = abbr;
         }
     }
+    */
 
     if (!isConfigured) {
         return `${prefix}-${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}${suffix}`;

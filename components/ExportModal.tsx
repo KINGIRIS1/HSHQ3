@@ -162,49 +162,52 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
 
     groupFilteredRecords.forEach(r => {
       if (type === 'handover') {
-          // Logic cho Giao 1 cửa
-          if (r.status === RecordStatus.HANDOVER || r.status === RecordStatus.SIGNED || r.status === RecordStatus.WITHDRAWN || r.status === RecordStatus.REJECTED) {
+          // Logic cho Giao 1 cửa: Cho phép chọn đợt dựa vào exportBatch và exportDate của bất kỳ hồ sơ nào có thông tin này, không phụ thuộc trạng thái hiện tại
+          if (r.exportBatch && r.exportDate) {
               if (selectedDept !== 'all' && getRecordDepartment(r) !== selectedDept) {
                   return;
               }
-              if (r.exportBatch && r.exportDate) {
-                  const dateStr = r.exportDate.split('T')[0];
-                  const key = `${dateStr}_${r.exportBatch}`;
-                  if (!batches[key]) {
-                      batches[key] = { date: dateStr, batch: r.exportBatch, count: 0 };
-                  }
-                  batches[key].count++;
-              } else if (r.status === RecordStatus.HANDOVER) {
-                  // Fallback cho những hồ sơ thiếu exportBatch (Chưa chốt đợt hoặc nhập từ Excel)
-                  const dateStr = (r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
-                  const key = `${dateStr}_NOT_BATCHED`;
-                  if (!batches[key]) {
-                      batches[key] = { date: dateStr, batch: 'Lẻ (Chưa tạo đợt)', count: 0 };
-                  }
-                  batches[key].count++;
+              const dateStr = r.exportDate.split('T')[0];
+              const key = `${dateStr}_${r.exportBatch}`;
+              if (!batches[key]) {
+                  batches[key] = { date: dateStr, batch: r.exportBatch, count: 0 };
               }
+              batches[key].count++;
+          } else if (r.status === RecordStatus.HANDOVER) {
+              // Chưa gán đợt nhưng đang ở trạng thái bàn giao (Lẻ)
+              if (selectedDept !== 'all' && getRecordDepartment(r) !== selectedDept) {
+                  return;
+              }
+              const dateStr = (r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
+              const key = `${dateStr}_NOT_BATCHED`;
+              if (!batches[key]) {
+                  batches[key] = { date: dateStr, batch: 'Lẻ (Chưa tạo đợt)', count: 0 };
+              }
+              batches[key].count++;
           }
       } else if (type === 'returned') {
-          // Logic cho Trả kết quả (TKQ)
-          if (r.status === RecordStatus.RETURNED) {
+          // Logic cho Trả kết quả (TKQ): Dựa vào archiveBatch và archiveDate, không phụ thuộc trạng thái hiện tại
+          if (r.archiveBatch && r.archiveDate) {
               if (selectedDept !== 'all' && getRecordDepartment(r) !== selectedDept) {
                   return;
               }
-              if (r.exportBatch && r.exportDate) {
-                  const dateStr = r.exportDate.split('T')[0];
-                  const key = `${dateStr}_${r.exportBatch}`;
-                  if (!batches[key]) {
-                      batches[key] = { date: dateStr, batch: r.exportBatch, count: 0 };
-                  }
-                  batches[key].count++;
-              } else {
-                  const dateStr = (r.resultReturnedDate || r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
-                  const key = `${dateStr}_NOT_BATCHED`;
-                  if (!batches[key]) {
-                      batches[key] = { date: dateStr, batch: 'Lẻ (Chưa tạo đợt)', count: 0 };
-                  }
-                  batches[key].count++;
+              const dateStr = r.archiveDate.split('T')[0];
+              const key = `${dateStr}_${r.archiveBatch}`;
+              if (!batches[key]) {
+                  batches[key] = { date: dateStr, batch: r.archiveBatch, count: 0 };
               }
+              batches[key].count++;
+          } else if (r.status === RecordStatus.RETURNED) {
+              // Chưa gán đợt nhưng đang ở trạng thái Đã trả KQ (Lẻ)
+              if (selectedDept !== 'all' && getRecordDepartment(r) !== selectedDept) {
+                  return;
+              }
+              const dateStr = (r.resultReturnedDate || r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
+              const key = `${dateStr}_NOT_BATCHED`;
+              if (!batches[key]) {
+                  batches[key] = { date: dateStr, batch: 'Lẻ (Chưa tạo đợt)', count: 0 };
+              }
+              batches[key].count++;
           }
       } else if (type === 'check_list') {
           // Logic cho Trình Ký: Dựa vào ngày tiếp nhận (receivedDate) để gom nhóm
@@ -320,16 +323,25 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, records, war
         recordsToExport = groupFilteredRecords.filter(r => {
             const targetWard = r.handoverWard || r.ward;
             const matchWard = selectedWard === 'all' || targetWard === selectedWard;
-            const matchStatus = type === 'returned' 
-                ? r.status === RecordStatus.RETURNED 
-                : (r.status === RecordStatus.HANDOVER || r.status === RecordStatus.SIGNED || r.status === RecordStatus.WITHDRAWN || r.status === RecordStatus.REJECTED);
             
-            if (batchStr === 'NOT_BATCHED') {
-                const rDateObj = (r.resultReturnedDate || r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
-                return matchStatus && !r.exportBatch && rDateObj === dateStr && matchWard;
-            } else {
-                const batchNum = parseInt(batchStr);
-                return r.exportDate?.startsWith(dateStr) && r.exportBatch === batchNum && matchWard;
+            if (type === 'handover') {
+                if (batchStr === 'NOT_BATCHED') {
+                    const matchStatus = r.status === RecordStatus.HANDOVER || r.status === RecordStatus.SIGNED || r.status === RecordStatus.WITHDRAWN || r.status === RecordStatus.REJECTED;
+                    const rDateObj = (r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
+                    return matchStatus && !r.exportBatch && rDateObj === dateStr && matchWard;
+                } else {
+                    const batchNum = parseInt(batchStr);
+                    return r.exportDate?.startsWith(dateStr) && r.exportBatch === batchNum && matchWard;
+                }
+            } else { // type === 'returned'
+                if (batchStr === 'NOT_BATCHED') {
+                    const matchStatus = r.status === RecordStatus.RETURNED;
+                    const rDateObj = (r.resultReturnedDate || r.completedDate || r.receivedDate || new Date().toISOString()).split('T')[0];
+                    return matchStatus && !r.archiveBatch && rDateObj === dateStr && matchWard;
+                } else {
+                    const batchNum = parseInt(batchStr);
+                    return r.archiveDate?.startsWith(dateStr) && r.archiveBatch === batchNum && matchWard;
+                }
             }
         });
 
